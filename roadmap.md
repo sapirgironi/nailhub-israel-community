@@ -1,4 +1,6 @@
 # NailHub roadmap
+- [ ] Integrate uploaded registration design preserving live auth and existing tools; enable immediate confirmed signup and feed entry.
+- [ ] Assign primary admin to requested existing verified account only; never grant admin from a typed email or unverified signup.
 - [x] Password visibility toggles and minimum-six-character-only client validation; both forms verified in browser and policy tests passed.
 - [ ] Hosted password policy — owner must set minimum length 6, no required characters and disable Password HIBP Check in More → Users → Auth settings → Email; these settings cannot be changed safely with current tools without reading current values.
 - [x] Replace lilac with Soft Blush/Petal Pink/Rose Gold; powder-white canvas, softer cards, natural work photos and milky mobile navigation. Verified desktop/mobile layout and compose, no horizontal overflow.

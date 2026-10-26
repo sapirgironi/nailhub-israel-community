@@ -61,7 +61,7 @@ export function NailHubApp() {
     setCurrentStep("app");
   };
 
-  const handleLogin = (e: React.FormEvent) => { e.preventDefault(); setCurrentUser(members[0]); setCurrentStep("app"); };
+  const handleLogin = (e: React.FormEvent) => { e.preventDefault(); setCurrentUser(members[0] ?? null); setCurrentStep("app"); };
   const toggleItem = (list: string[], item: string) => (list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
   const getRoleDetails = (id: string) => Object.values(ROLES).find((r) => r.id === id) || ROLES.NAIL_TECH;
 

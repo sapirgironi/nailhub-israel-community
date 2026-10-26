@@ -4,6 +4,7 @@ import { HubShell, type HubSection } from './HubShell';
 import { HubWorkspace } from './HubWorkspace';
 import { Link } from '@tanstack/react-router';
 import { Button } from './ui/button';
+import {hebrewError} from '@/lib/hebrew-errors';
 import { phoneText, plainText } from '@/lib/input-security';
 import { 
   Sparkles, 
@@ -53,7 +54,7 @@ const ROLES = {
   },
   CLIENT: { 
     id: 'client', 
-    label: 'לקוחה VIP', 
+    label: 'לקוחה מועדפת', 
     badge: 'bg-accent text-foreground border-border shadow-soft',
     icon: Award
   }
@@ -156,7 +157,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
       setGateError('');
       setCurrentStep('onboarding');
     } else {
-      setGateError('קוד גישה שגוי ✨ הגישה כרגע היא למוזמנות פיילוט VIP בלבד.');
+      setGateError('קוד גישה שגוי ✨ הגישה כרגע היא למוזמנות שלב ההרצה בלבד.');
     }
   };
 
@@ -165,7 +166,10 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     if (![formData.fullName, formData.businessName, formData.city].every(v => plainText(150).safeParse(v).success) || !phoneText.safeParse(formData.phone).success) {
       setAuthError('יש להזין טקסט רגיל ומספר טלפון תקין'); return;
     }
-    setAuthError(''); setAuthLoading(true);
+    setAuthError('');
+    if (authPassword.length < 6) {setAuthError(hebrewError({code:'weak_password'}));return;}
+    setAuthLoading(true);
+    try {
     const { data, error } = await supabase.auth.signUp({
       email: authEmail.trim(), password: authPassword,
       options: {
@@ -177,16 +181,25 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
       },
     });
     setAuthLoading(false);
-    if (error) return setAuthError(error.message.includes('registered') ? 'כתובת האימייל כבר רשומה. נסי להתחבר.' : 'ההרשמה נכשלה: ' + error.message);
+    if (error) return setAuthError(hebrewError(error, 'ההרשמה לא הושלמה. נסי שוב בעוד כמה רגעים.'));
+    if (data.user?.identities?.length === 0) return setAuthError(hebrewError({code:'email_exists'}));
     if (!data.session) { setAuthInfo('נשלח אלייך מייל אימות 💌 לחצי על הקישור במייל ואז התחברי.'); setCurrentStep('login'); }
+    } catch(error) {setAuthError(hebrewError(error));} finally {setAuthLoading(false);}
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(''); setAuthLoading(true);
+    try {
     const { error } = await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
     setAuthLoading(false);
-    if (error) setAuthError(error.message.includes('confirm') ? 'יש לאמת את כתובת האימייל לפני ההתחברות.' : 'אימייל או סיסמה שגויים.');
+    if (error) setAuthError(hebrewError(error));
+    } catch(error) {setAuthError(hebrewError(error));} finally {setAuthLoading(false);}
+  };
+
+  const handleSignOut = async () => {
+    try {const {error}=await supabase.auth.signOut();if(error)setAuthError(hebrewError(error));}
+    catch(error){setAuthError(hebrewError(error));}
   };
 
   const toggleItem = (list: string[], item: string) => {
@@ -199,7 +212,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   };
 
   // ==========================================
-  // מסך 1: שער כניסה VIP (יוקרתי וזוהר)
+  // מסך 1: שער כניסה נבחרות (יוקרתי וזוהר)
   // ==========================================
   if (currentStep === 'gate') {
     return (
@@ -208,7 +221,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
         <div className="absolute bottom-10 left-10 w-80 h-80 bg-accent rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-lg shadow-2xl shadow-soft p-8 md:p-10 border border-border relative z-10">
-          <div className="text-center mb-8">
+          <div className="text-right mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 text-primary-foreground rounded-3xl mb-4 shadow-lg shadow-soft transform rotate-2 hover:rotate-0 transition duration-300">
               <Sparkles className="w-10 h-10 animate-pulse" />
             </div>
@@ -220,8 +233,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
             </p>
           </div>
 
-          <div className=" border border-border rounded-2xl p-4 mb-6 text-center text-xs text-primary leading-relaxed font-medium shadow-sm">
-            ברוכה הבאה למרחב המקצועי שלך ✨ הכניסה בשלב זה היא בהזמנה אישית בלבד לחברות VIP.
+          <div className=" border border-border rounded-2xl p-4 mb-6 text-right text-xs text-primary leading-relaxed font-medium shadow-sm">
+            ברוכה הבאה למרחב המקצועי שלך ✨ הכניסה בשלב זה היא בהזמנה אישית בלבד לחברות מוזמנות.
           </div>
 
           <form onSubmit={handleVerifyInvite} className="space-y-4">
@@ -231,13 +244,13 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                 type="text"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
-                placeholder="הזיני קוד (למשל: NAILVIP)"
-                className="w-full px-4 py-3.5 rounded-2xl border border-border bg-card focus:bg-card focus:ring-2 focus:ring-ring focus:border-border outline-none text-center font-mono text-base tracking-widest uppercase shadow-sm transition"
+                placeholder="הזיני את קוד ההזמנה שקיבלת"
+                className="w-full px-4 py-3.5 rounded-2xl border border-border bg-card focus:bg-card focus:ring-2 focus:ring-ring focus:border-border outline-none text-right font-mono text-base tracking-widest uppercase shadow-sm transition"
               />
             </div>
             
             {gateError && (
-              <p className="text-xs text-primary font-semibold text-center bg-accent py-2 rounded-xl border border-border">
+              <p className="text-xs text-primary font-semibold text-right bg-accent py-2 rounded-xl border border-border">
                 {gateError}
               </p>
             )}
@@ -251,7 +264,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
             </Button>
           </form>
 
-          <div className="mt-8 text-center pt-4 border-t border-border">
+          <div className="mt-8 text-right pt-4 border-t border-border">
             <Button 
               onClick={() => setCurrentStep('login')}
               className="text-xs font-bold text-primary hover:text-primary transition inline-flex items-center gap-1.5"
@@ -272,7 +285,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 font-sans text-right" dir="rtl">
         <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-lg shadow-2xl shadow-soft p-8 md:p-10 border border-border">
-          <div className="text-center mb-6">
+          <div className="text-right mb-6">
             <h1 className="text-2xl font-black text-foreground">היי, כיף שחזרת! 💖</h1>
             <p className="text-xs text-foreground mt-1">הזיני אימייל וסיסמה לכניסה לחשבון</p>
           </div>
@@ -280,14 +293,14 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5">אימייל *</label>
-              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-left text-sm bg-accent" dir="ltr" />
+              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
             </div>
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5">סיסמה *</label>
-              <input type="password" required minLength={6} autoComplete="current-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-left text-sm bg-accent" dir="ltr" />
+              <input type="password" required minLength={6} autoComplete="current-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
             </div>
-            {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-center">{authInfo}</p>}
-            {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-center">{authError}</p>}
+            {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-right">{authInfo}</p>}
+            {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}
             <Button
               type="submit"
               className="w-full bg-accent hover:bg-accent text-primary-foreground font-bold py-3.5 rounded-2xl transition shadow-md text-sm"
@@ -296,7 +309,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-right">
             <Button 
               onClick={() => setCurrentStep('gate')}
               className="text-xs text-foreground hover:text-foreground font-medium"
@@ -330,14 +343,14 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
           <form onSubmit={handleCompleteRegistration} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div>
               <label className="block text-xs font-bold text-foreground mb-1.5">אימייל *</label>
-              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-left text-sm bg-accent" dir="ltr" />
+              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
             </div>
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5">סיסמה *</label>
-              <input type="password" required minLength={6} autoComplete="new-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-left text-sm bg-accent" dir="ltr" />
+              <input type="password" required minLength={6} autoComplete="new-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
             </div>
-            {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-center">{authInfo}</p>}
-            {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-center">{authError}</p>}</div>
+            {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-right">{authInfo}</p>}
+            {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1">שם מלא *</label>
@@ -381,8 +394,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="050-0000000"
-                  className="w-full px-4 py-2.5 rounded-xl border border-border focus:ring-2 focus:ring-ring outline-none text-xs text-left font-mono bg-accent"
-                  dir="ltr"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border focus:ring-2 focus:ring-ring outline-none text-xs text-right font-mono bg-accent"
+                  dir="rtl"
                 />
               </div>
             </div>
@@ -496,7 +509,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   });
 
   return (
-    <HubShell section={section} name={currentUser?.fullName} onSignOut={() => supabase.auth.signOut()}>
+    <HubShell section={section} name={currentUser?.fullName} onSignOut={handleSignOut}>
+        {authError && <p role="alert" className="text-right text-sm text-destructive mb-4">{authError}</p>}
         {activeTab === 'directory' && (
           <div className="space-y-6">
             
@@ -696,7 +710,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                 בקשת שדרוג תפקיד (מדריכה / ספקית) ✨
               </Button>
               <Button
-                onClick={() => supabase.auth.signOut()}
+                onClick={handleSignOut}
                 className="px-5 py-3 border border-border text-foreground hover:text-primary rounded-2xl text-xs transition font-bold"
               >
                 התנתקות
@@ -718,7 +732,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
             </div>
 
             {roleChangeSuccess ? (
-              <div className="text-center py-6">
+              <div className="text-right py-6">
                 <div className="w-14 h-14 bg-accent text-primary rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
                   <Sparkles className="w-7 h-7" />
                 </div>
@@ -742,7 +756,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                   const reason = plainText(2000).safeParse(roleChangeData.reason);
                   if (!reason.success) { alert('יש להזין טקסט רגיל בלבד, עד 2000 תווים'); return; }
                   supabase.from('role_change_requests').insert({ user_id: currentUser.id, current_role: currentUser.role, requested_role: roleChangeData.requestedRole, reason: reason.data })
-                    .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else alert('שליחת הבקשה נכשלה'); });
+                    .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else alert(hebrewError(error, 'שליחת הבקשה נכשלה. נסי שוב.')); }).catch(error => alert(hebrewError(error)));
                 }} 
                 className="space-y-4"
               >

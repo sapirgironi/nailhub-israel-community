@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Copy, Check } from "lucide-react";
 import { draftPost } from "@/lib/post-draft.functions";
+import {hebrewError} from '@/lib/hebrew-errors';
+import {Button} from './ui/button';
 import { plainText } from '@/lib/input-security';
 
 const TONES = ["מקצועי", "חם ואישי", "מעורר השראה"];
@@ -22,9 +24,9 @@ export function PostDraftWriter() {
     setLoading(true); setError("");
     try {
       const res = await run({ data: { description: validated.data, tone } });
-      if (res.error) setError(res.error); else setDraft(res.draft);
+      if (res.error) setError(hebrewError(res.error, "יצירת הטיוטה נכשלה. נסי שוב בעוד רגע.")); else setDraft(res.draft);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "יצירת הטיוטה נכשלה");
+      setError(hebrewError(err, "יצירת הטיוטה נכשלה. נסי שוב בעוד רגע."));
     } finally { setLoading(false); }
   };
 
@@ -41,21 +43,21 @@ export function PostDraftWriter() {
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs font-bold text-muted-foreground">סגנון:</span>
           {TONES.map((t) => (
-            <button type="button" key={t} onClick={() => setTone(t)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${tone === t ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:bg-accent"}`}>{t}</button>
+            <Button type="button" key={t} onClick={() => setTone(t)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${tone === t ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:bg-accent"}`}>{t}</Button>
           ))}
         </div>
-        <button disabled={loading} className="w-full bg-rose-glam text-primary-foreground font-extrabold py-3.5 rounded-2xl text-sm shadow-glow disabled:opacity-60 inline-flex items-center justify-center gap-2">
+        <Button disabled={loading} className="w-full bg-rose-glam text-primary-foreground font-extrabold py-3.5 rounded-2xl text-sm shadow-glow disabled:opacity-60 inline-flex items-center justify-center gap-2">
           <Sparkles className="w-4 h-4" />{loading ? "כותבת לך טיוטה..." : "יצירת טיוטת פוסט"}
-        </button>
+        </Button>
       </form>
-      {error && <p className="text-xs text-destructive bg-accent rounded-xl p-3 text-center">{error}</p>}
+      {error && <p className="text-xs text-destructive bg-accent rounded-xl p-3 text-right">{error}</p>}
       {draft && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-muted-foreground">הטיוטה שלך (אפשר לערוך):</span>
-            <button onClick={() => { navigator.clipboard.writeText(draft); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-              className="inline-flex items-center gap-1 text-xs font-bold text-primary">{copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copied ? "הועתק" : "העתקה"}</button>
+            <Button onClick={async () => { try {await navigator.clipboard.writeText(draft); setCopied(true); setTimeout(() => setCopied(false), 2000);} catch(err) {setError(hebrewError(err, "לא ניתן להעתיק כרגע. נסי שוב."));} }}
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary">{copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copied ? "הועתק" : "העתקה"}</Button>
           </div>
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={12} className="w-full px-4 py-3 rounded-2xl border border-border bg-muted text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring" />
         </div>

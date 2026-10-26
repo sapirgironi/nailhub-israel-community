@@ -38,7 +38,7 @@ function BoardsPage() {
       <div className="mb-6"><h1 className="text-2xl font-black mb-4">לוחות הקהילה</h1>
           <div className="flex bg-muted p-1 rounded-2xl text-xs font-bold">
             <Button onClick={() => setTab("models")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "models" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><Users className="w-4 h-4" />לוח מודליסטיות</span></Button>
-            <Button onClick={() => setTab("jobs")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "jobs" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><Briefcase className="w-4 h-4" />דרושות & השכרת עמדות</span></Button>
+            <Button onClick={() => setTab("jobs")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "jobs" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><Briefcase className="w-4 h-4" />דרושות והשכרת עמדות</span></Button>
           </div>
       </div>
       <div>{tab === "models" ? <ModelsBoard /> : <JobsBoard />}</div>
@@ -128,7 +128,7 @@ function ModelsBoard() {
             <div key={p.id} className="bg-card rounded-2xl border border-border p-5 shadow-soft flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full">{p.treatment_type}</span>
-                <span className="text-[11px] font-bold text-primary">{COSTS[p.cost_type] ?? p.cost_type}{p.cost_amount ? ` · ${p.cost_amount}` : ""}</span>
+                <span className="text-[11px] font-bold text-primary">{COSTS[p.cost_type] ?? "עלות לפי תיאום"}{p.cost_amount ? ` · ${p.cost_amount}` : ""}</span>
               </div>
               {p.studio_name && <div className="flex items-center gap-1 text-sm font-bold"><Building className="w-4 h-4 text-primary" />{p.studio_name}</div>}
               <div className="flex items-center gap-1 text-sm"><MapPin className="w-4 h-4 text-primary" />{p.city} · {p.region}</div>
@@ -155,7 +155,7 @@ function ModelsBoard() {
             {f.cost_type === "materials" && <div><label className={label}>סכום</label><input maxLength={30} placeholder="לדוגמה: 50 ₪" className={field} value={f.cost_amount} onChange={(e) => setF({ ...f, cost_amount: e.target.value })} /></div>}
             <div><label className={label}>שם הסטודיו</label><input maxLength={150} className={field} value={f.studio_name} onChange={(e) => setF({ ...f, studio_name: e.target.value })} /></div>
             <div><label className={label}>דרישות</label><textarea rows={2} maxLength={1000} placeholder="לדוגמה: ללא מבנה קיים, ציפורניים טבעיות" className={field} value={f.requirements} onChange={(e) => setF({ ...f, requirements: e.target.value })} /></div>
-            <div><label className={label}>טלפון או קישור וואטסאפ *</label><input required minLength={5} maxLength={200} dir="ltr" placeholder="050-0000000" className={`${field} text-left`} value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} /></div>
+            <div><label className={label}>טלפון או קישור וואטסאפ *</label><input required minLength={5} maxLength={200} dir="rtl" placeholder="050-0000000" className={`${field} text-right`} value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} /></div>
             {add.isError && <p className="text-xs text-destructive">הפרסום נכשל. ודאי שאת מחוברת ושכל השדות מכילים טקסט רגיל ופרטי וואטסאפ תקינים. <Link to="/">כניסה לחשבון</Link></p>}
             <Button disabled={add.isPending} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</Button>
           </form>
@@ -208,7 +208,7 @@ function JobsBoard() {
           {list.map((p) => (
             <div key={p.id} className="bg-card rounded-2xl border border-border p-5 shadow-soft flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
-                <span className="bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{JOB_TYPES[p.post_type] ?? p.post_type}</span>
+                <span className="bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{JOB_TYPES[p.post_type] ?? "מודעה מהקהילה"}</span>
                 <span className="text-[11px] text-muted-foreground">{new Date(p.created_at).toLocaleDateString("he-IL")}</span>
               </div>
               <div>
@@ -235,7 +235,7 @@ function JobsBoard() {
               <div><label className={label}>עיר *</label><input required maxLength={100} className={field} value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} /></div>
             </div>
             <div><label className={label}>{f.post_type === "hiring" ? "תיאור הדרישות" : "תנאי השכירות"} *</label><textarea required rows={4} maxLength={2000} className={field} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
-            <div><label className={label}>טלפון ליצירת קשר *</label><input required type="tel" minLength={5} maxLength={30} dir="ltr" placeholder="050-0000000" className={`${field} text-left`} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></div>
+            <div><label className={label}>טלפון ליצירת קשר *</label><input required type="tel" minLength={5} maxLength={30} dir="rtl" placeholder="050-0000000" className={`${field} text-right`} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></div>
             {add.isError && <p className="text-xs text-destructive">הפרסום נכשל. ודאי שאת מחוברת ושכל השדות מכילים טקסט רגיל ומספר טלפון תקין. <Link to="/">כניסה לחשבון</Link></p>}
             <Button disabled={add.isPending} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</Button>
           </form>

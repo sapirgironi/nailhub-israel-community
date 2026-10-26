@@ -18,3 +18,5 @@
 - Hub content sections have individual routes with shared HubShell navigation; mobile uses five fixed actions and desktop uses a sidebar so links remain addressable.
 - Work photos use private owner-uploaded storage and authenticated signed URLs; health signatures remain in owner/admin-only records to protect personal information.
 - Signature capture uses dynamically imported signature_pad after hydration; tool saves report success only after database confirmation.
+
+- User-facing failures pass through the Hebrew error mapper; form validation is intercepted centrally to avoid browser-locale messages, while technical logs remain separate.

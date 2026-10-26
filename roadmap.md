@@ -1,8 +1,8 @@
 # NailHub roadmap
-- [ ] Integrate uploaded registration design preserving live auth and existing tools; enable immediate confirmed signup and feed entry.
-- [ ] Assign primary admin to requested existing verified account only; never grant admin from a typed email or unverified signup.
+- [x] Integrate uploaded registration design with live auth; auto-confirm enabled, HIBP disabled, immediate signup-to-feed and profile persistence verified with six lowercase characters and no runtime errors. Two QA signup accounts remain for verification.
+- [ ] Primary admin assignment — requested account was unconfirmed before auto-confirm and requester identity did not match; needs independent ownership verification, not auto-confirmation or a typed email.
 - [x] Password visibility toggles and minimum-six-character-only client validation; both forms verified in browser and policy tests passed.
-- [ ] Hosted password policy — owner must set minimum length 6, no required characters and disable Password HIBP Check in More → Users → Auth settings → Email; these settings cannot be changed safely with current tools without reading current values.
+- [x] Hosted simple-password policy — HIBP disabled; real signup accepted six lowercase characters without numbers or symbols. Length/complexity settings not edited via tool, behavior verified end-to-end.
 - [x] Replace lilac with Soft Blush/Petal Pink/Rose Gold; powder-white canvas, softer cards, natural work photos and milky mobile navigation. Verified desktop/mobile layout and compose, no horizontal overflow.
 - [x] Hebrew-only system/auth errors, guidance and navigation; right-aligned RTL and localized form validation. Verified actual invalid-login response, weak-password and required-field validation in English-locale browser, signed-in pricelist and not-found screen; 11 tests passed.
 

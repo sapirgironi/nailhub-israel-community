@@ -33,7 +33,7 @@ export function PostDraftWriter() {
   return (
     <div className="max-w-2xl mx-auto bg-card rounded-[2rem] border border-border p-6 md:p-8 shadow-soft space-y-5 text-right" dir="rtl">
       <div>
-        <h2 className="text-2xl font-black text-rose-glam inline-flex items-center gap-2"><Sparkles className="w-6 h-6 text-primary" />כתיבת פוסט חכמה</h2>
+        <h2 className="text-2xl font-black text-primary inline-flex items-center gap-2"><Sparkles className="w-6 h-6 text-primary" />כתיבת פוסט חכמה</h2>
         <p className="text-xs text-muted-foreground mt-1">תארי את הטיפול או הטכניקה, ונכין לך טיוטת פוסט מקצועית לפרסום בקהילה.</p>
       </div>
       <form onSubmit={submit} className="space-y-4">
@@ -44,7 +44,7 @@ export function PostDraftWriter() {
           <span className="text-xs font-bold text-muted-foreground">סגנון:</span>
           {TONES.map((t) => (
             <Button type="button" key={t} onClick={() => setTone(t)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${tone === t ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:bg-accent"}`}>{t}</Button>
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${tone === t ? "bg-accent text-accent-foreground border-border" : "bg-card text-muted-foreground border-border hover:bg-accent"}`}>{t}</Button>
           ))}
         </div>
         <Button disabled={loading} className="w-full bg-rose-glam text-primary-foreground font-extrabold py-3.5 rounded-2xl text-sm shadow-glow disabled:opacity-60 inline-flex items-center justify-center gap-2">

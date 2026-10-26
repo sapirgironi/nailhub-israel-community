@@ -218,9 +218,9 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 font-sans text-right relative overflow-hidden" dir="rtl">
         {/* אלמנטים זוהרים ברקע */}
-        <div className="absolute bottom-10 left-10 w-80 h-80 bg-accent rounded-full blur-3xl pointer-events-none" />
+        
 
-        <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-lg shadow-2xl shadow-soft p-8 md:p-10 border border-border relative z-10">
+        <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-3xl shadow-soft p-8 md:p-10 border border-border relative z-10">
           <div className="text-right mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 text-primary-foreground rounded-3xl mb-4 shadow-lg shadow-soft transform rotate-2 hover:rotate-0 transition duration-300">
               <Sparkles className="w-10 h-10 animate-pulse" />
@@ -284,7 +284,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   if (currentStep === 'login') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 font-sans text-right" dir="rtl">
-        <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-lg shadow-2xl shadow-soft p-8 md:p-10 border border-border">
+        <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-3xl shadow-soft p-8 md:p-10 border border-border">
           <div className="text-right mb-6">
             <h1 className="text-2xl font-black text-foreground">היי, כיף שחזרת! 💖</h1>
             <p className="text-xs text-foreground mt-1">הזיני אימייל וסיסמה לכניסה לחשבון</p>
@@ -303,7 +303,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
             {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}
             <Button
               type="submit"
-              className="w-full bg-accent hover:bg-accent text-primary-foreground font-bold py-3.5 rounded-2xl transition shadow-md text-sm"
+              className="w-full bg-rose-glam hover:opacity-90 text-primary-foreground font-bold py-3.5 rounded-2xl transition shadow-md text-sm"
             >
               {authLoading ? 'מתחברת...' : 'כניסה לאפליקציה'}
             </Button>
@@ -328,7 +328,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   if (currentStep === 'onboarding') {
     return (
       <div className="min-h-screen py-10 px-4 font-sans text-right" dir="rtl">
-        <div className="max-w-2xl mx-auto bg-card backdrop-blur-xl rounded-lg shadow-xl shadow-soft p-6 md:p-10 border border-border">
+        <div className="max-w-2xl mx-auto bg-card backdrop-blur-xl rounded-3xl shadow-soft p-6 md:p-10 border border-border">
           <div className="mb-6 pb-4 border-b border-border flex items-center justify-between">
             <div>
               <span className="inline-block text-[11px] font-black tracking-wider text-primary uppercase bg-accent px-2.5 py-1 rounded-full mb-1">
@@ -412,7 +412,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                       key={role.id}
                       className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition duration-200 ${
                         isSelected 
-                          ? 'border-border text-primary-foreground shadow-md shadow-soft' 
+                          ? 'border-border bg-accent text-accent-foreground shadow-soft' 
                           : 'border-border bg-card hover:border-border text-foreground shadow-sm'
                       }`}
                     >
@@ -447,7 +447,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                       onClick={() => setFormData({ ...formData, specialties: toggleItem(formData.specialties, spec) })}
                       className={`px-3 py-2 rounded-xl text-xs font-bold transition duration-150 border ${
                         isSelected 
-                          ? 'bg-accent text-primary-foreground border-border shadow-sm shadow-soft' 
+                          ? 'bg-accent text-accent-foreground border-border shadow-sm shadow-soft' 
                           : 'bg-card text-foreground border-border hover:border-border hover:bg-accent'
                       }`}
                     >
@@ -471,7 +471,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                       onClick={() => setFormData({ ...formData, additionalServices: toggleItem(formData.additionalServices, srv) })}
                       className={`px-3 py-2 rounded-xl text-xs font-bold transition duration-150 border ${
                         isSelected 
-                          ? 'bg-accent text-primary-foreground border-border' 
+                          ? 'bg-accent text-accent-foreground border-border' 
                           : 'bg-card text-foreground border-border hover:bg-accent'
                       }`}
                     >
@@ -515,7 +515,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
           <div className="space-y-6">
             
             {/* כותרת קהילה מעוצבת */}
-            <div className=" rounded-3xl p-6 text-primary-foreground shadow-xl shadow-soft relative overflow-hidden">
+            <div className=" rounded-3xl p-6 text-foreground shadow-soft relative overflow-hidden">
               <div className="relative z-10 max-w-lg">
                 <span className="bg-card backdrop-blur-sm text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider inline-block mb-2">
                   רשת מקצועית בלעדית
@@ -549,7 +549,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                     onClick={() => setFilterRole('all')}
                     className={`px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition duration-200 ${
                       filterRole === 'all' 
-                        ? ' text-primary-foreground shadow-md shadow-soft' 
+                        ? 'bg-accent text-accent-foreground shadow-soft' 
                         : 'bg-accent text-foreground hover:bg-accent'
                     }`}
                   >
@@ -561,7 +561,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                       onClick={() => setFilterRole(r.id)}
                       className={`px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition duration-200 ${
                         filterRole === r.id 
-                          ? ' text-primary-foreground shadow-md shadow-soft' 
+                          ? 'bg-accent text-accent-foreground shadow-soft' 
                           : 'bg-accent text-foreground hover:bg-accent'
                       }`}
                     >
@@ -580,7 +580,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                 return (
                   <div 
                     key={m.id} 
-                    className="bg-card rounded-lg border border-border p-5 shadow-sm hover:shadow-xl hover:shadow-soft transition duration-300 flex flex-col justify-between group hover:-translate-y-1"
+                    className="bg-card rounded-3xl border border-border p-5 shadow-sm hover:shadow-xl hover:shadow-soft transition duration-300 flex flex-col justify-between group hover:-translate-y-1"
                   >
                     <div>
                       {/* תגית ופרטי עסק */}
@@ -613,7 +613,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                           </span>
                           <div className="flex flex-wrap gap-1.5">
                             {m.specialties.map(s => (
-                              <span key={s} className="bg-accent text-primary font-semibold px-2.5 py-1 rounded-lg text-[11px] border border-border">
+                              <span key={s} className="bg-accent text-primary font-semibold px-2.5 py-1 rounded-3xl text-[11px] border border-border">
                                 {s}
                               </span>
                             ))}
@@ -661,7 +661,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
         {!['directory', 'profile'].includes(activeTab) && currentUser && <HubWorkspace section={section} user={currentUser} />}
 
         {activeTab === 'profile' && currentUser && (
-          <div className="max-w-xl mx-auto bg-card backdrop-blur-xl rounded-lg border border-border p-6 md:p-8 shadow-xl shadow-soft space-y-6">
+          <div className="max-w-xl mx-auto bg-card backdrop-blur-xl rounded-3xl border border-border p-6 md:p-8 shadow-soft space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <div>
                 <h2 className="text-2xl font-black text-foreground">{currentUser.fullName}</h2>
@@ -689,7 +689,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                 <span className="text-foreground block mb-1.5 font-bold">שירותים נוספים:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {currentUser.additionalServices.map(s => (
-                    <span key={s} className="bg-accent text-foreground font-medium px-2.5 py-1 rounded-lg">
+                    <span key={s} className="bg-accent text-foreground font-medium px-2.5 py-1 rounded-3xl">
                       {s}
                     </span>
                   ))}
@@ -723,7 +723,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
       {/* מודאל שדרוג תפקיד מעוצב */}
       {showRoleChangeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-accent backdrop-blur-sm">
-          <div className="bg-card max-w-md w-full rounded-lg p-6 md:p-8 shadow-2xl border border-border">
+          <div className="bg-card max-w-md w-full rounded-3xl p-6 md:p-8 shadow-soft border border-border">
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
               <h3 className="font-black text-foreground text-sm">בקשת שדרוג תפקיד בקהילה ✨</h3>
               <Button onClick={() => setShowRoleChangeModal(false)} className="text-foreground hover:text-foreground">
@@ -743,7 +743,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                     setShowRoleChangeModal(false);
                     setRoleChangeSuccess(false);
                   }}
-                  className="mt-5 px-6 py-2.5 bg-accent text-primary-foreground rounded-xl text-xs font-bold"
+                  className="mt-5 px-6 py-2.5 bg-accent text-accent-foreground rounded-xl text-xs font-bold"
                 >
                   סגור
                 </Button>

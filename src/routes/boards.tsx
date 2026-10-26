@@ -50,7 +50,7 @@ function WhatsAppButton({ contact }: { contact: string }) {
   const href = whatsappLink(contact);
   if (!href) return <span className="text-xs text-muted-foreground">פרטי הקשר אינם תקינים</span>;
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2.5 rounded-xl text-xs transition">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 w-full bg-rose-glam hover:opacity-90 text-primary-foreground font-bold py-2.5 rounded-xl text-xs transition">
       <MessageCircle className="w-4 h-4" /> שליחת הודעה בוואטסאפ
     </a>
   );
@@ -108,7 +108,7 @@ function ModelsBoard() {
           <h1 className="text-2xl font-black">לוח מודליסטיות</h1>
           <p className="text-xs text-muted-foreground">מצאי מודליסטית להשתלמות, תרגול או צילום עבודות</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-5 py-3 rounded-2xl text-sm shadow-soft"><Plus className="w-4 h-4" /> פרסום בקשת מודליסטית</Button>
+        <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 bg-rose-glam hover:opacity-90 text-primary-foreground font-bold px-5 py-3 rounded-2xl text-sm shadow-soft"><Plus className="w-4 h-4" /> פרסום בקשת מודליסטית</Button>
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-3 shadow-soft space-y-2">
@@ -125,7 +125,7 @@ function ModelsBoard() {
       {isLoading ? <Empty text="טוען..." /> : list.length === 0 ? <Empty text="אין עדיין בקשות שמתאימות לסינון" /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {list.map((p) => (
-            <div key={p.id} className="bg-card rounded-2xl border border-border p-5 shadow-soft flex flex-col gap-3">
+            <div key={p.id} className="bg-card rounded-3xl border border-border p-6 shadow-soft flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full">{p.treatment_type}</span>
                 <span className="text-[11px] font-bold text-primary">{COSTS[p.cost_type] ?? "עלות לפי תיאום"}{p.cost_amount ? ` · ${p.cost_amount}` : ""}</span>
@@ -157,7 +157,7 @@ function ModelsBoard() {
             <div><label className={label}>דרישות</label><textarea rows={2} maxLength={1000} placeholder="לדוגמה: ללא מבנה קיים, ציפורניים טבעיות" className={field} value={f.requirements} onChange={(e) => setF({ ...f, requirements: e.target.value })} /></div>
             <div><label className={label}>טלפון או קישור וואטסאפ *</label><input required minLength={5} maxLength={200} dir="rtl" placeholder="050-0000000" className={`${field} text-right`} value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} /></div>
             {add.isError && <p className="text-xs text-destructive">הפרסום נכשל. ודאי שאת מחוברת ושכל השדות מכילים טקסט רגיל ופרטי וואטסאפ תקינים. <Link to="/">כניסה לחשבון</Link></p>}
-            <Button disabled={add.isPending} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</Button>
+            <Button disabled={add.isPending} className="w-full bg-rose-glam hover:opacity-90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</Button>
           </form>
         </Modal>
       )}
@@ -197,7 +197,7 @@ function JobsBoard() {
           <h1 className="text-2xl font-black">דרושות והשכרת עמדות</h1>
           <p className="text-xs text-muted-foreground">משרות בסטודיו ועמדות עבודה להשכרה</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-5 py-3 rounded-2xl text-sm shadow-soft"><Plus className="w-4 h-4" /> פרסום מודעה</Button>
+        <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 bg-rose-glam hover:opacity-90 text-primary-foreground font-bold px-5 py-3 rounded-2xl text-sm shadow-soft"><Plus className="w-4 h-4" /> פרסום מודעה</Button>
       </div>
       <div className="flex gap-1.5">
         <Button onClick={() => setType("all")} className={chip(type === "all")}>הכול</Button>
@@ -206,7 +206,7 @@ function JobsBoard() {
       {isLoading ? <Empty text="טוען..." /> : list.length === 0 ? <Empty text="אין עדיין מודעות" /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {list.map((p) => (
-            <div key={p.id} className="bg-card rounded-2xl border border-border p-5 shadow-soft flex flex-col gap-3">
+            <div key={p.id} className="bg-card rounded-3xl border border-border p-6 shadow-soft flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{JOB_TYPES[p.post_type] ?? "מודעה מהקהילה"}</span>
                 <span className="text-[11px] text-muted-foreground">{new Date(p.created_at).toLocaleDateString("he-IL")}</span>
@@ -237,7 +237,7 @@ function JobsBoard() {
             <div><label className={label}>{f.post_type === "hiring" ? "תיאור הדרישות" : "תנאי השכירות"} *</label><textarea required rows={4} maxLength={2000} className={field} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
             <div><label className={label}>טלפון ליצירת קשר *</label><input required type="tel" minLength={5} maxLength={30} dir="rtl" placeholder="050-0000000" className={`${field} text-right`} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></div>
             {add.isError && <p className="text-xs text-destructive">הפרסום נכשל. ודאי שאת מחוברת ושכל השדות מכילים טקסט רגיל ומספר טלפון תקין. <Link to="/">כניסה לחשבון</Link></p>}
-            <Button disabled={add.isPending} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</Button>
+            <Button disabled={add.isPending} className="w-full bg-rose-glam hover:opacity-90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</Button>
           </form>
         </Modal>
       )}

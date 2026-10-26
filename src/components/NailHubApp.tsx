@@ -1,26 +1,27 @@
 import React, { useState } from "react";
-import { Sparkles, Search, MapPin, Phone, Check, ArrowRight, X } from "lucide-react";
+import { Sparkles, Search, MapPin, Phone, Check, ArrowRight, X, Crown, Gem, Heart, Award, BadgeCheck } from "lucide-react";
 
 export const ROLES = {
-  NAIL_TECH: { id: "nail_tech", label: "בונת ציפורניים ומניקוריסטית", color: "bg-accent text-accent-foreground border-accent-foreground/20" },
-  INSTRUCTOR: { id: "instructor", label: "מדריכה מוסמכת ואקדמיה", color: "bg-warn-soft text-warn border-warn/20" },
-  SUPPLIER: { id: "supplier", label: "ספק / מותג מורשה", color: "bg-info-soft text-info border-info/20" },
-  CLIENT: { id: "client", label: "לקוחה", color: "bg-muted text-secondary-foreground border-border" },
-  MODEL: { id: "model", label: "מודליסטית", color: "bg-accent text-accent-foreground border-accent-foreground/10" },
+  NAIL_TECH: { id: "nail_tech", label: "בונת ציפורניים ומניקוריסטית", icon: Sparkles, color: "bg-accent text-accent-foreground border-accent-foreground/20" },
+  INSTRUCTOR: { id: "instructor", label: "מדריכה מוסמכת & אקדמיה", icon: Crown, color: "bg-warn-soft text-warn border-warn/20" },
+  SUPPLIER: { id: "supplier", label: "ספקית & מותג מורשה", icon: Gem, color: "bg-info-soft text-info border-info/20" },
+  CLIENT: { id: "client", label: "לקוחה VIP", icon: Award, color: "bg-muted text-secondary-foreground border-border" },
+  MODEL: { id: "model", label: "מודליסטית", icon: Heart, color: "bg-accent text-accent-foreground border-accent-foreground/10" },
 } as const;
 
-const ADDITIONAL_SERVICES_LIST = ["פדיקור קוסמטי", "פדיקור רפואי / טיפולי", "לק ג'ל רגליים", "עיצוב ושיקום גבות", "הרמת גבות", "הרמת ריסים", "שזירת ריסים", "איפור קבוע", "טיפולי פנים"];
-const SPECIALTIES_LIST = ["מבנה אנטומי", "בנייה באקריל", "בנייה בג'ל / פוליג'ל", "דיפ פאוודר", "פרנץ' מדויק", "ציורי ציפורניים וארט", "השלמת ציפורן שבורה", "מיניקוריסטיות מתחילות"];
+const ADDITIONAL_SERVICES_LIST = ["פדיקור קוסמטי", "פדיקור רפואי / טיפולי", "לק ג'ל רגליים", "עיצוב ושיקום גבות", "הרמת גבות", "הרמת ריסים", "שזירת ריסים", "איפור קבוע", "טיפולי זוהר ופנים"];
+const SPECIALTIES_LIST = ["מבנה אנטומי מושלם", "בנייה באקריל", "ג'ל ופוליג'ל", "דיפ פאוודר", "פרנץ' מדויק וחיוך מושלם", "ציורי יד ונייל-ארט", "השלמת ציפורניים שבורות", "אפקט שיש וגליטרים"];
 
 interface Member {
   id: string; fullName: string; businessName: string; role: string; city: string;
   specialties: string[]; additionalServices: string[]; phone: string;
   accountStatus?: "active" | "pending_approval";
+  isVerified?: boolean;
 }
 
 const input = "w-full px-3.5 py-2.5 rounded-xl border border-input bg-card focus:ring-2 focus:ring-ring outline-none text-sm";
-const primaryBtn = "w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition shadow-md";
-const card = "bg-card rounded-3xl shadow-xl p-8 border border-border";
+const primaryBtn = "w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-2xl transition shadow-glow active:scale-[0.99]";
+const card = "bg-card/85 backdrop-blur-xl rounded-[2.5rem] shadow-glow p-8 md:p-10 border border-card/60 relative z-10";
 
 export function NailHubApp() {
   const [currentStep, setCurrentStep] = useState<"gate" | "login" | "onboarding" | "app">("gate");
@@ -30,14 +31,15 @@ export function NailHubApp() {
   const [currentUser, setCurrentUser] = useState<Member | null>(null);
   const [formData, setFormData] = useState({
     fullName: "", phone: "", city: "קריית ביאליק", businessName: "", role: "nail_tech",
-    specialties: ["מבנה אנטומי", "דיפ פאוודר"], additionalServices: ["פדיקור קוסמטי"],
+    specialties: ["מבנה אנטומי מושלם", "פרנץ' מדויק וחיוך מושלם"], additionalServices: ["פדיקור קוסמטי"],
   });
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
   const [roleChangeData, setRoleChangeData] = useState({ requestedRole: "instructor", reason: "" });
   const [roleChangeSuccess, setRoleChangeSuccess] = useState(false);
   const [members, setMembers] = useState<Member[]>([
-    { id: "1", fullName: "ספיר גירוני", businessName: "ספיר גירוני ביוטי", role: "nail_tech", city: "קריית ביאליק", specialties: ["מבנה אנטומי", "דיפ פאוודר", "פרנץ' מדויק"], additionalServices: ["פדיקור קוסמטי", "עיצוב ושיקום גבות"], phone: "050-0000000", accountStatus: "active" },
-    { id: "2", fullName: "גולן גירוני", businessName: "ליליאור אספקת ציוד", role: "supplier", city: "קריית ביאליק", specialties: ["ציוד מניקור", "אבקות דיפ"], additionalServices: [], phone: "054-3289555", accountStatus: "active" },
+    { id: "1", fullName: "ספיר גירוני", businessName: "ספיר ביוטי & ניילס", role: "nail_tech", city: "קריית ביאליק", specialties: ["מבנה אנטומי מושלם", "פרנץ' מדויק וחיוך מושלם", "דיפ פאוודר"], additionalServices: ["פדיקור קוסמטי", "עיצוב ושיקום גבות"], phone: "050-0000000", accountStatus: "active", isVerified: true },
+    { id: "4", fullName: "ליליאן שיין", businessName: "Lili Nails & Academy", role: "instructor", city: "חיפה", specialties: ["מבנה אנטומי מושלם", "ציורי יד ונייל-ארט"], additionalServices: ["הרמת ריסים"], phone: "054-0000000", accountStatus: "active", isVerified: true },
+    { id: "2", fullName: "גולן אספקה", businessName: "גלמור פרו דילר", role: "supplier", city: "קריית ביאליק", specialties: ["אבקות דיפ", "ראשי שיוף ומכשור"], additionalServices: [], phone: "054-3289555", accountStatus: "active", isVerified: true },
   ]);
   const [filterRole, setFilterRole] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,7 +47,7 @@ export function NailHubApp() {
   const handleVerifyInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (inviteCode.trim().toUpperCase() === "NAILVIP") { setGateError(""); setCurrentStep("onboarding"); }
-    else setGateError("קוד הזמנה שגוי. הגישה כרגע היא למוזמנות פיילוט בלבד (קוד לדוגמה: NAILVIP)");
+    else setGateError("קוד גישה שגוי ✨ הגישה כרגע היא למוזמנות פיילוט VIP בלבד.");
   };
 
   const handleCompleteRegistration = (e: React.FormEvent) => {
@@ -54,7 +56,7 @@ export function NailHubApp() {
     const newUser: Member = {
       id: String(Date.now()), fullName: formData.fullName, businessName: formData.businessName || formData.fullName,
       role: formData.role, city: formData.city, phone: formData.phone, specialties: formData.specialties,
-      additionalServices: formData.additionalServices, accountStatus: formData.role === "supplier" ? "pending_approval" : "active",
+      additionalServices: formData.additionalServices, accountStatus: formData.role === "supplier" ? "pending_approval" : "active", isVerified: true,
     };
     setCurrentUser(newUser);
     setMembers((p) => [newUser, ...p]);
@@ -67,15 +69,15 @@ export function NailHubApp() {
 
   if (currentStep === "gate") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 text-right" dir="rtl">
+      <div className="min-h-screen bg-blush flex items-center justify-center p-4 text-right" dir="rtl">
         <div className={`max-w-md w-full ${card}`}>
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-accent text-accent-foreground rounded-2xl mb-3 shadow-inner"><Sparkles className="w-7 h-7" /></div>
-            <h1 className="text-3xl font-extrabold tracking-tight">NailHub</h1>
-            <p className="text-sm text-muted-foreground mt-1">קהילת הציפורניים המקצועית של ישראל</p>
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-rose-glam text-primary-foreground rounded-3xl mb-4 w-20 h-20 shadow-glow rotate-2 hover:rotate-0 transition"><Sparkles className="w-10 h-10 animate-pulse" /></div>
+            <h1 className="text-4xl font-black tracking-tight text-rose-glam">NailHub</h1>
+            <p className="text-sm text-muted-foreground mt-1">קהילת הציפורניים והביוטי היוקרתית</p>
           </div>
-          <div className="bg-warn-soft border border-warn/20 rounded-2xl p-4 mb-6 text-warn text-sm leading-relaxed">
-            האפליקציה נמצאת בשלב הרצה סגור (VIP Pilot). הכניסה באמצעות קוד גישה מורשה בלבד.
+          <div className="bg-accent border border-border rounded-2xl p-4 mb-6 text-center text-xs text-accent-foreground leading-relaxed font-medium">
+            ברוכה הבאה למרחב המקצועי שלך ✨ הכניסה בשלב זה היא בהזמנה אישית בלבד לחברות VIP.
           </div>
           <form onSubmit={handleVerifyInvite} className="space-y-4">
             <div>
@@ -83,7 +85,7 @@ export function NailHubApp() {
               <input value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="הזיני קוד גישה (לדוגמה: NAILVIP)" className={`${input} py-3 text-center font-mono text-lg tracking-widest uppercase`} />
             </div>
             {gateError && <p className="text-xs text-destructive font-medium">{gateError}</p>}
-            <button type="submit" className={primaryBtn}>אימות וכניסה</button>
+            <button type="submit" className={primaryBtn}><span className="inline-flex items-center gap-2 justify-center">אימות קוד וכניסה <Sparkles className="w-4 h-4" /></span></button>
           </form>
           <div className="mt-6 text-center pt-4 border-t border-border">
             <button onClick={() => setCurrentStep("login")} className="text-xs text-muted-foreground hover:text-foreground font-medium inline-flex items-center gap-1">
@@ -97,21 +99,21 @@ export function NailHubApp() {
 
   if (currentStep === "login") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 text-right" dir="rtl">
+      <div className="min-h-screen bg-blush flex items-center justify-center p-4 text-right" dir="rtl">
         <div className={`max-w-md w-full ${card}`}>
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold">התחברות ל-NailHub</h1>
-            <p className="text-xs text-muted-foreground mt-1">הזיני את פרטייך לכניסה למערכת</p>
+            <h1 className="text-2xl font-black">היי, כיף שחזרת! 💖</h1>
+            <p className="text-xs text-muted-foreground mt-1">הזיני את הנייד שלך לכניסה מהירה לחשבון</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold mb-1">מספר טלפון נייד</label>
               <input type="tel" defaultValue="050-0000000" className={`${input} py-3 text-left font-mono`} dir="ltr" />
             </div>
-            <button type="submit" className={primaryBtn}>כניסה מהירה</button>
+            <button type="submit" className={primaryBtn}>כניסה לאפליקציה</button>
           </form>
           <div className="mt-6 text-center">
-            <button onClick={() => setCurrentStep("gate")} className="text-xs text-muted-foreground hover:text-foreground">חזרה לשער ההזמנות</button>
+            <button onClick={() => setCurrentStep("gate")} className="text-xs text-muted-foreground hover:text-foreground">חזרה לשער הראשי</button>
           </div>
         </div>
       </div>
@@ -120,12 +122,12 @@ export function NailHubApp() {
 
   if (currentStep === "onboarding") {
     return (
-      <div className="min-h-screen bg-background py-10 px-4 text-right" dir="rtl">
-        <div className="max-w-2xl mx-auto bg-card rounded-3xl shadow-xl p-6 md:p-8 border border-border">
+      <div className="min-h-screen bg-blush py-10 px-4 text-right" dir="rtl">
+        <div className="max-w-2xl mx-auto bg-card rounded-[2.5rem] shadow-glow p-6 md:p-10 border border-border">
           <div className="mb-6 pb-4 border-b border-border">
-            <span className="text-xs font-bold text-accent-foreground tracking-wider">שלב 2 מתוך 2</span>
-            <h1 className="text-2xl font-black mt-1">הגדרת הפרופיל המקצועי שלך</h1>
-            <p className="text-xs text-muted-foreground mt-1">המידע יוצג בדירקטורי החברות של NailHub</p>
+            <span className="text-xs font-bold text-accent-foreground tracking-wider">שלב 2 מתוך 2 • הגדרת כרטיס ביקור</span>
+            <h1 className="text-2xl font-black mt-1">בואי נכיר אותך ✨</h1>
+            <p className="text-xs text-muted-foreground mt-1">הפרופיל שלך יוצג לחברות הקהילה וללקוחות</p>
           </div>
           <form onSubmit={handleCompleteRegistration} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -149,7 +151,7 @@ export function NailHubApp() {
                       <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${sel ? "border-primary-foreground" : "border-muted-foreground"}`}>
                         {sel && <div className="w-2 h-2 rounded-full bg-primary-foreground" />}
                       </div>
-                      <span className="text-xs font-bold">{role.label}</span>
+                      <role.icon className="w-4 h-4" /><span className="text-xs font-bold">{role.label}</span>
                     </label>
                   );
                 })}
@@ -204,9 +206,9 @@ export function NailHubApp() {
       <header className="sticky top-0 z-30 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-accent text-accent-foreground rounded-xl flex items-center justify-center"><Sparkles className="w-5 h-5" /></div>
+            <div className="w-9 h-9 bg-rose-glam text-primary-foreground rounded-xl flex items-center justify-center"><Sparkles className="w-5 h-5" /></div>
             <div>
-              <span className="font-extrabold text-base block leading-tight">NailHub</span>
+              <span className="font-black text-base block leading-tight text-rose-glam">NailHub</span>
               <span className="text-[10px] text-muted-foreground font-medium">קהילת הציפורניים של ישראל</span>
             </div>
           </div>
@@ -242,7 +244,7 @@ export function NailHubApp() {
                     <div>
                       <div className="flex items-start justify-between mb-3 gap-2">
                         <div>
-                          <h3 className="font-bold text-base">{m.fullName}</h3>
+                          <h3 className="font-bold text-base inline-flex items-center gap-1">{m.fullName}{m.isVerified && <BadgeCheck className="w-4 h-4 text-primary" />}</h3>
                           <p className="text-xs text-muted-foreground">{m.businessName}</p>
                         </div>
                         <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border ${role.color}`}>{role.label}</span>

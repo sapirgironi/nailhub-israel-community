@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [ ] Hebrew-only system/auth errors, guidance and navigation; right-aligned RTL and localized form validation.
 
 - [x] Instagram-style mobile navigation: fixed five-icon frosted bottom bar, centered publish, insurance/notifications header, desktop-only sidebar and profile shortcuts; verified at 390px and 1280px
 

@@ -182,7 +182,7 @@ export function NailHubApp() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentUser(members[0]);
+    setCurrentUser(members[0] ?? null);
     setCurrentStep('app');
   };
 

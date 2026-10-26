@@ -1,0 +1,7 @@
+import { z } from 'zod';
+import { plainText, phoneText } from './input-security';
+export const pricingSchema = z.object({monthlyExpenses:z.number().min(0),targetSalary:z.number().min(0),monthlyHours:z.number().positive(),duration:z.number().positive(),materials:z.number().min(0)});
+export function calculatePrice(input: z.infer<typeof pricingSchema>) { const c=pricingSchema.parse(input); const hourly=Math.round((c.monthlyExpenses+c.targetSalary)/c.monthlyHours); return {hourly, minimum:Math.round(hourly*c.duration+c.materials)}; }
+export const healthSchema=z.object({full_name:plainText(150).refine(v=>v.length>0),id_number:z.string().regex(/^\d{9}$/),phone:phoneText,birth_date:z.string(),has_allergies:z.boolean(),allergies_details:plainText(2000),has_diabetes:z.boolean(),takes_blood_thinners:z.boolean(),has_skin_or_nail_infections:z.boolean(),is_pregnant:z.boolean(),additional_notes:plainText(2000)});
+export const insuranceSchema=z.object({full_name:plainText(150).refine(v=>v.length>0),id_number:z.string().regex(/^\d{9}$/),phone:phoneText,email:z.string().email().max(255),city_street:plainText(250).refine(v=>v.length>0),entity_type:plainText(100),clinic_location:plainText(150),equipment_value_nis:z.coerce.number().min(0),existing_insurance:plainText(100),notes:plainText(2000)});
+export const priceItemSchema=z.object({service_name:plainText(150).refine(v=>v.length>0),price_nis:z.coerce.number().min(0)});

@@ -15,3 +15,6 @@
 - Personal-record tables are owner/admin scoped; legacy rows without an owner remain admin-only because ownership must never be guessed.
 - Free text uses shared plain-text schemas and database validation triggers; React renders it as text, never HTML, to prevent executable markup.
 - Contact links are reconstructed from validated phone numbers and exact WhatsApp hosts, never arbitrary caller URLs.
+- Hub content sections have individual routes with shared HubShell navigation; mobile uses five fixed actions and desktop uses a sidebar so links remain addressable.
+- Work photos use private owner-uploaded storage and authenticated signed URLs; health signatures remain in owner/admin-only records to protect personal information.
+- Signature capture uses dynamically imported signature_pad after hydration; tool saves report success only after database confirmation.

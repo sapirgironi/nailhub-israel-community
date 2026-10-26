@@ -1,4 +1,6 @@
 # NailHub roadmap
+- [x] Replace lilac with Soft Blush/Petal Pink/Rose Gold; powder-white canvas, softer cards, natural work photos and milky mobile navigation. Verified desktop/mobile layout and compose, no horizontal overflow.
+- [x] Hebrew-only system/auth errors, guidance and navigation; right-aligned RTL and localized form validation. Verified actual invalid-login response, weak-password and required-field validation in English-locale browser, signed-in pricelist and not-found screen; 11 tests passed.
 
 - [x] Instagram-style mobile navigation: fixed five-icon frosted bottom bar, centered publish, insurance/notifications header, desktop-only sidebar and profile shortcuts; verified at 390px and 1280px
 

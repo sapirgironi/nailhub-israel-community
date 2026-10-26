@@ -1,7 +1,8 @@
 # NailHub roadmap
 
-- [ ] Security: restrict personal/contact records to their owner or admin; validate free text and WhatsApp destinations
-- [ ] Review complete master-app upload without replacing live authentication
+- [x] Security: owner/admin RLS, database plain-text validation, validated WhatsApp destinations; unit tests and signed-out browser check passed, repeat database scan has no PII exposure
+- [ ] Security: signed-in owner/admin end-to-end verification — blocked until user signs in to preview; session mint cannot match requester, query tool cannot impersonate authenticated role
+- [x] Review complete master-app upload without replacing live authentication — file is complete but contains demo-only data and simulated persistence
 
 - [x] Health declarations table (submit-only)
 - [x] Pink luxury restyle from uploaded file (superseded by Phase 1 palette)
@@ -15,5 +16,5 @@
 - [x] Shared role/service lists (src/lib/roles.ts)
 - [x] Boards: studio name + materials amount, new styling
 - [x] Real email/password sign-up + login, profiles saved
-- [ ] Main app (feed/NailTrade/insurance/saved) from upload — file was cut off, waiting for full version
+- [ ] Main app (feed/NailTrade/insurance/saved) integration — complete upload received; pending user's choice about incorporating its demo-only features without replacing real auth
 - [x] AI post draft writer (Hebrew)

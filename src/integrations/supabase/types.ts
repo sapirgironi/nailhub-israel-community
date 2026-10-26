@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      health_declarations: {
+        Row: {
+          additional_notes: string | null
+          allergies_details: string | null
+          birth_date: string | null
+          created_at: string
+          full_name: string
+          has_allergies: boolean | null
+          has_diabetes: boolean | null
+          has_skin_or_nail_infections: boolean | null
+          id: string
+          id_number: string
+          is_pregnant: boolean | null
+          phone: string
+          signature_image: string
+          takes_blood_thinners: boolean | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          allergies_details?: string | null
+          birth_date?: string | null
+          created_at?: string
+          full_name: string
+          has_allergies?: boolean | null
+          has_diabetes?: boolean | null
+          has_skin_or_nail_infections?: boolean | null
+          id?: string
+          id_number: string
+          is_pregnant?: boolean | null
+          phone: string
+          signature_image: string
+          takes_blood_thinners?: boolean | null
+        }
+        Update: {
+          additional_notes?: string | null
+          allergies_details?: string | null
+          birth_date?: string | null
+          created_at?: string
+          full_name?: string
+          has_allergies?: boolean | null
+          has_diabetes?: boolean | null
+          has_skin_or_nail_infections?: boolean | null
+          id?: string
+          id_number?: string
+          is_pregnant?: boolean | null
+          phone?: string
+          signature_image?: string
+          takes_blood_thinners?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

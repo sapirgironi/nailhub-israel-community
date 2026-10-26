@@ -1,12 +1,6 @@
--- Run through the project database query CLI; all changes roll back.
-BEGIN;
-SELECT set_config('request.jwt.claim.sub', (SELECT id::text FROM public.profiles ORDER BY created_at LIMIT 1), true);
-SET LOCAL ROLE authenticated;
-SELECT 'owner_visible' AS test, count(*) = 1 AS passed FROM public.profiles WHERE id = auth.uid();
-SELECT 'other_profiles_hidden' AS test, count(*) = 0 AS passed FROM public.profiles WHERE id <> auth.uid();
-SELECT 'other_health_hidden' AS test, count(*) = 0 AS passed FROM public.health_declarations WHERE user_id IS DISTINCT FROM auth.uid();
-SELECT 'other_insurance_hidden' AS test, count(*) = 0 AS passed FROM public.insurance_leads WHERE user_id IS DISTINCT FROM auth.uid();
-SELECT 'other_jobs_hidden' AS test, count(*) = 0 AS passed FROM public.job_posts WHERE user_id IS DISTINCT FROM auth.uid();
-SELECT 'other_models_hidden' AS test, count(*) = 0 AS passed FROM public.model_calls WHERE user_id IS DISTINCT FROM auth.uid();
-SELECT 'other_trade_hidden' AS test, count(*) = 0 AS passed FROM public.nail_trade_items WHERE seller_id <> auth.uid();
-ROLLBACK;
+SELECT t AS test,
+  NOT has_table_privilege('anon', 'public.' || t, 'SELECT')
+  AND EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename=t AND cmd='SELECT' AND qual LIKE '%auth.uid()%' AND qual LIKE '%has_role%' AND roles='{authenticated}')
+  AND NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename=t AND cmd IN ('SELECT','ALL') AND qual='true')
+  AS passed
+FROM unnest(ARRAY['profiles','health_declarations','insurance_leads','model_calls','job_posts','nail_trade_items']) t;

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Sparkles, Search, MapPin, Phone, Check, ArrowRight, X, Crown, Gem, Heart, Award, BadgeCheck } from "lucide-react";
 
-export const ROLES = {
+const ROLES = {
   NAIL_TECH: { id: "nail_tech", label: "בונת ציפורניים ומניקוריסטית", icon: Sparkles, color: "bg-accent text-accent-foreground border-accent-foreground/20" },
   INSTRUCTOR: { id: "instructor", label: "מדריכה מוסמכת & אקדמיה", icon: Crown, color: "bg-warn-soft text-warn border-warn/20" },
   SUPPLIER: { id: "supplier", label: "ספקית & מותג מורשה", icon: Gem, color: "bg-info-soft text-info border-info/20" },

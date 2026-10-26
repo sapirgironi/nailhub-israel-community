@@ -4,6 +4,8 @@ import { HubShell, type HubSection } from './HubShell';
 import { HubWorkspace } from './HubWorkspace';
 import { Link } from '@tanstack/react-router';
 import { Button } from './ui/button';
+import {PasswordField} from './PasswordField';
+import {isPasswordAllowed,PASSWORD_LENGTH_MESSAGE} from '@/lib/password-policy';
 import {hebrewError} from '@/lib/hebrew-errors';
 import { phoneText, plainText } from '@/lib/input-security';
 import { 
@@ -168,7 +170,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
       setAuthError('יש להזין טקסט רגיל ומספר טלפון תקין'); return;
     }
     setAuthError('');
-    if (authPassword.length < 6) {setAuthError(hebrewError({code:'weak_password'}));return;}
+    if (!isPasswordAllowed(authPassword)) {setAuthError(PASSWORD_LENGTH_MESSAGE);return;}
     setAuthLoading(true);
     try {
     const { data, error } = await supabase.auth.signUp({
@@ -296,10 +298,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
               <label className="block text-xs font-bold text-foreground mb-1.5">אימייל *</label>
               <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5">סיסמה *</label>
-              <input type="password" required minLength={6} autoComplete="current-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
-            </div>
+            <PasswordField value={authPassword} onChange={setAuthPassword} autoComplete="current-password"/>
             {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-right">{authInfo}</p>}
             {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}
             <Button
@@ -346,10 +345,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
               <label className="block text-xs font-bold text-foreground mb-1.5">אימייל *</label>
               <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5">סיסמה *</label>
-              <input type="password" required minLength={6} autoComplete="new-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
-            </div>
+            <PasswordField value={authPassword} onChange={setAuthPassword} autoComplete="new-password"/>
             {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-right">{authInfo}</p>}
             {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

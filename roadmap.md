@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [ ] Password visibility toggles and minimum-six-character-only validation; hosted length/complexity/HIBP settings require owner action in Auth settings.
 - [x] Replace lilac with Soft Blush/Petal Pink/Rose Gold; powder-white canvas, softer cards, natural work photos and milky mobile navigation. Verified desktop/mobile layout and compose, no horizontal overflow.
 - [x] Hebrew-only system/auth errors, guidance and navigation; right-aligned RTL and localized form validation. Verified actual invalid-login response, weak-password and required-field validation in English-locale browser, signed-in pricelist and not-found screen; 11 tests passed.
 

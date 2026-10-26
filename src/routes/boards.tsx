@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, CalendarClock, MessageCircle, Plus, X, Sparkles, Briefcase, Phone } from "lucide-react";
+import { MapPin, CalendarClock, MessageCircle, Plus, X, Sparkles, Briefcase, Phone, Users, Building } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/boards")({
@@ -38,16 +38,16 @@ const chip = (a: boolean) => `px-3 py-1.5 rounded-full text-xs font-bold whitesp
 function BoardsPage() {
   const [tab, setTab] = useState<"models" | "jobs">("models");
   return (
-    <div className="min-h-screen bg-background text-right" dir="rtl">
+    <div className="min-h-screen bg-blush text-right" dir="rtl">
       <header className="sticky top-0 z-30 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2">
             <span className="w-9 h-9 bg-rose-glam text-primary-foreground rounded-xl flex items-center justify-center"><Sparkles className="w-5 h-5" /></span>
-            <span className="font-black text-lg">לוחות קהילה</span>
+            <span className="font-black text-xl text-rose-glam">לוחות הקהילה ✨</span>
           </Link>
           <div className="flex bg-muted p-1 rounded-2xl text-xs font-bold">
-            <button onClick={() => setTab("models")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "models" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}>לוח מודליסטיות</button>
-            <button onClick={() => setTab("jobs")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "jobs" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}>דרושות והשכרת עמדות</button>
+            <button onClick={() => setTab("models")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "models" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><Users className="w-4 h-4" />לוח מודליסטיות</span></button>
+            <button onClick={() => setTab("jobs")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "jobs" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><Briefcase className="w-4 h-4" />דרושות & השכרת עמדות</span></button>
           </div>
         </div>
       </header>
@@ -97,13 +97,13 @@ function ModelsBoard() {
   });
   const list = data.filter((p) => (region === "all" || p.region === region) && (treatment === "all" || p.treatment_type === treatment));
 
-  const [f, setF] = useState({ treatment_type: TREATMENTS[0]!, region: REGIONS[0]!, city: "", desired_at: "", cost_type: "free", requirements: "", contact: "" });
+  const [f, setF] = useState({ treatment_type: TREATMENTS[0]!, region: REGIONS[0]!, city: "", desired_at: "", cost_type: "free", requirements: "", contact: "", studio_name: "", cost_amount: "" });
   const add = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("model_calls").insert({ ...f, desired_at: f.desired_at ? new Date(f.desired_at).toISOString() : null, requirements: f.requirements || null });
+      const { error } = await supabase.from("model_calls").insert({ ...f, desired_at: f.desired_at ? new Date(f.desired_at).toISOString() : null, requirements: f.requirements || null, studio_name: f.studio_name || null, cost_amount: f.cost_type === "materials" && f.cost_amount ? f.cost_amount : null });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["model_calls"] }); setOpen(false); setF({ ...f, city: "", desired_at: "", requirements: "", contact: "" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["model_calls"] }); setOpen(false); setF({ ...f, city: "", desired_at: "", requirements: "", contact: "", studio_name: "", cost_amount: "" }); },
   });
 
   return (
@@ -133,8 +133,9 @@ function ModelsBoard() {
             <div key={p.id} className="bg-card rounded-2xl border border-border p-5 shadow-soft flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full">{p.treatment_type}</span>
-                <span className="text-[11px] font-bold text-primary">{COSTS[p.cost_type] ?? p.cost_type}</span>
+                <span className="text-[11px] font-bold text-primary">{COSTS[p.cost_type] ?? p.cost_type}{p.cost_amount ? ` · ${p.cost_amount}` : ""}</span>
               </div>
+              {p.studio_name && <div className="flex items-center gap-1 text-sm font-bold"><Building className="w-4 h-4 text-primary" />{p.studio_name}</div>}
               <div className="flex items-center gap-1 text-sm"><MapPin className="w-4 h-4 text-primary" />{p.city} · {p.region}</div>
               {p.desired_at && <div className="flex items-center gap-1 text-xs text-muted-foreground"><CalendarClock className="w-4 h-4" />{new Date(p.desired_at).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}</div>}
               {p.requirements && <p className="text-xs bg-muted rounded-xl p-3 leading-relaxed"><b>דרישות: </b>{p.requirements}</p>}
@@ -156,6 +157,8 @@ function ModelsBoard() {
             <div><label className={label}>עלות</label>
               <div className="flex gap-2">{Object.entries(COSTS).map(([k, v]) => <button type="button" key={k} onClick={() => setF({ ...f, cost_type: k })} className={chip(f.cost_type === k)}>{v}</button>)}</div>
             </div>
+            {f.cost_type === "materials" && <div><label className={label}>סכום</label><input maxLength={30} placeholder="לדוגמה: 50 ₪" className={field} value={f.cost_amount} onChange={(e) => setF({ ...f, cost_amount: e.target.value })} /></div>}
+            <div><label className={label}>שם הסטודיו</label><input maxLength={150} className={field} value={f.studio_name} onChange={(e) => setF({ ...f, studio_name: e.target.value })} /></div>
             <div><label className={label}>דרישות</label><textarea rows={2} maxLength={1000} placeholder="לדוגמה: ללא מבנה קיים, ציפורניים טבעיות" className={field} value={f.requirements} onChange={(e) => setF({ ...f, requirements: e.target.value })} /></div>
             <div><label className={label}>טלפון או קישור וואטסאפ *</label><input required minLength={5} maxLength={200} dir="ltr" placeholder="050-0000000" className={`${field} text-left`} value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} /></div>
             {add.isError && <p className="text-xs text-destructive">הפרסום נכשל, נסי שוב.</p>}

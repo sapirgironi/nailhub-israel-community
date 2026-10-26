@@ -43,6 +43,13 @@
       "when": 1793052194575,
       "tag": "0005_private_pricelist_and_tool_validation",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793052211476,
+      "tag": "0006_private_work_photo_access",
+      "breakpoints": true
     }
   ]
 }

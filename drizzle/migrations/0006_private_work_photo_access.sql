@@ -1,0 +1,3 @@
+CREATE POLICY "Own work photo upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id='community-work' AND (storage.foldername(name))[1]=auth.uid()::text AND lower(storage.extension(name)) IN ('jpg','jpeg','png','webp'));
+CREATE POLICY "Signed in work photo read" ON storage.objects FOR SELECT TO authenticated USING (bucket_id='community-work');
+CREATE POLICY "Own work photo delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id='community-work' AND (storage.foldername(name))[1]=auth.uid()::text);

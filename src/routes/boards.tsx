@@ -23,7 +23,7 @@ const REGIONS = ["צפון", "מרכז", "שרון", "דרום", "ירושלים
 const COSTS: Record<string, string> = { free: "חינם", materials: "תשלום סמלי על חומרים" };
 const JOB_TYPES: Record<string, string> = { hiring: "מחפשת עובדת", station: "השכרת עמדת עבודה" };
 
-export function whatsappLink(contact: string) {
+function whatsappLink(contact: string) {
   const c = contact.trim();
   if (/^https?:\/\//i.test(c)) return c;
   let d = c.replace(/\D/g, "");
@@ -97,7 +97,7 @@ function ModelsBoard() {
   });
   const list = data.filter((p) => (region === "all" || p.region === region) && (treatment === "all" || p.treatment_type === treatment));
 
-  const [f, setF] = useState({ treatment_type: TREATMENTS[0], region: REGIONS[0], city: "", desired_at: "", cost_type: "free", requirements: "", contact: "" });
+  const [f, setF] = useState({ treatment_type: TREATMENTS[0]!, region: REGIONS[0]!, city: "", desired_at: "", cost_type: "free", requirements: "", contact: "" });
   const add = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("model_calls").insert({ ...f, desired_at: f.desired_at ? new Date(f.desired_at).toISOString() : null, requirements: f.requirements || null });

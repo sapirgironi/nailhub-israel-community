@@ -1,6 +1,6 @@
 # NailHub roadmap
 
-- [ ] Replace main app with requested complete upload and Lilac/Mauve design — blocked: newest upload is 135 lines and ends mid-string; full source required
+- [ ] Integrate complete upload: Lilac/Mauve navigation, real feed/saved/trade, insurance, calculator, signed health form and digital pricelist; preserve real auth and private records
 
 - [x] Dependency security: lockfile resolves source-map-js 1.2.2, js-yaml 4.3.2, zod 4.6.7; production dependency scan clean, regression tests and automatic build passed
 
@@ -20,5 +20,5 @@
 - [x] Shared role/service lists (src/lib/roles.ts)
 - [x] Boards: studio name + materials amount, new styling
 - [x] Real email/password sign-up + login, profiles saved
-- [ ] Main app (feed/NailTrade/insurance/saved) integration — complete upload received; pending user's choice about incorporating its demo-only features without replacing real auth
+- [ ] Main app (feed/NailTrade/insurance/saved) integration — user chose integration with existing live app, not a demo replacement
 - [x] AI post draft writer (Hebrew)

@@ -756,7 +756,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                   const reason = plainText(2000).safeParse(roleChangeData.reason);
                   if (!reason.success) { alert('יש להזין טקסט רגיל בלבד, עד 2000 תווים'); return; }
                   supabase.from('role_change_requests').insert({ user_id: currentUser.id, current_role: currentUser.role, requested_role: roleChangeData.requestedRole, reason: reason.data })
-                    .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else alert(hebrewError(error, 'שליחת הבקשה נכשלה. נסי שוב.')); }).catch(error => alert(hebrewError(error)));
+                    .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else alert(hebrewError(error, 'שליחת הבקשה נכשלה. נסי שוב.')); }, (error: unknown) => alert(hebrewError(error)));
                 }} 
                 className="space-y-4"
               >

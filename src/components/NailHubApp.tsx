@@ -658,7 +658,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
               </span>
             </div>
 
-<nav aria-label="כלים בפרופיל" className="grid grid-cols-2 gap-2">{([{path:'/saved',label:'השמורים שלי'},{path:'/pricelist',label:'המחירון שלי'},{path:'/health',label:'הצהרות בריאות'},{path:'/calculator',label:'מחשבון תמחור'}] as const).map(item=><Button asChild variant="outline" key={item.path}><Link to={item.path}>{item.label}</Link></Button>)}</nav>
+<nav aria-label="כלים בפרופיל" className="grid grid-cols-2 gap-2">{([{path:'/saved',label:'השמורים שלי'},{path:'/pricelist',label:'המחירון שלי'},{path:'/health',label:'הצהרות בריאות'},{path:'/calculator',label:'מחשבון תמחור'},{path:'/settings',label:'הגדרות חשבון'}] as const).map(item=><Button asChild variant="outline" key={item.path}><Link to={item.path}>{item.label}</Link></Button>)}</nav>
             <div className="space-y-4 text-xs">
               <div>
                 <span className="text-foreground block mb-1.5 font-bold">התמחויות שלך:</span>

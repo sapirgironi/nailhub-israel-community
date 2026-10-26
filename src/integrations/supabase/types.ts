@@ -65,6 +65,72 @@ export type Database = {
         }
         Relationships: []
       }
+      job_posts: {
+        Row: {
+          city: string
+          created_at: string
+          description: string
+          id: string
+          phone: string
+          post_type: string
+          studio_name: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          description: string
+          id?: string
+          phone: string
+          post_type: string
+          studio_name: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          description?: string
+          id?: string
+          phone?: string
+          post_type?: string
+          studio_name?: string
+        }
+        Relationships: []
+      }
+      model_calls: {
+        Row: {
+          city: string
+          contact: string
+          cost_type: string
+          created_at: string
+          desired_at: string | null
+          id: string
+          region: string
+          requirements: string | null
+          treatment_type: string
+        }
+        Insert: {
+          city: string
+          contact: string
+          cost_type?: string
+          created_at?: string
+          desired_at?: string | null
+          id?: string
+          region: string
+          requirements?: string | null
+          treatment_type: string
+        }
+        Update: {
+          city?: string
+          contact?: string
+          cost_type?: string
+          created_at?: string
+          desired_at?: string | null
+          id?: string
+          region?: string
+          requirements?: string | null
+          treatment_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

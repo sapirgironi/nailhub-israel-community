@@ -11,6 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BoardsRouteImport } from './routes/boards'
+import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as DirectoryRouteImport } from './routes/directory'
+import { Route as DraftRouteImport } from './routes/draft'
+import { Route as FeedRouteImport } from './routes/feed'
+import { Route as HealthRouteImport } from './routes/health'
+import { Route as InsuranceRouteImport } from './routes/insurance'
+import { Route as NailtradeRouteImport } from './routes/nailtrade'
+import { Route as PricelistRouteImport } from './routes/pricelist'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SavedRouteImport } from './routes/saved'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +32,158 @@ const BoardsRoute = BoardsRouteImport.update({
   path: '/boards',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalculatorRoute = CalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DirectoryRoute = DirectoryRouteImport.update({
+  id: '/directory',
+  path: '/directory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DraftRoute = DraftRouteImport.update({
+  id: '/draft',
+  path: '/draft',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedRoute = FeedRouteImport.update({
+  id: '/feed',
+  path: '/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsuranceRoute = InsuranceRouteImport.update({
+  id: '/insurance',
+  path: '/insurance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NailtradeRoute = NailtradeRouteImport.update({
+  id: '/nailtrade',
+  path: '/nailtrade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricelistRoute = PricelistRouteImport.update({
+  id: '/pricelist',
+  path: '/pricelist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SavedRoute = SavedRouteImport.update({
+  id: '/saved',
+  path: '/saved',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/boards': typeof BoardsRoute
+  '/calculator': typeof CalculatorRoute
+  '/directory': typeof DirectoryRoute
+  '/draft': typeof DraftRoute
+  '/feed': typeof FeedRoute
+  '/health': typeof HealthRoute
+  '/insurance': typeof InsuranceRoute
+  '/nailtrade': typeof NailtradeRoute
+  '/pricelist': typeof PricelistRoute
+  '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/boards': typeof BoardsRoute
+  '/calculator': typeof CalculatorRoute
+  '/directory': typeof DirectoryRoute
+  '/draft': typeof DraftRoute
+  '/feed': typeof FeedRoute
+  '/health': typeof HealthRoute
+  '/insurance': typeof InsuranceRoute
+  '/nailtrade': typeof NailtradeRoute
+  '/pricelist': typeof PricelistRoute
+  '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/boards': typeof BoardsRoute
+  '/calculator': typeof CalculatorRoute
+  '/directory': typeof DirectoryRoute
+  '/draft': typeof DraftRoute
+  '/feed': typeof FeedRoute
+  '/health': typeof HealthRoute
+  '/insurance': typeof InsuranceRoute
+  '/nailtrade': typeof NailtradeRoute
+  '/pricelist': typeof PricelistRoute
+  '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/boards'
+  fullPaths:
+    | '/'
+    | '/boards'
+    | '/calculator'
+    | '/directory'
+    | '/draft'
+    | '/feed'
+    | '/health'
+    | '/insurance'
+    | '/nailtrade'
+    | '/pricelist'
+    | '/profile'
+    | '/saved'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/boards'
-  id: '__root__' | '/' | '/boards'
+  to:
+    | '/'
+    | '/boards'
+    | '/calculator'
+    | '/directory'
+    | '/draft'
+    | '/feed'
+    | '/health'
+    | '/insurance'
+    | '/nailtrade'
+    | '/pricelist'
+    | '/profile'
+    | '/saved'
+  id:
+    | '__root__'
+    | '/'
+    | '/boards'
+    | '/calculator'
+    | '/directory'
+    | '/draft'
+    | '/feed'
+    | '/health'
+    | '/insurance'
+    | '/nailtrade'
+    | '/pricelist'
+    | '/profile'
+    | '/saved'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BoardsRoute: typeof BoardsRoute
+  CalculatorRoute: typeof CalculatorRoute
+  DirectoryRoute: typeof DirectoryRoute
+  DraftRoute: typeof DraftRoute
+  FeedRoute: typeof FeedRoute
+  HealthRoute: typeof HealthRoute
+  InsuranceRoute: typeof InsuranceRoute
+  NailtradeRoute: typeof NailtradeRoute
+  PricelistRoute: typeof PricelistRoute
+  ProfileRoute: typeof ProfileRoute
+  SavedRoute: typeof SavedRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +202,92 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BoardsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calculator': {
+      id: '/calculator'
+      path: '/calculator'
+      fullPath: '/calculator'
+      preLoaderRoute: typeof CalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/directory': {
+      id: '/directory'
+      path: '/directory'
+      fullPath: '/directory'
+      preLoaderRoute: typeof DirectoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/draft': {
+      id: '/draft'
+      path: '/draft'
+      fullPath: '/draft'
+      preLoaderRoute: typeof DraftRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed': {
+      id: '/feed'
+      path: '/feed'
+      fullPath: '/feed'
+      preLoaderRoute: typeof FeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insurance': {
+      id: '/insurance'
+      path: '/insurance'
+      fullPath: '/insurance'
+      preLoaderRoute: typeof InsuranceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nailtrade': {
+      id: '/nailtrade'
+      path: '/nailtrade'
+      fullPath: '/nailtrade'
+      preLoaderRoute: typeof NailtradeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricelist': {
+      id: '/pricelist'
+      path: '/pricelist'
+      fullPath: '/pricelist'
+      preLoaderRoute: typeof PricelistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/saved': {
+      id: '/saved'
+      path: '/saved'
+      fullPath: '/saved'
+      preLoaderRoute: typeof SavedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BoardsRoute: BoardsRoute,
+  CalculatorRoute: CalculatorRoute,
+  DirectoryRoute: DirectoryRoute,
+  DraftRoute: DraftRoute,
+  FeedRoute: FeedRoute,
+  HealthRoute: HealthRoute,
+  InsuranceRoute: InsuranceRoute,
+  NailtradeRoute: NailtradeRoute,
+  PricelistRoute: PricelistRoute,
+  ProfileRoute: ProfileRoute,
+  SavedRoute: SavedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

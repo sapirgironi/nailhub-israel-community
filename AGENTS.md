@@ -12,3 +12,6 @@
 - Profiles are created by the `handle_new_user` signup trigger from auth metadata; client never inserts profiles directly (keeps role/status trusted).
 - Admin rights live only in `user_roles` + `has_role()`; never add admin flags to `profiles` (prevents self-escalation).
 - AI calls run server-side in `*.server.ts`, exposed via authenticated `*.functions.ts` server functions (keeps the AI key off the browser).
+- Personal-record tables are owner/admin scoped; legacy rows without an owner remain admin-only because ownership must never be guessed.
+- Free text uses shared plain-text schemas and database validation triggers; React renders it as text, never HTML, to prevent executable markup.
+- Contact links are reconstructed from validated phone numbers and exact WhatsApp hosts, never arbitrary caller URLs.

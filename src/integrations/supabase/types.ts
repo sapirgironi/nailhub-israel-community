@@ -30,6 +30,7 @@ export type Database = {
           phone: string
           signature_image: string
           takes_blood_thinners: boolean | null
+          user_id: string | null
         }
         Insert: {
           additional_notes?: string | null
@@ -46,6 +47,7 @@ export type Database = {
           phone: string
           signature_image: string
           takes_blood_thinners?: boolean | null
+          user_id?: string | null
         }
         Update: {
           additional_notes?: string | null
@@ -62,6 +64,7 @@ export type Database = {
           phone?: string
           signature_image?: string
           takes_blood_thinners?: boolean | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -145,6 +148,7 @@ export type Database = {
           phone: string
           post_type: string
           studio_name: string
+          user_id: string | null
         }
         Insert: {
           city: string
@@ -154,6 +158,7 @@ export type Database = {
           phone: string
           post_type: string
           studio_name: string
+          user_id?: string | null
         }
         Update: {
           city?: string
@@ -163,6 +168,7 @@ export type Database = {
           phone?: string
           post_type?: string
           studio_name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -179,6 +185,7 @@ export type Database = {
           requirements: string | null
           studio_name: string | null
           treatment_type: string
+          user_id: string | null
         }
         Insert: {
           city: string
@@ -192,6 +199,7 @@ export type Database = {
           requirements?: string | null
           studio_name?: string | null
           treatment_type: string
+          user_id?: string | null
         }
         Update: {
           city?: string
@@ -205,6 +213,7 @@ export type Database = {
           requirements?: string | null
           studio_name?: string | null
           treatment_type?: string
+          user_id?: string | null
         }
         Relationships: []
       }

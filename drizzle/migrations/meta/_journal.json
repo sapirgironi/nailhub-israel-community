@@ -29,6 +29,13 @@
       "when": 1793050257126,
       "tag": "0003_signup_saves_services",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793051258646,
+      "tag": "0004_private_personal_records_and_safe_text",
+      "breakpoints": true
     }
   ]
 }

@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Copy, Check } from "lucide-react";
 import { draftPost } from "@/lib/post-draft.functions";
+import { plainText } from '@/lib/input-security';
 
 const TONES = ["מקצועי", "חם ואישי", "מעורר השראה"];
 
 export function PostDraftWriter() {
   const run = useServerFn(draftPost);
   const [description, setDescription] = useState("");
-  const [tone, setTone] = useState(TONES[0]!);
+  const [tone, setTone] = useState(TONES[0] ?? 'מקצועי');
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,9 +17,11 @@ export function PostDraftWriter() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validated = plainText(2000).safeParse(description);
+    if (!validated.success || validated.data.length < 10) { setError('יש להזין טקסט רגיל בלבד, בין 10 ל-2000 תווים'); return; }
     setLoading(true); setError("");
     try {
-      const res = await run({ data: { description, tone } });
+      const res = await run({ data: { description: validated.data, tone } });
       if (res.error) setError(res.error); else setDraft(res.draft);
     } catch (err) {
       setError(err instanceof Error ? err.message : "יצירת הטיוטה נכשלה");

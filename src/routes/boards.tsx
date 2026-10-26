@@ -3,6 +3,8 @@ import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, CalendarClock, MessageCircle, Plus, X, Sparkles, Briefcase, Phone, Users, Building } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from 'zod';
+import { contactText, phoneText, plainText, whatsappLink } from '@/lib/input-security';
 
 export const Route = createFileRoute("/boards")({
   head: () => ({
@@ -22,14 +24,6 @@ const TREATMENTS = ["מבנה אנטומי", "בנייה באקריל", "ג'ל",
 const REGIONS = ["צפון", "מרכז", "שרון", "דרום", "ירושלים"];
 const COSTS: Record<string, string> = { free: "חינם", materials: "תשלום סמלי על חומרים" };
 const JOB_TYPES: Record<string, string> = { hiring: "מחפשת עובדת", station: "השכרת עמדת עבודה" };
-
-function whatsappLink(contact: string) {
-  const c = contact.trim();
-  if (/^https?:\/\//i.test(c)) return c;
-  let d = c.replace(/\D/g, "");
-  if (d.startsWith("0")) d = "972" + d.slice(1);
-  return `https://wa.me/${d}`;
-}
 
 const field = "w-full px-3.5 py-2.5 rounded-xl border border-input bg-card focus:ring-2 focus:ring-ring outline-none text-sm";
 const label = "block text-xs font-bold mb-1";
@@ -57,8 +51,10 @@ function BoardsPage() {
 }
 
 function WhatsAppButton({ contact }: { contact: string }) {
+  const href = whatsappLink(contact);
+  if (!href) return <span className="text-xs text-muted-foreground">פרטי הקשר אינם תקינים</span>;
   return (
-    <a href={whatsappLink(contact)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2.5 rounded-xl text-xs transition">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2.5 rounded-xl text-xs transition">
       <MessageCircle className="w-4 h-4" /> שליחת הודעה בוואטסאפ
     </a>
   );
@@ -97,10 +93,13 @@ function ModelsBoard() {
   });
   const list = data.filter((p) => (region === "all" || p.region === region) && (treatment === "all" || p.treatment_type === treatment));
 
-  const [f, setF] = useState({ treatment_type: TREATMENTS[0]!, region: REGIONS[0]!, city: "", desired_at: "", cost_type: "free", requirements: "", contact: "", studio_name: "", cost_amount: "" });
+  const [f, setF] = useState({ treatment_type: TREATMENTS[0] ?? 'מבנה אנטומי', region: REGIONS[0] ?? 'צפון', city: "", desired_at: "", cost_type: "free", requirements: "", contact: "", studio_name: "", cost_amount: "" });
   const add = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("model_calls").insert({ ...f, desired_at: f.desired_at ? new Date(f.desired_at).toISOString() : null, requirements: f.requirements || null, studio_name: f.studio_name || null, cost_amount: f.cost_type === "materials" && f.cost_amount ? f.cost_amount : null });
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error('יש להתחבר לפני פרסום מודעה');
+      const validated = z.object({ treatment_type: plainText(100), region: plainText(100), city: plainText(100).refine(v => v.length > 0), requirements: plainText(1000), contact: contactText, studio_name: plainText(150), cost_amount: plainText(30), cost_type: z.enum(['free', 'materials']), desired_at: z.string().max(30) }).parse(f);
+      const { error } = await supabase.from("model_calls").insert({ ...validated, user_id: auth.user.id, desired_at: f.desired_at ? new Date(f.desired_at).toISOString() : null, requirements: f.requirements || null, studio_name: f.studio_name || null, cost_amount: f.cost_type === "materials" && f.cost_amount ? f.cost_amount : null });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["model_calls"] }); setOpen(false); setF({ ...f, city: "", desired_at: "", requirements: "", contact: "", studio_name: "", cost_amount: "" }); },
@@ -161,7 +160,7 @@ function ModelsBoard() {
             <div><label className={label}>שם הסטודיו</label><input maxLength={150} className={field} value={f.studio_name} onChange={(e) => setF({ ...f, studio_name: e.target.value })} /></div>
             <div><label className={label}>דרישות</label><textarea rows={2} maxLength={1000} placeholder="לדוגמה: ללא מבנה קיים, ציפורניים טבעיות" className={field} value={f.requirements} onChange={(e) => setF({ ...f, requirements: e.target.value })} /></div>
             <div><label className={label}>טלפון או קישור וואטסאפ *</label><input required minLength={5} maxLength={200} dir="ltr" placeholder="050-0000000" className={`${field} text-left`} value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} /></div>
-            {add.isError && <p className="text-xs text-destructive">הפרסום נכשל, נסי שוב.</p>}
+            {add.isError && <p className="text-xs text-destructive">הפרסום נכשל. ודאי שאת מחוברת ושכל השדות מכילים טקסט רגיל ופרטי וואטסאפ תקינים. <Link to="/">כניסה לחשבון</Link></p>}
             <button disabled={add.isPending} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</button>
           </form>
         </Modal>
@@ -185,7 +184,13 @@ function JobsBoard() {
   const list = data.filter((p) => type === "all" || p.post_type === type);
   const [f, setF] = useState({ post_type: "hiring", studio_name: "", city: "", description: "", phone: "" });
   const add = useMutation({
-    mutationFn: async () => { const { error } = await supabase.from("job_posts").insert(f); if (error) throw error; },
+    mutationFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error('יש להתחבר לפני פרסום מודעה');
+      const validated = z.object({ post_type: z.enum(['hiring', 'station']), studio_name: plainText(150).refine(v => v.length > 0), city: plainText(100).refine(v => v.length > 0), description: plainText(2000).refine(v => v.length > 0), phone: phoneText }).parse(f);
+      const { error } = await supabase.from("job_posts").insert({ ...validated, user_id: auth.user.id });
+      if (error) throw error;
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["job_posts"] }); setOpen(false); setF({ post_type: "hiring", studio_name: "", city: "", description: "", phone: "" }); },
   });
 
@@ -216,7 +221,7 @@ function JobsBoard() {
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-line">{p.description}</p>
               <div className="mt-auto flex gap-2">
-                <a href={`tel:${p.phone}`} className="inline-flex items-center gap-1 px-4 rounded-xl border border-border text-xs font-bold hover:bg-accent"><Phone className="w-3.5 h-3.5" />{p.phone}</a>
+                <a href={phoneText.safeParse(p.phone).success ? `tel:${p.phone.replace(/[^+0-9]/g, '')}` : undefined} className="inline-flex items-center gap-1 px-4 rounded-xl border border-border text-xs font-bold hover:bg-accent"><Phone className="w-3.5 h-3.5" />{p.phone}</a>
                 <div className="flex-1"><WhatsAppButton contact={p.phone} /></div>
               </div>
             </div>
@@ -235,7 +240,7 @@ function JobsBoard() {
             </div>
             <div><label className={label}>{f.post_type === "hiring" ? "תיאור הדרישות" : "תנאי השכירות"} *</label><textarea required rows={4} maxLength={2000} className={field} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
             <div><label className={label}>טלפון ליצירת קשר *</label><input required type="tel" minLength={5} maxLength={30} dir="ltr" placeholder="050-0000000" className={`${field} text-left`} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></div>
-            {add.isError && <p className="text-xs text-destructive">הפרסום נכשל, נסי שוב.</p>}
+            {add.isError && <p className="text-xs text-destructive">הפרסום נכשל. ודאי שאת מחוברת ושכל השדות מכילים טקסט רגיל ומספר טלפון תקין. <Link to="/">כניסה לחשבון</Link></p>}
             <button disabled={add.isPending} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl text-sm disabled:opacity-60">{add.isPending ? "מפרסם..." : "פרסום"}</button>
           </form>
         </Modal>

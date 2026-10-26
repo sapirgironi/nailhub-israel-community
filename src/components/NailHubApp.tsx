@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Sparkles, 
   Search, 
@@ -110,41 +111,35 @@ export function NailHubApp() {
   const [roleChangeData, setRoleChangeData] = useState({ requestedRole: 'instructor', reason: '' });
   const [roleChangeSuccess, setRoleChangeSuccess] = useState(false);
 
-  const [members, setMembers] = useState<Member[]>([
-    {
-      id: '1',
-      fullName: 'ספיר גירוני',
-      businessName: 'ספיר ביוטי & ניילס',
-      role: 'nail_tech',
-      city: 'קריית ביאליק',
-      specialties: ['מבנה אנטומי מושלם', 'פרנץ\' מדויק וחיוך מושלם', 'דיפ פאוודר'],
-      additionalServices: ['פדיקור קוסמטי', 'עיצוב ושיקום גבות'],
-      phone: '050-0000000',
-      isVerified: true
-    },
-    {
-      id: '2',
-      fullName: 'ליליאן שיין',
-      businessName: 'Lili Nails & Academy',
-      role: 'instructor',
-      city: 'חיפה',
-      specialties: ['מבנה אנטומי מושלם', 'ציורי יד ונייל-ארט'],
-      additionalServices: ['הרמת ריסים'],
-      phone: '054-0000000',
-      isVerified: true
-    },
-    {
-      id: '3',
-      fullName: 'גולן אספקה',
-      businessName: 'גלמור פרו דילר',
-      role: 'supplier',
-      city: 'קריית ביאליק',
-      specialties: ['אבקות דיפ', 'ראשי שיוף ומכשור'],
-      additionalServices: [],
-      phone: '054-3289555',
-      isVerified: true
-    }
-  ]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authInfo, setAuthInfo] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const toMember = (p: any): Member => ({
+    id: p.id, fullName: p.display_name, businessName: p.business_name || p.display_name, role: p.account_role,
+    city: p.city || '', specialties: p.specialties || [], additionalServices: p.additional_services || [],
+    phone: p.hide_phone ? '' : p.phone, isVerified: !!p.is_verified,
+  });
+
+  const loadData = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const list = (data || []).map(toMember);
+    setMembers(list);
+    setCurrentUser(list.find((m) => m.id === userId) ?? null);
+    setCurrentStep('app');
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => { if (data.session) loadData(data.session.user.id); });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) loadData(session.user.id);
+      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setCurrentStep('gate'); }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const [filterRole, setFilterRole] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -159,31 +154,30 @@ export function NailHubApp() {
     }
   };
 
-  const handleCompleteRegistration = (e: React.FormEvent) => {
+  const handleCompleteRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName.trim()) return alert('נא להזין שם מלא');
-
-    const newUser: Member = {
-      id: String(Date.now()),
-      fullName: formData.fullName,
-      businessName: formData.businessName || formData.fullName,
-      role: formData.role,
-      city: formData.city,
-      phone: formData.phone,
-      specialties: formData.specialties,
-      additionalServices: formData.additionalServices,
-      isVerified: true
-    };
-
-    setCurrentUser(newUser);
-    setMembers(prev => [newUser, ...prev]);
-    setCurrentStep('app');
+    setAuthError(''); setAuthLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: authEmail.trim(), password: authPassword,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          display_name: formData.fullName.trim(), business_name: formData.businessName.trim(), phone: formData.phone.trim(),
+          city: formData.city.trim(), account_role: formData.role, specialties: formData.specialties, additional_services: formData.additionalServices,
+        },
+      },
+    });
+    setAuthLoading(false);
+    if (error) return setAuthError(error.message.includes('registered') ? 'כתובת האימייל כבר רשומה. נסי להתחבר.' : 'ההרשמה נכשלה: ' + error.message);
+    if (!data.session) { setAuthInfo('נשלח אלייך מייל אימות 💌 לחצי על הקישור במייל ואז התחברי.'); setCurrentStep('login'); }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentUser(members[0] ?? null);
-    setCurrentStep('app');
+    setAuthError(''); setAuthLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
+    setAuthLoading(false);
+    if (error) setAuthError(error.message.includes('confirm') ? 'יש לאמת את כתובת האימייל לפני ההתחברות.' : 'אימייל או סיסמה שגויים.');
   };
 
   const toggleItem = (list: string[], item: string) => {
@@ -272,24 +266,25 @@ export function NailHubApp() {
         <div className="max-w-md w-full bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-rose-100 p-8 md:p-10 border border-white">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-black text-stone-900">היי, כיף שחזרת! 💖</h1>
-            <p className="text-xs text-stone-500 mt-1">הזיני את הנייד שלך לכניסה מהירה לחשבון</p>
+            <p className="text-xs text-stone-500 mt-1">הזיני אימייל וסיסמה לכניסה לחשבון</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1.5">מספר טלפון נייד</label>
-              <input
-                type="tel"
-                defaultValue="050-0000000"
-                className="w-full px-4 py-3 rounded-2xl border border-rose-100 focus:ring-2 focus:ring-rose-400 outline-none text-left font-mono text-sm bg-rose-50/20"
-                dir="ltr"
-              />
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">אימייל *</label>
+              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-rose-100 focus:ring-2 focus:ring-rose-400 outline-none text-left text-sm bg-rose-50/20" dir="ltr" />
             </div>
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">סיסמה *</label>
+              <input type="password" required minLength={6} autoComplete="current-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-rose-100 focus:ring-2 focus:ring-rose-400 outline-none text-left text-sm bg-rose-50/20" dir="ltr" />
+            </div>
+            {authInfo && <p className="text-xs text-emerald-700 bg-emerald-50 rounded-xl p-2 text-center">{authInfo}</p>}
+            {authError && <p className="text-xs text-rose-600 bg-rose-50 rounded-xl p-2 text-center">{authError}</p>}
             <button
               type="submit"
               className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3.5 rounded-2xl transition shadow-md text-sm"
             >
-              כניסה לאפליקציה
+              {authLoading ? 'מתחברת...' : 'כניסה לאפליקציה'}
             </button>
           </form>
 
@@ -325,6 +320,16 @@ export function NailHubApp() {
           </div>
 
           <form onSubmit={handleCompleteRegistration} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">אימייל *</label>
+              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-rose-100 focus:ring-2 focus:ring-rose-400 outline-none text-left text-sm bg-rose-50/20" dir="ltr" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">סיסמה *</label>
+              <input type="password" required minLength={6} autoComplete="new-password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-rose-100 focus:ring-2 focus:ring-rose-400 outline-none text-left text-sm bg-rose-50/20" dir="ltr" />
+            </div>
+            {authInfo && <p className="text-xs text-emerald-700 bg-emerald-50 rounded-xl p-2 text-center">{authInfo}</p>}
+            {authError && <p className="text-xs text-rose-600 bg-rose-50 rounded-xl p-2 text-center">{authError}</p>}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">שם מלא *</label>
@@ -460,7 +465,7 @@ export function NailHubApp() {
               type="submit"
               className="w-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 hover:from-rose-600 hover:to-pink-600 text-white font-extrabold py-3.5 rounded-2xl transition shadow-lg shadow-rose-300/50 text-sm flex items-center justify-center gap-2"
             >
-              <span>הצטרפות לקהילת המקצועניות</span>
+              <span>{authLoading ? 'נרשמת...' : 'הצטרפות לקהילת המקצועניות'}</span>
               <Sparkles className="w-4 h-4" />
             </button>
           </form>
@@ -725,7 +730,7 @@ export function NailHubApp() {
                 בקשת שדרוג תפקיד (מדריכה / ספקית) ✨
               </button>
               <button
-                onClick={() => setCurrentStep('gate')}
+                onClick={() => supabase.auth.signOut()}
                 className="px-5 py-3 border border-rose-200 text-stone-500 hover:text-rose-600 rounded-2xl text-xs transition font-bold"
               >
                 התנתקות
@@ -767,7 +772,9 @@ export function NailHubApp() {
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
-                  setRoleChangeSuccess(true);
+                  if (!currentUser) return;
+                  supabase.from('role_change_requests').insert({ user_id: currentUser.id, current_role: currentUser.role, requested_role: roleChangeData.requestedRole, reason: roleChangeData.reason })
+                    .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else alert('שליחת הבקשה נכשלה'); });
                 }} 
                 className="space-y-4"
               >

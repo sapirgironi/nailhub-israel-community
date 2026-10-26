@@ -221,7 +221,7 @@ function JobsBoard() {
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-line">{p.description}</p>
               <div className="mt-auto flex gap-2">
-                <a href={`tel:${p.phone}`} className="inline-flex items-center gap-1 px-4 rounded-xl border border-border text-xs font-bold hover:bg-accent"><Phone className="w-3.5 h-3.5" />{p.phone}</a>
+                <a href={phoneText.safeParse(p.phone).success ? `tel:${p.phone.replace(/[^+0-9]/g, '')}` : undefined} className="inline-flex items-center gap-1 px-4 rounded-xl border border-border text-xs font-bold hover:bg-accent"><Phone className="w-3.5 h-3.5" />{p.phone}</a>
                 <div className="flex-1"><WhatsAppButton contact={p.phone} /></div>
               </div>
             </div>

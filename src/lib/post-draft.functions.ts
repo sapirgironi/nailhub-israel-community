@@ -5,7 +5,7 @@ const TONES = ["מקצועי", "חם ואישי", "מעורר השראה"];
 
 export const draftPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { description: string; tone: string }) => {
+  .validator((input: { description: string; tone: string }) => {
     const description = String(input?.description ?? "").trim();
     if (description.length < 10 || description.length > 2000) throw new Error("התיאור צריך להיות בין 10 ל-2000 תווים");
     const tone = TONES.includes(input?.tone) ? input.tone : TONES[0]!;

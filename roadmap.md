@@ -11,6 +11,6 @@
 - [x] Community database (profiles, posts, saved, trade, insurance, role requests) from uploaded SQL
 - [x] Shared role/service lists (src/lib/roles.ts)
 - [x] Boards: studio name + materials amount, new styling
-- [ ] Connect sign-up/login + home directory to real profiles (next)
+- [x] Real email/password sign-up + login, profiles saved
 - [ ] Main app (feed/NailTrade/insurance/saved) from upload — file was cut off, waiting for full version
-- [ ] AI post draft writer (Hebrew) for nail techs
+- [x] AI post draft writer (Hebrew)

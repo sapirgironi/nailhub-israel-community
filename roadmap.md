@@ -12,3 +12,4 @@
 - [x] Shared role/service lists (src/lib/roles.ts)
 - [x] Boards: studio name + materials amount, new styling
 - [ ] Connect sign-up/login + home directory to real profiles (next)
+- [ ] Main app (feed/NailTrade/insurance/saved) from upload — file was cut off, waiting for full version

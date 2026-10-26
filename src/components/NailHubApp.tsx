@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { PostDraftWriter } from './PostDraftWriter';
 import { 
   Sparkles, 
   Search, 
@@ -91,7 +92,7 @@ interface Member {
 
 export function NailHubApp() {
   const [currentStep, setCurrentStep] = useState<'gate' | 'login' | 'onboarding' | 'app'>('gate');
-  const [activeTab, setActiveTab] = useState<'directory' | 'profile'>('directory');
+  const [activeTab, setActiveTab] = useState<'directory' | 'profile' | 'draft'>('directory');
   const [inviteCode, setInviteCode] = useState('');
   const [gateError, setGateError] = useState('');
   
@@ -519,6 +520,12 @@ export function NailHubApp() {
               דירקטורי חברות ✨
             </button>
             <button
+              onClick={() => setActiveTab('draft')}
+              className={`px-4 py-2 rounded-xl transition duration-200 ${activeTab === 'draft' ? 'bg-white text-rose-600 shadow-sm' : 'text-stone-500 hover:text-rose-500'}`}
+            >
+              כתיבת פוסט ✨
+            </button>
+            <button
               onClick={() => setActiveTab('profile')}
               className={`px-3.5 py-1.5 rounded-xl transition duration-200 ${
                 activeTab === 'profile' 
@@ -681,6 +688,8 @@ export function NailHubApp() {
         )}
 
         {/* תוכן עמוד פרופיל אישי */}
+        {activeTab === 'draft' && <PostDraftWriter />}
+
         {activeTab === 'profile' && currentUser && (
           <div className="max-w-xl mx-auto bg-white/95 backdrop-blur-xl rounded-[2.5rem] border border-rose-100 p-6 md:p-8 shadow-xl shadow-rose-100/50 space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-rose-100">

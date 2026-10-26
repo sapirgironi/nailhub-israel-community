@@ -320,6 +320,30 @@ export type Database = {
           },
         ]
       }
+      price_list_items: {
+        Row: {
+          created_at: string
+          id: string
+          price_nis: number
+          service_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price_nis: number
+          service_name: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price_nis?: number
+          service_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_role: string

@@ -1,23 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from 'zod';
+import { plainText } from './input-security';
 
 const TONES = ["מקצועי", "חם ואישי", "מעורר השראה"];
 
 export const draftPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { description: string; tone: string }) => {
-    const description = String(input?.description ?? "").trim();
-    if (description.length < 10 || description.length > 2000) throw new Error("התיאור צריך להיות בין 10 ל-2000 תווים");
-    const tone = TONES.includes(input?.tone) ? input.tone : TONES[0]!;
-    return { description, tone };
-  })
+  .inputValidator((input: { description: string; tone: string }) => z.object({
+    description: plainText(2000).refine(v => v.length >= 10, 'התיאור צריך להכיל לפחות 10 תווים'),
+    tone: z.string().refine(v => TONES.includes(v), 'סגנון לא תקין'),
+  }).parse(input))
   .handler(async ({ data }) => {
     const { generatePostDraft } = await import("./post-draft.server");
     try {
       return { draft: await generatePostDraft(data.description, data.tone), error: null as string | null };
     } catch (e) {
       const status = (e as { statusCode?: number })?.statusCode;
-      console.error("draftPost failed", status, e);
+      console.error("draftPost failed", status);
       const error = status === 429 ? "יש עומס כרגע, נסי שוב בעוד רגע." : status === 402 ? "נגמרו קרדיטים לבינה המלאכותית." : "יצירת הטיוטה נכשלה, נסי שוב.";
       return { draft: "", error };
     }

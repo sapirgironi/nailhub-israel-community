@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PostDraftWriter } from './PostDraftWriter';
+import { phoneText, plainText } from '@/lib/input-security';
 import { 
   Sparkles, 
   Search, 
@@ -126,7 +127,8 @@ export function NailHubApp() {
   });
 
   const loadData = async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (error) { setAuthError('טעינת הפרופיל נכשלה. נסי להתחבר שוב.'); return; }
     const list = (data || []).map(toMember);
     setMembers(list);
     setCurrentUser(list.find((m) => m.id === userId) ?? null);
@@ -157,6 +159,9 @@ export function NailHubApp() {
 
   const handleCompleteRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (![formData.fullName, formData.businessName, formData.city].every(v => plainText(150).safeParse(v).success) || !phoneText.safeParse(formData.phone).success) {
+      setAuthError('יש להזין טקסט רגיל ומספר טלפון תקין'); return;
+    }
     setAuthError(''); setAuthLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: authEmail.trim(), password: authPassword,
@@ -666,9 +671,9 @@ export function NailHubApp() {
                     </div>
 
                     {/* יצירת קשר */}
-                    <div className="pt-3.5 border-t border-rose-50 flex items-center justify-between text-xs">
+                    {m.phone && <div className="pt-3.5 border-t border-rose-50 flex items-center justify-between text-xs">
                       <a 
-                        href={`tel:${m.phone}`}
+                        href={phoneText.safeParse(m.phone).success ? `tel:${m.phone.replace(/[^+0-9]/g, '')}` : undefined}
                         className="inline-flex items-center gap-2 text-stone-700 font-bold hover:text-rose-600 transition"
                       >
                         <div className="w-7 h-7 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition">
@@ -679,7 +684,7 @@ export function NailHubApp() {
                       <button className="text-[11px] text-rose-500 hover:text-rose-700 font-bold">
                         כרטיס מלא ←
                       </button>
-                    </div>
+                    </div>}
                   </div>
                 );
               })}
@@ -782,7 +787,9 @@ export function NailHubApp() {
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!currentUser) return;
-                  supabase.from('role_change_requests').insert({ user_id: currentUser.id, current_role: currentUser.role, requested_role: roleChangeData.requestedRole, reason: roleChangeData.reason })
+                  const reason = plainText(2000).safeParse(roleChangeData.reason);
+                  if (!reason.success) { alert('יש להזין טקסט רגיל בלבד, עד 2000 תווים'); return; }
+                  supabase.from('role_change_requests').insert({ user_id: currentUser.id, current_role: currentUser.role, requested_role: roleChangeData.requestedRole, reason: reason.data })
                     .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else alert('שליחת הבקשה נכשלה'); });
                 }} 
                 className="space-y-4"
@@ -804,6 +811,7 @@ export function NailHubApp() {
                   <textarea
                     rows={3}
                     required
+                    maxLength={2000}
                     value={roleChangeData.reason}
                     onChange={(e) => setRoleChangeData({ ...roleChangeData, reason: e.target.value })}
                     placeholder="ספרי לנו קצת על הניסיון שלך, איפה עברת הכשרה או קישור לעסק..."

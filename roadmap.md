@@ -1,5 +1,7 @@
 # NailHub roadmap
 
+- [ ] Instagram-style mobile navigation: fixed five-icon frosted bottom bar, centered publish, minimal insurance/notifications header, desktop-only sidebar and profile shortcuts
+
 - [ ] Integrate complete upload: Lilac/Mauve navigation, real feed/saved/trade, insurance, calculator, signed health form and digital pricelist; preserve real auth and private records
 
 - [x] Dependency security: lockfile resolves source-map-js 1.2.2, js-yaml 4.3.2, zod 4.6.7; production dependency scan clean, regression tests and automatic build passed

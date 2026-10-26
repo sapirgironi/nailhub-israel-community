@@ -1,5 +1,7 @@
 # NailHub roadmap
 
+- [x] Dependency security: lockfile resolves source-map-js 1.2.2, js-yaml 4.3.2, zod 4.6.7; production dependency scan clean, regression tests and automatic build passed
+
 - [x] Security: owner/admin RLS, database plain-text validation, validated WhatsApp destinations; unit tests and signed-out browser check passed, repeat database scan has no PII exposure
 - [ ] Security: signed-in owner/admin end-to-end verification — blocked until user signs in to preview; session mint cannot match requester, query tool cannot impersonate authenticated role
 - [x] Review complete master-app upload without replacing live authentication — file is complete but contains demo-only data and simulated persistence

@@ -7,4 +7,4 @@
 - [ ] Phase 1: email/password auth + onboarding (role, name, studio, city, Instagram, phone) with profiles + roles
 - [x] Phase 4: boards (/boards) — models + jobs, WhatsApp buttons
 - [ ] Phase 1: visual feed (grid/list + search) — waiting on rest of spec (message was cut off)
-- [ ] Home page: replace with user's new code (pink/rose-gold/pearl, RTL) — waiting for the code
+- [x] Home page replaced with user code (pink/rose-gold)

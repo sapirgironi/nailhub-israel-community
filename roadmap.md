@@ -1,5 +1,8 @@
 # NailHub roadmap
 
+- [ ] Security: restrict personal/contact records to their owner or admin; validate free text and WhatsApp destinations
+- [ ] Review complete master-app upload without replacing live authentication
+
 - [x] Health declarations table (submit-only)
 - [x] Pink luxury restyle from uploaded file (superseded by Phase 1 palette)
 - [ ] Phase 1: cream/rose design system (#FAFAF8, #FFFFFF, #C59B8B, #E8D3CE, #2D2B2A), Hebrew RTL

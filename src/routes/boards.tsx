@@ -29,7 +29,7 @@ const JOB_TYPES: Record<string, string> = { hiring: "מחפשת עובדת", sta
 
 const field = "w-full px-3.5 py-2.5 rounded-xl border border-input bg-card focus:ring-2 focus:ring-ring outline-none text-sm";
 const label = "block text-xs font-bold mb-1";
-const chip = (a: boolean) => `px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:bg-accent"}`;
+const chip = (a: boolean) => `px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${a ? "bg-accent text-accent-foreground border-border" : "bg-card text-muted-foreground border-border hover:bg-accent"}`;
 
 function BoardsPage() {
   const [tab, setTab] = useState<"models" | "jobs">("models");

@@ -116,6 +116,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
   const [roleChangeData, setRoleChangeData] = useState({ requestedRole: 'instructor', reason: '' });
   const [roleChangeSuccess, setRoleChangeSuccess] = useState(false);
+  const [roleError,setRoleError]=useState('');
 
   const [members, setMembers] = useState<Member[]>([]);
   const [authEmail, setAuthEmail] = useState('');
@@ -222,7 +223,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
         <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-3xl shadow-soft p-8 md:p-10 border border-border relative z-10">
           <div className="text-right mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 text-primary-foreground rounded-3xl mb-4 shadow-lg shadow-soft transform rotate-2 hover:rotate-0 transition duration-300">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-accent text-primary rounded-3xl mb-4 shadow-soft transform rotate-2 hover:rotate-0 transition duration-300">
               <Sparkles className="w-10 h-10 animate-pulse" />
             </div>
             <h1 className="text-4xl font-black bg-clip-text text-primary tracking-tight">
@@ -257,7 +258,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
             <Button
               type="submit"
-              className="w-full hover: hover: text-primary-foreground font-extrabold py-3.5 rounded-2xl transition shadow-lg shadow-soft hover:shadow-soft active:scale-[0.99] text-sm flex items-center justify-center gap-2"
+              className="w-full hover: hover: text-primary-foreground font-extrabold py-3.5 rounded-2xl transition shadow-soft hover:shadow-soft active:scale-[0.99] text-sm flex items-center justify-center gap-2"
             >
               <span>אימות קוד וכניסה</span>
               <Sparkles className="w-4 h-4" />
@@ -484,7 +485,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
             <Button
               type="submit"
-              className="w-full hover: hover: text-primary-foreground font-extrabold py-3.5 rounded-2xl transition shadow-lg shadow-soft text-sm flex items-center justify-center gap-2"
+              className="w-full hover: hover: text-primary-foreground font-extrabold py-3.5 rounded-2xl transition shadow-soft text-sm flex items-center justify-center gap-2"
             >
               <span>{authLoading ? 'נרשמת...' : 'הצטרפות לקהילת המקצועניות'}</span>
               <Sparkles className="w-4 h-4" />
@@ -580,7 +581,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                 return (
                   <div 
                     key={m.id} 
-                    className="bg-card rounded-3xl border border-border p-5 shadow-sm hover:shadow-xl hover:shadow-soft transition duration-300 flex flex-col justify-between group hover:-translate-y-1"
+                    className="bg-card rounded-3xl border border-border p-5 shadow-sm hover:shadow-soft transition duration-300 flex flex-col justify-between group hover:-translate-y-1"
                   >
                     <div>
                       {/* תגית ופרטי עסק */}
@@ -704,8 +705,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
             <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-2.5">
               <Button
-                onClick={() => setShowRoleChangeModal(true)}
-                className="flex-1 text-primary-foreground font-extrabold py-3 rounded-2xl text-xs transition shadow-md shadow-soft"
+                onClick={() => {setRoleError('');setShowRoleChangeModal(true);}}
+                className="flex-1 text-primary-foreground font-extrabold py-3 rounded-2xl text-xs transition shadow-soft"
               >
                 בקשת שדרוג תפקיד (מדריכה / ספקית) ✨
               </Button>
@@ -754,9 +755,9 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                   e.preventDefault();
                   if (!currentUser) return;
                   const reason = plainText(2000).safeParse(roleChangeData.reason);
-                  if (!reason.success) { alert('יש להזין טקסט רגיל בלבד, עד 2000 תווים'); return; }
+                  if (!reason.success) { setRoleError('יש להזין טקסט רגיל בלבד, עד 2000 תווים'); return; }
                   supabase.from('role_change_requests').insert({ user_id: currentUser.id, current_role: currentUser.role, requested_role: roleChangeData.requestedRole, reason: reason.data })
-                    .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else alert(hebrewError(error, 'שליחת הבקשה נכשלה. נסי שוב.')); }, (error: unknown) => alert(hebrewError(error)));
+                    .then(({ error }) => { if (!error) setRoleChangeSuccess(true); else setRoleError(hebrewError(error, 'שליחת הבקשה נכשלה. נסי שוב.')); }, (error: unknown) => setRoleError(hebrewError(error)));
                 }} 
                 className="space-y-4"
               >
@@ -785,9 +786,10 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                   />
                 </div>
 
+                {roleError && <p role="alert" className="text-right text-sm text-destructive">{roleError}</p>}
                 <Button
                   type="submit"
-                  className="w-full hover: hover: text-primary-foreground font-extrabold py-3 rounded-xl text-xs transition shadow-md shadow-soft"
+                  className="w-full hover: hover: text-primary-foreground font-extrabold py-3 rounded-xl text-xs transition shadow-soft"
                 >
                   שליחת בקשה לאישור
                 </Button>

@@ -1,5 +1,7 @@
 # NailHub roadmap
 
+- [ ] Replace main app with requested complete upload and Lilac/Mauve design — blocked: newest upload is 135 lines and ends mid-string; full source required
+
 - [x] Dependency security: lockfile resolves source-map-js 1.2.2, js-yaml 4.3.2, zod 4.6.7; production dependency scan clean, regression tests and automatic build passed
 
 - [x] Security: owner/admin RLS, database plain-text validation, validated WhatsApp destinations; unit tests and signed-out browser check passed, repeat database scan has no PII exposure

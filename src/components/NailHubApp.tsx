@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { HubShell, type HubSection } from './HubShell';
 import { HubWorkspace } from './HubWorkspace';
-import { Link } from '@tanstack/react-router';
+import { Link,useNavigate } from '@tanstack/react-router';
+import {RegistrationForm} from './RegistrationForm';
 import { Button } from './ui/button';
 import {PasswordField} from './PasswordField';
 import {isPasswordAllowed,PASSWORD_LENGTH_MESSAGE} from '@/lib/password-policy';
@@ -98,10 +99,10 @@ interface Member {
 }
 
 export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
-  const [currentStep, setCurrentStep] = useState<'gate' | 'login' | 'onboarding' | 'app'>('gate');
+  const [currentStep, setCurrentStep] = useState<'gate' | 'login' | 'onboarding' | 'app'>('onboarding');
   const activeTab = section;
-  const [inviteCode, setInviteCode] = useState('');
-  const [gateError, setGateError] = useState('');
+  const navigate=useNavigate();
+
   
   const [currentUser, setCurrentUser] = useState<Member | null>(null);
 
@@ -124,7 +125,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
-  const [authInfo, setAuthInfo] = useState('');
+
   const [authLoading, setAuthLoading] = useState(false);
 
   const toMember = (p: any): Member => ({
@@ -146,23 +147,13 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     supabase.auth.getSession().then(({ data }) => { if (data.session) loadData(data.session.user.id); });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) loadData(session.user.id);
-      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setCurrentStep('gate'); }
+      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setCurrentStep('login'); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
   const [filterRole, setFilterRole] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  const handleVerifyInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inviteCode.trim().toUpperCase() === 'NAILVIP') {
-      setGateError('');
-      setCurrentStep('onboarding');
-    } else {
-      setGateError('קוד גישה שגוי ✨ הגישה כרגע היא למוזמנות שלב ההרצה בלבד.');
-    }
-  };
 
   const handleCompleteRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,7 +177,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     setAuthLoading(false);
     if (error) return setAuthError(hebrewError(error, 'ההרשמה לא הושלמה. נסי שוב בעוד כמה רגעים.'));
     if (data.user?.identities?.length === 0) return setAuthError(hebrewError({code:'email_exists'}));
-    if (!data.session) { setAuthInfo('נשלח אלייך מייל אימות 💌 לחצי על הקישור במייל ואז התחברי.'); setCurrentStep('login'); }
+    if(data.session){await loadData(data.session.user.id);await navigate({to:'/feed',search:{compose:false}});}
+    else {const {data:login,error:loginError}=await supabase.auth.signInWithPassword({email:authEmail.trim(),password:authPassword});if(loginError||!login.session){setAuthError(hebrewError(loginError,'לא ניתן להתחבר כרגע. נסי שוב.'));return;}await loadData(login.session.user.id);await navigate({to:'/feed',search:{compose:false}});}
     } catch(error) {setAuthError(hebrewError(error));} finally {setAuthLoading(false);}
   };
 
@@ -194,9 +186,10 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     e.preventDefault();
     setAuthError(''); setAuthLoading(true);
     try {
-    const { error } = await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
+    const {data,error} = await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
     setAuthLoading(false);
     if (error) setAuthError(hebrewError(error));
+    else if(data.session){await loadData(data.session.user.id);await navigate({to:'/feed',search:{compose:false}});}
     } catch(error) {setAuthError(hebrewError(error));} finally {setAuthLoading(false);}
   };
 
@@ -213,73 +206,6 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     const found = Object.values(ROLES).find(r => r.id === roleId);
     return found || ROLES.NAIL_TECH;
   };
-
-  // ==========================================
-  // מסך 1: שער כניסה נבחרות (יוקרתי וזוהר)
-  // ==========================================
-  if (currentStep === 'gate') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 font-sans text-right relative overflow-hidden" dir="rtl">
-        {/* אלמנטים זוהרים ברקע */}
-        
-
-        <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-3xl shadow-soft p-8 md:p-10 border border-border relative z-10">
-          <div className="text-right mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-accent text-primary rounded-3xl mb-4 shadow-soft transform rotate-2 hover:rotate-0 transition duration-300">
-              <Sparkles className="w-10 h-10 animate-pulse" />
-            </div>
-            <h1 className="text-4xl font-black bg-clip-text text-primary tracking-tight">
-              NailHub
-            </h1>
-            <p className="text-xs font-semibold text-primary mt-1 tracking-wider uppercase">
-              קהילת הציפורניים והביוטי היוקרתית
-            </p>
-          </div>
-
-          <div className=" border border-border rounded-2xl p-4 mb-6 text-right text-xs text-primary leading-relaxed font-medium shadow-sm">
-            ברוכה הבאה למרחב המקצועי שלך ✨ הכניסה בשלב זה היא בהזמנה אישית בלבד לחברות מוזמנות.
-          </div>
-
-          <form onSubmit={handleVerifyInvite} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5">קוד הזמנה לפיילוט *</label>
-              <input
-                type="text"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-                placeholder="הזיני את קוד ההזמנה שקיבלת"
-                className="w-full px-4 py-3.5 rounded-2xl border border-border bg-card focus:bg-card focus:ring-2 focus:ring-ring focus:border-border outline-none text-right font-mono text-base tracking-widest uppercase shadow-sm transition"
-              />
-            </div>
-            
-            {gateError && (
-              <p className="text-xs text-primary font-semibold text-right bg-accent py-2 rounded-xl border border-border">
-                {gateError}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full hover: hover: text-primary-foreground font-extrabold py-3.5 rounded-2xl transition shadow-soft hover:shadow-soft active:scale-[0.99] text-sm flex items-center justify-center gap-2"
-            >
-              <span>אימות קוד וכניסה</span>
-              <Sparkles className="w-4 h-4" />
-            </Button>
-          </form>
-
-          <div className="mt-8 text-right pt-4 border-t border-border">
-            <Button 
-              onClick={() => setCurrentStep('login')}
-              className="text-xs font-bold text-primary hover:text-primary transition inline-flex items-center gap-1.5"
-            >
-              <span>כבר חברה בקהילה? לחצי להתחברות</span>
-              <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ==========================================
   // מסך 2: התחברות מהירה
@@ -299,7 +225,6 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
               <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
             </div>
             <PasswordField value={authPassword} onChange={setAuthPassword} autoComplete="current-password"/>
-            {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-right">{authInfo}</p>}
             {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}
             <Button
               type="submit"
@@ -311,10 +236,10 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
           <div className="mt-6 text-right">
             <Button 
-              onClick={() => setCurrentStep('gate')}
+              onClick={() => {setAuthError('');setCurrentStep('onboarding');}}
               className="text-xs text-foreground hover:text-foreground font-medium"
             >
-              חזרה לשער הראשי
+              חדשה כאן? להרשמה מהירה
             </Button>
           </div>
         </div>
@@ -325,172 +250,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   // ==========================================
   // מסך 3: אונבורדינג והרשמה מהממת
   // ==========================================
-  if (currentStep === 'onboarding') {
-    return (
-      <div className="min-h-screen py-10 px-4 font-sans text-right" dir="rtl">
-        <div className="max-w-2xl mx-auto bg-card backdrop-blur-xl rounded-3xl shadow-soft p-6 md:p-10 border border-border">
-          <div className="mb-6 pb-4 border-b border-border flex items-center justify-between">
-            <div>
-              <span className="inline-block text-[11px] font-black tracking-wider text-primary uppercase bg-accent px-2.5 py-1 rounded-full mb-1">
-                שלב 2 מתוך 2 • הגדרת כרטיס ביקור
-              </span>
-              <h1 className="text-2xl font-black text-foreground">בואי נכיר אותך ✨</h1>
-              <p className="text-xs text-foreground mt-0.5">פרטי הקשר שלך נשארים פרטיים</p>
-            </div>
-            <Sparkles className="w-8 h-8 text-primary" />
-          </div>
-
-          <form onSubmit={handleCompleteRegistration} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div>
-              <label className="block text-xs font-bold text-foreground mb-1.5">אימייל *</label>
-              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
-            </div>
-            <PasswordField value={authPassword} onChange={setAuthPassword} autoComplete="new-password"/>
-            {authInfo && <p className="text-xs text-foreground bg-accent rounded-xl p-2 text-right">{authInfo}</p>}
-            {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">שם מלא *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  placeholder="השם שלך"
-                  className="w-full px-4 py-2.5 rounded-xl border border-border focus:ring-2 focus:ring-ring outline-none text-xs bg-accent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">שם העסק / הסטודיו</label>
-                <input
-                  type="text"
-                  value={formData.businessName}
-                  onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                  placeholder="לדוגמה: מיה נייל בוטיק"
-                  className="w-full px-4 py-2.5 rounded-xl border border-border focus:ring-2 focus:ring-ring outline-none text-xs bg-accent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">עיר פעילות *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-border focus:ring-2 focus:ring-ring outline-none text-xs bg-accent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">טלפון ליצירת קשר *</label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="050-0000000"
-                  className="w-full px-4 py-2.5 rounded-xl border border-border focus:ring-2 focus:ring-ring outline-none text-xs text-right font-mono bg-accent"
-                  dir="rtl"
-                />
-              </div>
-            </div>
-
-            {/* בחירת תפקיד עיקרי בסגנון כרטיסים מעוצבים */}
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-2">תפקידך העיקרי בקהילה *</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {Object.values(ROLES).map((role) => {
-                  const Icon = role.icon;
-                  const isSelected = formData.role === role.id;
-                  return (
-                    <label
-                      key={role.id}
-                      className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition duration-200 ${
-                        isSelected 
-                          ? 'border-border bg-accent text-accent-foreground shadow-soft' 
-                          : 'border-border bg-card hover:border-border text-foreground shadow-sm'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="role"
-                        value={role.id}
-                        checked={isSelected}
-                        onChange={() => setFormData({ ...formData, role: role.id })}
-                        className="hidden"
-                      />
-                      <div className={`p-2 rounded-xl ${isSelected ? 'bg-card' : 'bg-accent text-primary'}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs font-extrabold">{role.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* תחומי התמחות */}
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-2">תחומי התמחות שאת אוהבת לעשות</label>
-              <div className="flex flex-wrap gap-2">
-                {SPECIALTIES_LIST.map((spec) => {
-                  const isSelected = formData.specialties.includes(spec);
-                  return (
-                    <Button
-                      type="button"
-                      key={spec}
-                      onClick={() => setFormData({ ...formData, specialties: toggleItem(formData.specialties, spec) })}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition duration-150 border ${
-                        isSelected 
-                          ? 'bg-accent text-accent-foreground border-border shadow-sm shadow-soft' 
-                          : 'bg-card text-foreground border-border hover:border-border hover:bg-accent'
-                      }`}
-                    >
-                      {isSelected ? '✨ ' : ''}{spec}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* שירותים נלווים */}
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-2">שירותים נוספים בקליניקה</label>
-              <div className="flex flex-wrap gap-2">
-                {ADDITIONAL_SERVICES_LIST.map((srv) => {
-                  const isSelected = formData.additionalServices.includes(srv);
-                  return (
-                    <Button
-                      type="button"
-                      key={srv}
-                      onClick={() => setFormData({ ...formData, additionalServices: toggleItem(formData.additionalServices, srv) })}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition duration-150 border ${
-                        isSelected 
-                          ? 'bg-accent text-accent-foreground border-border' 
-                          : 'bg-card text-foreground border-border hover:bg-accent'
-                      }`}
-                    >
-                      {isSelected ? '✓ ' : ''}{srv}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full hover: hover: text-primary-foreground font-extrabold py-3.5 rounded-2xl transition shadow-soft text-sm flex items-center justify-center gap-2"
-            >
-              <span>{authLoading ? 'נרשמת...' : 'הצטרפות לקהילת המקצועניות'}</span>
-              <Sparkles className="w-4 h-4" />
-            </Button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+  if(currentStep==='onboarding'){return <RegistrationForm details={formData} onChange={setFormData} email={authEmail} onEmail={setAuthEmail} password={authPassword} onPassword={setAuthPassword} onSubmit={handleCompleteRegistration} onLogin={()=>{setAuthError('');setCurrentStep('login');}} busy={authLoading} error={authError} specialties={SPECIALTIES_LIST} services={ADDITIONAL_SERVICES_LIST}/>;}
 
   // ==========================================
   // מסך 4: אפליקציה ראשית (יוקרתית, נשית ואלגנטית)

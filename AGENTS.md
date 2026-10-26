@@ -21,3 +21,5 @@
 
 - User-facing failures pass through the Hebrew error mapper; form validation is intercepted centrally to avoid browser-locale messages, while technical logs remain separate.
 - Password inputs share PasswordField and password-policy so visibility controls and minimum-length validation stay consistent without client complexity scoring.
+
+- RegistrationForm owns signup presentation while NailHubApp retains real auth/profile handlers; no benefit claims or mocked supplier approval are imported from demo uploads.

@@ -237,7 +237,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
           <div className="mt-4 space-y-2">
             <div className="text-center text-xs text-muted-foreground">או כניסה מהירה עם</div>
             <div className="grid grid-cols-2 gap-2">
-              {(['google','apple'] as const).map(p=><Button key={p} type="button" variant="outline" className="rounded-2xl text-sm font-bold" onClick={async()=>{setAuthError('');const r=await lovable.auth.signInWithOAuth(p,{redirect_uri:window.location.origin});if(r.error){setAuthError(hebrewError(r.error,'לא ניתן להתחבר כרגע. נסי שוב.'));return;}if(r.redirected)return;await navigate({to:'/feed',search:{compose:false}});}}>{p==='google'?'Google':'Apple'}</Button>)}
+              {(['google','apple'] as const).map(p=><Button key={p} type="button" variant="outline" className="rounded-2xl text-sm font-bold" onClick={async()=>{setAuthError('');const r=await lovable.auth.signInWithOAuth(p,{redirect_uri:window.location.origin+'/feed'});if(r.error){setAuthError(hebrewError(r.error,'לא ניתן להתחבר כרגע. נסי שוב.'));return;}if(r.redirected)return;await navigate({to:'/feed',search:{compose:false}});}}>{p==='google'?'Google':'Apple'}</Button>)}
             </div>
           </div>
 

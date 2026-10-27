@@ -33,3 +33,6 @@
 - [x] AI post draft writer (Hebrew)
 - [x] Story viewers list — story_views table with owner/admin RLS, view recorded on open (own views skipped), Eye button on own story opens viewer list; verified cross-user in browser
 - [x] In-app notifications — notifications table (like/comment/collab) with recipient-only RLS, bell with unread badge in header, created on like/comment/collab; verified in browser with real cross-user data
+- [x] Story editor (text, stickers, trash) wired to + sheet and feed
+- [x] Verify Google/Apple sign-in on mobile lands new users in feed
+- [ ] Admin top bar + admin role for sapiryedidia0@walla.com (needs verified ownership)

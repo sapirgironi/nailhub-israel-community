@@ -5,6 +5,7 @@ import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw,Heart,Messa
 import {supabase} from '@/integrations/supabase/client';
 import {HebrewPhotoInput} from './HebrewPhotoInput';
 import {takeStory,onStoryQueued} from '@/lib/story-handoff';
+import {StoryEditor} from './StoryEditor';
 import {Button} from './ui/button';
 import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
@@ -41,14 +42,15 @@ function StoriesBar({user}:{user:Person}){
  const qc=useQueryClient();const [viewer,setViewer]=useState<number|null>(null);const [progress,setProgress]=useState(0);const [paused,setPaused]=useState(false);const [msg,setMsg]=useState('');const [viewersFor,setViewersFor]=useState<string|null>(null);
  const stories=useQuery({queryKey:['hub-stories'],queryFn:async()=>{const {data,error}=await supabase.from('stories').select('*').order('created_at',{ascending:false});if(error)throw error;return Promise.all(data.map(async s=>({...s,displayUrl:await photoUrl(s.media_url)})));}});
  useEffect(()=>{if(viewer===null||paused)return;const total=stories.data?.length??0;const t=setInterval(()=>{setProgress(p=>{if(p>=100){if(viewer<total-1){setViewer(viewer+1);return 0;}setViewer(null);return 0;}return p+2;});},100);return()=>clearInterval(t);},[viewer,paused,stories.data?.length]);
- async function addStory(f:File|null){if(!f)return;setMsg('');try{const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url});if(error)throw error;await qc.invalidateQueries({queryKey:['hub-stories']});}catch{setMsg('פרסום הסטורי נכשל');}}
+ const [draft,setDraft]=useState<File|null>(null);
+ async function addStory(f:File){setMsg('');const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url});if(error)throw error;setDraft(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setViewer(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  const current=viewer!==null?stories.data?.[viewer]:null;
  useEffect(()=>{if(!current||current.user_id===user.id)return;void supabase.from('story_views').upsert({story_id:current.id,viewer_id:user.id,viewer_name:user.businessName||user.fullName},{onConflict:'story_id,viewer_id',ignoreDuplicates:true}).then(({error})=>{if(error)setMsg('רישום הצפייה נכשל');});},[current?.id]);
  const storyInput=useRef<HTMLInputElement>(null);
- useEffect(()=>{const consume=()=>{const f=takeStory();if(f)void addStory(f);};consume();return onStoryQueued(consume);},[]);
- return <><section aria-label="סטוריז מהקהילה" className="flex items-center gap-3 overflow-x-auto pb-2 mb-6">
-  <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{void addStory(e.target.files?.[0]??null);e.target.value='';}}/>
+ useEffect(()=>{const consume=()=>{const f=takeStory();if(f)setDraft(f);};consume();return onStoryQueued(consume);},[]);
+ return <>{draft&&<StoryEditor file={draft} onCancel={()=>setDraft(null)} onPublish={addStory}/>}<section aria-label="סטוריז מהקהילה" className="flex items-center gap-3 overflow-x-auto pb-2 mb-6">
+  <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)setDraft(f);}}/>
   <button onClick={()=>storyInput.current?.click()} className="shrink-0 w-24 h-40 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition flex flex-col items-center justify-center gap-2 p-2 text-center">
    <Plus className="w-6 h-6 text-primary"/><span className="text-[11px] font-black leading-tight">הסטורי שלי</span><span className="text-[9px] text-primary font-bold">פרסום ל־24 שעות</span>
   </button>

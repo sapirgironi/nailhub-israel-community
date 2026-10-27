@@ -113,6 +113,13 @@
       "when": 1793113805057,
       "tag": "0015_allow_admin_trade_decisions",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793113939932,
+      "tag": "0016_require_trade_review_before_publication",
+      "breakpoints": true
     }
   ]
 }

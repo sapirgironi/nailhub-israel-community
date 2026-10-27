@@ -21,7 +21,7 @@ export const STORY_FONTS=[
 type FontId=(typeof STORY_FONTS)[number]['id'];
 const COLORS=['#FFFFFF','#000000','#5B0E2D','#E91E63','#F48FB1','#FCE4EC','#D7B19D','#C8A27A','#D4AF37','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#FF6F61'];
 const ROSE='#5B0E2D';const BASE=28;const IMG_BASE=110;
-type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;z:number;src?:string|undefined};
+type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;rot:number;z:number;src?:string|undefined};
 
 const fontOf=(id:FontId)=>STORY_FONTS.find(f=>f.id===id)??STORY_FONTS[0];
 function isLight(hex:string){const n=parseInt(hex.slice(1),16);return ((n>>16)*299+((n>>8)&255)*587+(n&255)*114)/1000>160;}
@@ -36,6 +36,7 @@ async function flatten(src:string,els:El[],frameW:number):Promise<File>{
  const s=Math.max(W/img.width,H/img.height);g.drawImage(img,(W-img.width*s)/2,(H-img.height*s)/2,img.width*s,img.height*s);
  g.textAlign='center';g.textBaseline='middle';g.direction='rtl';
  for(const e of [...els].sort((a,b)=>a.z-b.z)){const x=e.x/100*W,y=e.y/100*H;
+  g.restore();g.save();g.globalAlpha=1;g.translate(x,y);g.rotate((e.rot||0)*Math.PI/180);g.translate(-x,-y);
   if(e.kind==='image'&&e.src){const im=await loadImg(e.src);const w=IMG_BASE*e.scale*k,h=w*im.height/im.width;g.drawImage(im,x-w/2,y-h/2,w,h);continue;}
   if(e.kind==='pill'){const px=15*e.scale*k;g.font=`800 ${px}px "Heebo"`;await document.fonts.load(g.font);const w=g.measureText(e.text).width+px*1.6;g.fillStyle='#ffffff';g.beginPath();g.roundRect(x-w/2,y-px,w,px*2,px);g.fill();g.fillStyle=ROSE;g.fillText(e.text,x,y);continue;}
   const px=BASE*e.scale*k;g.font=cssFont(e,px);await document.fonts.load(g.font,e.text);
@@ -66,23 +67,31 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
  const [panel,setPanel]=useState<'stickers'|null>(null);const [busy,setBusy]=useState(false);const [err,setErr]=useState('');
  const [alt,setAlt]=useState('');const [altBusy,setAltBusy]=useState(false);const [aiBusy,setAiBusy]=useState(false);
  const frame=useRef<HTMLDivElement>(null);const nid=useRef(1);const topZ=useRef(1);
- const pointers=useRef(new Map<number,{x:number;y:number}>());const pinch=useRef<{d:number;s:number}|null>(null);
+ const pointers=useRef(new Map<number,{x:number;y:number}>());const pinch=useRef<{d:number;a:number;s:number;r:number}|null>(null);
  const assist=useServerFn(storyTextAssist);const describe=useServerFn(storyAltText);
  const stickers=useQuery({queryKey:['story-stickers'],staleTime:60_000,queryFn:async()=>{const {data,error}=await supabase.from('story_stickers').select('*').order('created_at',{ascending:false});if(error)throw error;
   return (await Promise.all(data.map(async s=>{const {data:b}=await supabase.storage.from('story-stickers').download(s.image_path);return b?{...s,url:URL.createObjectURL(b)}:null;}))).filter((s):s is NonNullable<typeof s>=>!!s);}});
  const selected=els.find(e=>e.id===sel)??null;
  const patch=(id:number,p:Partial<El>)=>setEls(v=>v.map(e=>e.id===id?{...e,...p}:e));
  const last=useRef<Pick<El,'font'|'bold'|'underline'|'highlight'|'color'>>({font:'assistant',bold:true,underline:false,highlight:false,color:'#FFFFFF'});
- function add(kind:El['kind'],text:string,src?:string){const id=nid.current++;const z=++topZ.current;setEls(v=>[...v,{id,kind,text,src,...last.current,x:50,y:kind==='text'?40:55,scale:1,z}]);setSel(id);setPanel(null);if(kind==='text')setEditing(id);}
+ function add(kind:El['kind'],text:string,src?:string){const id=nid.current++;const z=++topZ.current;setEls(v=>[...v,{id,kind,text,src,...last.current,x:50,y:kind==='text'?40:55,scale:1,rot:0,z}]);setSel(id);setPanel(null);if(kind==='text')setEditing(id);}
  const pos=(ev:{clientX:number;clientY:number})=>{const r=frame.current!.getBoundingClientRect();return {x:(ev.clientX-r.left)/r.width*100,y:(ev.clientY-r.top)/r.height*100};};
  const clamp=(p:{x:number;y:number})=>({x:Math.min(97,Math.max(3,p.x)),y:Math.min(98,Math.max(2,p.y))});
+ const tap=useRef<{id:number;x:number;y:number;was:boolean;moved:boolean}|null>(null);
+ function startPinch(target:El){const [a,b]=[...pointers.current.values()];pinch.current={d:Math.hypot(a!.x-b!.x,a!.y-b!.y),a:Math.atan2(b!.y-a!.y,b!.x-a!.x),s:target.scale,r:target.rot};setDrag(null);if(tap.current)tap.current.moved=true;}
  function down(ev:RPointerEvent,e:El){ev.stopPropagation();if(editing===e.id)return;frame.current?.setPointerCapture(ev.pointerId);pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+  if(pointers.current.size===2){const t=els.find(x=>x.id===sel)??e;startPinch(t);return;}
+  tap.current={id:e.id,x:ev.clientX,y:ev.clientY,was:sel===e.id,moved:false};
   const z=++topZ.current;patch(e.id,{z});setSel(e.id);if(editing!==null&&editing!==e.id)setEditing(null);const p=pos(ev);setDrag({id:e.id,dx:p.x-e.x,dy:p.y-e.y});}
- function frameDown(ev:RPointerEvent){pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});if(pointers.current.size===2&&selected){const [a,b]=[...pointers.current.values()];pinch.current={d:Math.hypot(a!.x-b!.x,a!.y-b!.y),s:selected.scale};setDrag(null);}else if(pointers.current.size===1&&!drag){setSel(null);setEditing(null);}}
+ function frameDown(ev:RPointerEvent){pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});if(pointers.current.size===2&&selected){startPinch(selected);}else if(pointers.current.size===1&&!drag){setSel(null);setEditing(null);}}
  function move(ev:RPointerEvent){if(!pointers.current.has(ev.pointerId))return;pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
-  if(pinch.current&&sel!==null&&pointers.current.size>=2){const [a,b]=[...pointers.current.values()];const d=Math.hypot(a!.x-b!.x,a!.y-b!.y);patch(sel,{scale:Math.min(5,Math.max(0.4,pinch.current.s*d/pinch.current.d))});return;}
+  if(tap.current&&Math.hypot(ev.clientX-tap.current.x,ev.clientY-tap.current.y)>6)tap.current.moved=true;
+  if(pinch.current&&sel!==null&&pointers.current.size>=2){const [a,b]=[...pointers.current.values()];const d=Math.hypot(a!.x-b!.x,a!.y-b!.y);const ang=Math.atan2(b!.y-a!.y,b!.x-a!.x);patch(sel,{scale:Math.min(5,Math.max(0.4,pinch.current.s*d/pinch.current.d)),rot:pinch.current.r+(ang-pinch.current.a)*180/Math.PI});return;}
   if(!drag)return;const p=pos(ev);setOver(isTrash(p.x,p.y));patch(drag.id,clamp({x:p.x-drag.dx,y:p.y-drag.dy}));}
- function up(ev:RPointerEvent){pointers.current.delete(ev.pointerId);if(pointers.current.size<2)pinch.current=null;if(!drag)return;const p=pos(ev);if(isTrash(p.x,p.y)){setEls(v=>v.filter(e=>e.id!==drag.id));setSel(null);}setDrag(null);setOver(false);}
+ function up(ev:RPointerEvent){pointers.current.delete(ev.pointerId);if(pointers.current.size<2)pinch.current=null;
+  const t=tap.current;if(pointers.current.size===0)tap.current=null;
+  if(t&&!t.moved&&t.was){const el=els.find(x=>x.id===t.id);if(el?.kind==='text')setEditing(el.id);}
+  if(!drag)return;const p=pos(ev);if(isTrash(p.x,p.y)){setEls(v=>v.filter(e=>e.id!==drag.id));setSel(null);}setDrag(null);setOver(false);}
  function style(p:Partial<El>){if(!selected)return;Object.assign(last.current,p);patch(selected.id,p);}
  async function ai(mode:'improve'|'shorten'|'nikud'|'emoji'){if(!selected?.text.trim())return;setAiBusy(true);setErr('');const r=await assist({data:{text:selected.text,mode}}).catch(()=>({text:'',error:'הבינה המלאכותית לא הצליחה כרגע'}));setAiBusy(false);if(r.error||!r.text){setErr(r.error??'לא התקבל טקסט');return;}setEditing(null);patch(selected.id,{text:r.text});}
  async function makeAlt(){setAltBusy(true);setErr('');try{const f=await flatten(src,els,frame.current!.getBoundingClientRect().width);const r=await describe({data:{image:await smallDataUrl(f)}});if(r.error)setErr(r.error);else setAlt(r.alt);}catch{setErr('הפקת התיאור נכשלה');}setAltBusy(false);}
@@ -91,9 +100,9 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
  return <div dir="rtl" role="dialog" aria-label="עורך סטורי" className="fixed inset-0 z-[60] bg-foreground/95 flex flex-col items-center p-3 gap-2 overflow-y-auto">
   <div className="w-full max-w-sm flex items-center justify-between shrink-0"><Button size="icon" variant="ghost" className="text-primary-foreground" aria-label="ביטול" onClick={onCancel}><X/></Button>
    <div className="flex gap-2"><Button size="sm" variant="secondary" onClick={()=>add('text','')}><Type/>טקסט</Button><Button size="sm" variant="secondary" onClick={()=>setPanel(panel==='stickers'?null:'stickers')}><Smile/>סטיקרים</Button></div></div>
-  <div ref={frame} onPointerDown={frameDown} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{touchAction:'none',backgroundImage:`url(${src})`}} className="relative w-full max-w-sm aspect-[9/16] max-h-[64vh] shrink-0 rounded-3xl overflow-hidden bg-cover bg-center select-none">
+  <div ref={frame} onPointerDown={frameDown} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{touchAction:'none',backgroundImage:`url(${src})`}} className={'relative w-full max-w-sm aspect-[9/16] '+(selected?'max-h-[50vh]':'max-h-[64vh]')+' shrink-0 rounded-3xl overflow-hidden bg-cover bg-center select-none'}>
    {els.map(e=>{const f=fontOf(e.font);const active=sel===e.id;
-     return <div key={e.id} onPointerDown={ev=>down(ev,e)} onDoubleClick={()=>e.kind==='text'&&setEditing(e.id)} style={{left:e.x+'%',top:e.y+'%',zIndex:e.z,transform:`translate(-50%,-50%) scale(${e.scale})`,touchAction:'none',width:'max-content',maxWidth:'90%',opacity:drag?.id===e.id&&over?0.5:1}} className={'absolute cursor-grab text-center '+(active?'outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md':'')}>
+     return <div key={e.id} onPointerDown={ev=>down(ev,e)} onDoubleClick={()=>e.kind==='text'&&setEditing(e.id)} style={{left:e.x+'%',top:e.y+'%',zIndex:e.z,transform:`translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,touchAction:'none',width:'max-content',maxWidth:'90%',opacity:drag?.id===e.id&&over?0.5:1}} className={'absolute cursor-grab text-center '+(active?'outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md':'')}>
       {e.kind==='image'&&e.src&&<img src={e.src} alt={e.text||'סטיקר'} draggable={false} style={{width:IMG_BASE}} className="pointer-events-none"/>}
       {e.kind==='pill'&&<span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">{e.text}</span>}
       {e.kind==='text'&&<span style={{fontFamily:`"${f.family}"`,fontStyle:f.italic?'italic':'normal',fontWeight:e.bold?700:400,textDecoration:e.underline?'underline':'none',color:e.color,opacity:1,fontSize:BASE,lineHeight:1.25,background:e.highlight?highlightBg(e.color):'transparent',textShadow:e.highlight?'none':'0 1px 6px rgba(0,0,0,.35)',whiteSpace:'pre-wrap',overflowWrap:'normal',wordBreak:'normal'}} className="inline-block rounded-lg px-2">
@@ -102,7 +111,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
    {drag&&<div className={'absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] '+(over?'bg-destructive text-destructive-foreground scale-125':'bg-card/80 text-foreground')}><Trash2/></div>}
   </div>
 
-  {selected&&<div className="w-full max-w-sm bg-card rounded-2xl p-3 space-y-2 shrink-0">
+  {selected&&<div className="sticky bottom-0 z-10 w-full max-w-sm max-h-[40vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl rounded-b-2xl p-3 space-y-2 shrink-0 shadow-soft">
    <div className="flex items-center gap-2"><span className="text-xs font-bold">גודל</span><Button size="icon" variant="outline" aria-label="הקטנה" onClick={()=>patch(selected.id,{scale:Math.max(0.4,selected.scale-0.15)})}><Minus/></Button>
     <input aria-label="שינוי גודל" type="range" min={0.4} max={5} step={0.05} value={selected.scale} onChange={e=>patch(selected.id,{scale:Number(e.target.value)})} className="flex-1 accent-primary"/>
     <Button size="icon" variant="outline" aria-label="הגדלה" onClick={()=>patch(selected.id,{scale:Math.min(5,selected.scale+0.15)})}><Plus/></Button></div>

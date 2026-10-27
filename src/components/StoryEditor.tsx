@@ -4,6 +4,8 @@ import {useQuery} from '@tanstack/react-query';
 import {useServerFn} from '@tanstack/react-start';
 import {supabase} from '@/integrations/supabase/client';
 import {storyTextAssist,storyAltText} from '@/lib/story-ai.functions';
+import {uploadPhoto} from '@/lib/media';
+import {ImageUploadStatus} from './ImageUploadStatus';
 import {Button} from './ui/button';
 
 export const STORY_STICKERS=['התפנה תור להיום ⏰','מחפשת מודליסטית 🔍','מבצע לספקים 🔥','השתלמות מקצועית 👑'];
@@ -55,9 +57,10 @@ function EditableText({initial,onChange,onDone}:{initial:string;onChange:(t:stri
  return <span ref={ref} contentEditable suppressContentEditableWarning role="textbox" aria-label="טקסט הסטורי" onPointerDown={e=>e.stopPropagation()} onInput={e=>onChange((e.currentTarget.innerText||'').slice(0,120))} onBlur={onDone} className="outline-none min-w-[1ch] inline-block whitespace-pre-wrap caret-current"/>;
 }
 
-export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>void;onPublish:(f:File,alt:string)=>Promise<void>}){
+export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>void;onPublish:(f:File,alt:string,backgroundUrl:string)=>Promise<void>}){
  const [src,setSrc]=useState('');useEffect(()=>{const u=URL.createObjectURL(file);setSrc(u);return()=>URL.revokeObjectURL(u);},[file]);
- const [els,setEls]=useState<El[]>([]);const [sel,setSel]=useState<number|null>(null);const [editing,setEditing]=useState<number|null>(null);
+ const backgroundUrl=useRef<{file:File;url:string}|null>(null);
+  const [els,setEls]=useState<El[]>([]);const [sel,setSel]=useState<number|null>(null);const [editing,setEditing]=useState<number|null>(null);
  const [drag,setDrag]=useState<{id:number;dx:number;dy:number}|null>(null);const [over,setOver]=useState(false);
  const [panel,setPanel]=useState<'stickers'|null>(null);const [busy,setBusy]=useState(false);const [err,setErr]=useState('');
  const [alt,setAlt]=useState('');const [altBusy,setAltBusy]=useState(false);const [aiBusy,setAiBusy]=useState(false);
@@ -82,7 +85,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
  function style(p:Partial<El>){if(!selected)return;Object.assign(last.current,p);patch(selected.id,p);}
  async function ai(mode:'improve'|'shorten'|'nikud'|'emoji'){if(!selected?.text.trim())return;setAiBusy(true);setErr('');const r=await assist({data:{text:selected.text,mode}}).catch(()=>({text:'',error:'הבינה המלאכותית לא הצליחה כרגע'}));setAiBusy(false);if(r.error||!r.text){setErr(r.error??'לא התקבל טקסט');return;}setEditing(null);patch(selected.id,{text:r.text});}
  async function makeAlt(){setAltBusy(true);setErr('');try{const f=await flatten(src,els,frame.current!.getBoundingClientRect().width);const r=await describe({data:{image:await smallDataUrl(f)}});if(r.error)setErr(r.error);else setAlt(r.alt);}catch{setErr('הפקת התיאור נכשלה');}setAltBusy(false);}
- async function publish(){setBusy(true);setErr('');setEditing(null);try{const clean=els.filter(e=>e.kind!=='text'||e.text.trim());await onPublish(await flatten(src,clean,frame.current!.getBoundingClientRect().width),alt.trim().replace(/[<>]/g,'').slice(0,400));}catch{setErr('פרסום הסטורי נכשל. נסי שוב.');setBusy(false);}}
+ async function publish(){setBusy(true);setErr('');setEditing(null);try{if(backgroundUrl.current?.file!==file)backgroundUrl.current={file,url:await uploadPhoto(file)};const clean=els.filter(e=>e.kind!=='text'||e.text.trim());await onPublish(await flatten(src,clean,frame.current!.getBoundingClientRect().width),alt.trim().replace(/[<>]/g,'').slice(0,400),backgroundUrl.current.url);}catch{setErr('פרסום הסטורי נכשל. נסי שוב.');setBusy(false);}}
 
  return <div dir="rtl" role="dialog" aria-label="עורך סטורי" className="fixed inset-0 z-[60] bg-foreground/95 flex flex-col items-center p-3 gap-2 overflow-y-auto">
   <div className="w-full max-w-sm flex items-center justify-between shrink-0"><Button size="icon" variant="ghost" className="text-primary-foreground" aria-label="ביטול" onClick={onCancel}><X/></Button>
@@ -131,6 +134,6 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
   </div>
   {err&&<p role="alert" className="text-xs text-primary-foreground">{err}</p>}
   <p className="text-[11px] text-primary-foreground/70">גררי להזזה, צביטה בשתי אצבעות או הסרגל לשינוי גודל, גרירה לפח מוחקת. לחיצה כפולה על טקסט לעריכה.</p>
-  <Button disabled={busy} onClick={()=>void publish()} className="w-full max-w-sm shrink-0 bg-rose-glam text-primary-foreground font-black rounded-2xl py-3">{busy?'מפרסמת...':'פרסום סטורי לקהילה'}</Button>
+  <Button disabled={busy||!src} onClick={()=>void publish()} className="w-full max-w-sm shrink-0 bg-rose-glam text-primary-foreground font-black rounded-2xl py-3">{busy?<ImageUploadStatus/>:'פרסום סטורי לקהילה'}</Button>
  </div>;
 }

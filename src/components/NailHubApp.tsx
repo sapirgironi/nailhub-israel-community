@@ -7,6 +7,9 @@ import { SupportForm } from './SupportForm';
 import { Link,useNavigate } from '@tanstack/react-router';
 import {RegistrationForm} from './RegistrationForm';
 import { Button } from './ui/button';
+import {photoUrl,uploadPhoto} from '@/lib/media';
+import {ImageUploadStatus} from './ImageUploadStatus';
+import {HebrewPhotoInput} from './HebrewPhotoInput';
 import {PasswordField} from './PasswordField';
 import {lovable} from '@/integrations/lovable/index';
 import {isPasswordAllowed,PASSWORD_LENGTH_MESSAGE} from '@/lib/password-policy';
@@ -99,6 +102,7 @@ interface Member {
   additionalServices: string[];
   phone: string;
   isVerified?: boolean;
+  avatar?: string;
 }
 
 export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
@@ -131,6 +135,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
   const [authLoading, setAuthLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [photoBusy,setPhotoBusy]=useState(false);
+  const saveAvatar=async(file:File|null)=>{if(!file||!currentUser||photoBusy)return;setPhotoBusy(true);setAuthError('');try{const avatar_url=await uploadPhoto(file);const {data,error}=await supabase.from('profiles').update({avatar_url}).eq('id',currentUser.id).select('id').single();if(error||!data)throw new Error('save');await loadData(currentUser.id);}catch{setAuthError('שמירת תמונת הפרופיל נכשלה. נסי שוב.');}finally{setPhotoBusy(false);}};
   const [blocked, setBlocked] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
 
@@ -155,7 +161,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     if (!await checkAccess(userId)) return;
     const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) { setAuthError('טעינת הפרופיל נכשלה. נסי להתחבר שוב.'); return; }
-    const list = (data || []).map(toMember);
+    const list = await Promise.all((data || []).map(async p=>({...toMember(p),avatar:p.avatar_url?await photoUrl(p.avatar_url):undefined}))); 
     setMembers(list);
     setCurrentUser(list.find((m) => m.id === userId) ?? null);
     const { data: adminCheck } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });
@@ -382,7 +388,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                       <div className="flex items-start justify-between mb-3.5">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <h3 className="font-extrabold text-foreground text-base">{m.fullName}</h3>
+                            <>{m.avatar&&<img src={m.avatar} alt="תמונת פרופיל" className="size-10 rounded-full object-cover shrink-0"/>}</><h3 className="font-extrabold text-foreground text-base">{m.fullName}</h3>
                             {m.isVerified && (
                               <BadgeCheck className="w-4 h-4 text-primary fill-accent" />
                             )}
@@ -457,6 +463,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
         {activeTab === 'profile' && currentUser && (
           <div className="max-w-xl mx-auto bg-card backdrop-blur-xl rounded-3xl border border-border p-6 md:p-8 shadow-soft space-y-6">
+            <div className="space-y-3">{currentUser.avatar&&<img src={currentUser.avatar} alt="תמונת הפרופיל שלי" className="size-24 rounded-full object-cover"/>}<HebrewPhotoInput label="תמונת פרופיל" onChange={f=>void saveAvatar(f)}/>{photoBusy&&<ImageUploadStatus/>}</div>
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <div>
                 <h2 className="text-2xl font-black text-foreground">{currentUser.fullName}</h2>

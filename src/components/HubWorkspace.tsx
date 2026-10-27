@@ -6,6 +6,7 @@ import {supabase} from '@/integrations/supabase/client';
 import {HebrewPhotoInput} from './HebrewPhotoInput';
 import {takeStory,onStoryQueued} from '@/lib/story-handoff';
 import {StoryEditor} from './StoryEditor';
+import {groupStories} from '@/lib/story-groups';
 import {Button} from './ui/button';
 import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
@@ -43,42 +44,47 @@ async function uploadPhoto(file:File,userId:string){
  const {error}=await supabase.storage.from('community-work').upload(path,file,{contentType:file.type});if(error)throw error;return `community-work/${path}`;
 }
 function StoriesBar({user}:{user:Person}){
- const qc=useQueryClient();const [viewer,setViewer]=useState<number|null>(null);const [progress,setProgress]=useState(0);const [paused,setPaused]=useState(false);const [msg,setMsg]=useState('');const [viewersFor,setViewersFor]=useState<string|null>(null);
- const stories=useQuery({queryKey:['hub-stories'],queryFn:async()=>{const {data,error}=await supabase.from('stories').select('*').order('created_at',{ascending:false});if(error)throw error;return Promise.all(data.map(async s=>({...s,displayUrl:await photoUrl(s.media_url)})));}});
- useEffect(()=>{if(viewer===null||paused)return;const total=stories.data?.length??0;const t=setInterval(()=>{setProgress(p=>{if(p>=100){if(viewer<total-1){setViewer(viewer+1);return 0;}setViewer(null);return 0;}return p+2;});},100);return()=>clearInterval(t);},[viewer,paused,stories.data?.length]);
+ const qc=useQueryClient();const [open,setOpen]=useState<{g:number;i:number}|null>(null);const [progress,setProgress]=useState(0);const [paused,setPaused]=useState(false);const [msg,setMsg]=useState('');const [viewersFor,setViewersFor]=useState<string|null>(null);
+ const stories=useQuery({queryKey:['hub-stories'],queryFn:async()=>{const {data,error}=await supabase.from('stories').select('*').order('created_at',{ascending:true});if(error)throw error;return Promise.all(data.map(async s=>({...s,displayUrl:await photoUrl(s.media_url)})));}});
+ const groups=groupStories(stories.data??[],user.id);
+ const group=open?groups[open.g]:undefined;const current=open&&group?group.items[open.i]:null;
+ const next=()=>{setProgress(0);setOpen(o=>{if(!o)return o;const gr=groups[o.g];if(gr&&o.i<gr.items.length-1)return {g:o.g,i:o.i+1};if(o.g<groups.length-1)return {g:o.g+1,i:0};return null;});};
+ const prev=()=>{setProgress(0);setOpen(o=>{if(!o)return o;if(o.i>0)return {g:o.g,i:o.i-1};if(o.g>0)return {g:o.g-1,i:0};return o;});};
+ const nextRef=useRef(next);nextRef.current=next;
+ useEffect(()=>{if(!open||paused)return;const t=setInterval(()=>{setProgress(p=>{if(p>=100){queueMicrotask(()=>nextRef.current());return 0;}return p+2;});},100);return()=>clearInterval(t);},[open?.g,open?.i,paused]);
  const [draft,setDraft]=useState<File|null>(null);
- async function addStory(f:File){setMsg('');const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url});if(error)throw error;setDraft(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
- async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setViewer(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
- const current=viewer!==null?stories.data?.[viewer]:null;
+ async function addStory(f:File,alt:string){setMsg('');const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url,alt_text:alt||null});if(error)throw error;setDraft(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
+ async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setOpen(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  useEffect(()=>{if(!current||current.user_id===user.id)return;void supabase.from('story_views').upsert({story_id:current.id,viewer_id:user.id,viewer_name:user.businessName||user.fullName},{onConflict:'story_id,viewer_id',ignoreDuplicates:true}).then(({error})=>{if(error)setMsg('רישום הצפייה נכשל');});},[current?.id]);
- const storyInput=useRef<HTMLInputElement>(null);
+ const storyInput=useRef<HTMLInputElement>(null);const downAt=useRef(0);
  useEffect(()=>{const consume=()=>{const f=takeStory();if(f)setDraft(f);};consume();return onStoryQueued(consume);},[]);
+ const nameOf=(uid:string)=>uid===user.id?(user.businessName||'הסטורי שלך'):'חברת קהילה';
+ function tap(e:React.PointerEvent<HTMLDivElement>){setPaused(false);if(Date.now()-downAt.current>250)return;const r=e.currentTarget.getBoundingClientRect();if(e.clientX-r.left<r.width/2)next();else prev();}
  return <>{draft&&<StoryEditor file={draft} onCancel={()=>setDraft(null)} onPublish={addStory}/>}<section aria-label="סטוריז מהקהילה" className="flex items-start gap-4 overflow-x-auto pb-3 mb-6 bg-card rounded-3xl border border-border shadow-soft p-4">
   <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)setDraft(f);}}/>
   <button type="button" aria-label="הוספת סטורי חדש" onClick={()=>storyInput.current?.click()} className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center">
    <span className="relative w-[4.5rem] h-[4.5rem] rounded-full border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center"><Plus className="w-7 h-7 text-primary"/></span>
    <span className="text-[11px] font-bold leading-tight text-foreground">הסטורי שלי</span>
   </button>
-  {(stories.data??[]).map((s,i)=><button type="button" key={s.id} aria-label="פתיחת סטורי" onClick={()=>{setViewer(i);setProgress(0);}} className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center">
-   <span className="w-[4.5rem] h-[4.5rem] rounded-full p-[3px] bg-gradient-to-tr from-primary via-ring to-accent"><span className="block w-full h-full rounded-full overflow-hidden border-2 border-card bg-muted">{s.displayUrl&&<img src={s.displayUrl} alt="סטורי מהקהילה" className="w-full h-full object-cover"/>}</span></span>
-   <span className="w-full truncate text-[11px] font-bold leading-tight text-primary">{s.user_id===user.id?(user.businessName||'הסטורי שלך'):'חברת קהילה'}</span>
-  </button>)}
+  {groups.map((gr,gi)=>{const cover=gr.items[gr.items.length-1];return <button type="button" key={gr.userId} aria-label={`פתיחת הסטוריז של ${nameOf(gr.userId)} (${gr.items.length})`} onClick={()=>{setOpen({g:gi,i:0});setProgress(0);}} className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center">
+   <span className="w-[4.5rem] h-[4.5rem] rounded-full p-[3px] bg-gradient-to-tr from-primary via-ring to-accent"><span className="block w-full h-full rounded-full overflow-hidden border-2 border-card bg-muted">{cover?.displayUrl&&<img src={cover.displayUrl} alt={cover.alt_text||'סטורי מהקהילה'} className="w-full h-full object-cover"/>}</span></span>
+   <span className="w-full truncate text-[11px] font-bold leading-tight text-primary">{nameOf(gr.userId)}</span>
+  </button>;})}
   {stories.isError&&<Notice text="טעינת הסטוריז נכשלה"/>}{msg&&<Notice text={msg}/>}
  </section>
- {current&&<div role="dialog" aria-modal="true" aria-label="צפייה בסטורי" onPointerDown={()=>setPaused(true)} onPointerUp={()=>setPaused(false)} className="fixed inset-0 z-50 bg-black flex flex-col p-4">
-  <div className="flex gap-1.5 w-full mb-3">{(stories.data??[]).map((s,i)=><div key={s.id} className="flex-1 bg-white/20 h-1 rounded-full overflow-hidden"><div className="bg-white h-full" style={{width:i===viewer?`${progress}%`:i<(viewer??0)?'100%':'0%'}}/></div>)}</div>
+ {current&&group&&open&&<div role="dialog" aria-modal="true" aria-label="צפייה בסטורי" className="fixed inset-0 z-50 bg-black flex flex-col p-4">
+  <div className="flex gap-1.5 w-full mb-3" aria-label={`סטורי ${open.i+1} מתוך ${group.items.length}`}>{group.items.map((s,i)=><div key={s.id} className="flex-1 bg-white/20 h-1 rounded-full overflow-hidden"><div className="bg-white h-full" style={{width:i===open.i?`${progress}%`:i<open.i?'100%':'0%'}}/></div>)}</div>
   <div className="flex items-center justify-between text-white">
-   <span className="font-extrabold text-sm">{current.user_id===user.id?user.businessName:'חברת קהילה'}</span>
+   <span className="font-extrabold text-sm">{nameOf(current.user_id)}</span>
    <div className="flex items-center gap-1">
     {current.user_id===user.id&&<Button size="icon" variant="ghost" aria-label="רשימת הצופות בסטורי" title="מי צפתה" onClick={()=>setViewersFor(current.id)}><Eye className="text-white"/></Button>}
     {current.user_id===user.id&&<Button size="icon" variant="ghost" aria-label="מחיקת סטורי" title="מחיקת סטורי" onClick={()=>removeStory(current.id)}><Trash2 className="text-white"/></Button>}
-    <Button size="icon" variant="ghost" aria-label="סגירת הסטורי" title="סגירה" onClick={()=>setViewer(null)}><X className="text-white"/></Button>
+    <Button size="icon" variant="ghost" aria-label="סגירת הסטורי" title="סגירה" onClick={()=>setOpen(null)}><X className="text-white"/></Button>
    </div>
   </div>
-  <div className="relative flex-1 flex items-center justify-center my-4 overflow-hidden rounded-2xl">
-   {current.displayUrl&&<img src={current.displayUrl} alt="סטורי" className="max-h-full max-w-full object-contain pointer-events-none"/>}
-   {viewer!==null&&viewer>0&&<Button size="icon" variant="ghost" aria-label="סטורי קודם" className="absolute right-2" onClick={()=>{setViewer(viewer-1);setProgress(0);}}><ChevronRight className="text-white"/></Button>}
-   {viewer!==null&&viewer<(stories.data?.length??0)-1&&<Button size="icon" variant="ghost" aria-label="סטורי הבא" className="absolute left-2" onClick={()=>{setViewer(viewer+1);setProgress(0);}}><ChevronLeft className="text-white"/></Button>}
+  <div onPointerDown={()=>{downAt.current=Date.now();setPaused(true);}} onPointerUp={tap} onPointerCancel={()=>setPaused(false)} className="relative flex-1 flex items-center justify-center my-4 overflow-hidden rounded-2xl select-none">
+   {current.displayUrl&&<img src={current.displayUrl} alt={current.alt_text||'סטורי'} className="max-h-full max-w-full object-contain pointer-events-none"/>}
+   <span className="sr-only"><button type="button" onClick={prev}>סטורי קודם</button><button type="button" onClick={next}>סטורי הבא</button></span>
   </div>
   {current.caption&&<p className="text-white text-sm text-center">{current.caption}</p>}
  </div>}

@@ -19,7 +19,7 @@ export const STORY_FONTS=[
 type FontId=(typeof STORY_FONTS)[number]['id'];
 const COLORS=['#FFFFFF','#000000','#5B0E2D','#E91E63','#F48FB1','#FCE4EC','#D7B19D','#C8A27A','#D4AF37','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#FF6F61'];
 const ROSE='#5B0E2D';const BASE=28;const IMG_BASE=110;
-type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;z:number;src?:string};
+type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;z:number;src?:string|undefined};
 
 const fontOf=(id:FontId)=>STORY_FONTS.find(f=>f.id===id)??STORY_FONTS[0];
 function isLight(hex:string){const n=parseInt(hex.slice(1),16);return ((n>>16)*299+((n>>8)&255)*587+(n&255)*114)/1000>160;}

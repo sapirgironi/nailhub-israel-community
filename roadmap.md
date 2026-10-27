@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [ ] Rich feed composer: persisted professional tags/search, member mentions/profile links, premium-only image-and-text OpenAI suggestions, mobile/desktop verification.
 - [x] Story text: same-DOM preview/export with manual line breaks, touch/desktop width handles, member autocomplete and persisted clickable profile mentions. Authenticated publish/reload/profile navigation verified, touch drag verified, screenshots confirm matching line breaks; 12 regression tests and build pass. Temporary stories removed.
 - [x] Connect Cloudinary for story backgrounds/final images, feed, profile and trade; authenticated uploads and RLS-checked optimized bytes preserve privacy and legacy images. Profile upload, story text/background/final save, feed/trade publication and reload verified in browser; temporary database content removed; tests and build pass.
 - [x] Smart pricing calculator: business settings, 14 treatments, length/effects, AI material estimate (live call verified), discount, VAT 18%, save to price list; pricing unit tests pass

@@ -78,6 +78,13 @@
       "when": 1793099751074,
       "tag": "0010_admin_panel_phase_a",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793101394256,
+      "tag": "0011_admin_ai_and_operations",
+      "breakpoints": true
     }
   ]
 }

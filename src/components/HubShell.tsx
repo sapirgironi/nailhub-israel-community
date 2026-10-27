@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Sparkles,Users,ShoppingBag,ShieldCheck,Calculator,FileSignature,Palette,Bookmark,User,Home,Search,Plus,Gem,PenLine,LogOut,Menu,X,Camera,ImageIcon } from 'lucide-react';
+import { Sparkles,Users,ShoppingBag,ShieldCheck,Calculator,FileSignature,Palette,Bookmark,User,Home,Search,Plus,PenLine,LogOut,Menu,X,Camera,ImageIcon } from 'lucide-react';
 import {Button} from './ui/button';
 import {NotificationsBell} from './NotificationsBell';
 import {queueStory} from '@/lib/story-handoff';

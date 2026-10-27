@@ -31,3 +31,5 @@
 - [x] Real email/password sign-up + login, profiles saved
 - [x] Main app integration with existing live app, not a demo replacement; newest Instagram upload reviewed, hardcoded admin bypass excluded
 - [x] AI post draft writer (Hebrew)
+- [x] Story viewers list — story_views table with owner/admin RLS, view recorded on open (own views skipped), Eye button on own story opens viewer list; verified cross-user in browser
+- [x] In-app notifications — notifications table (like/comment/collab) with recipient-only RLS, bell with unread badge in header, created on like/comment/collab; verified in browser with real cross-user data

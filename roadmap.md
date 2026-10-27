@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [x] Smart pricing calculator: business settings, 14 treatments, length/effects, AI material estimate (live call verified), discount, VAT 18%, save to price list; pricing unit tests pass
 - [x] Admin trade photos/seller/date and approval actions, name/email search, supplier approval and atomic set/add credits, permanent application-access ban; authenticated browser verification passed: approval visible on board, 20 + 5 credits persisted as 25, blocked existing session denied UI/data.
 - [x] Add public /terms with owner-supplied policy, signup/sidebar links, and back-to-top; routing tests and signed-out/authenticated browser checks passed on mobile and desktop.
 - [x] 24-hour stories, feed interactions, notifications, story viewers — verified

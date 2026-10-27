@@ -4,6 +4,7 @@ import {useQuery,useQueryClient} from '@tanstack/react-query';
 import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw,Heart,MessageCircle,Handshake,X,Send,ChevronRight,ChevronLeft,Eye} from 'lucide-react';
 import {supabase} from '@/integrations/supabase/client';
 import {HebrewPhotoInput} from './HebrewPhotoInput';
+import {takeStory,onStoryQueued} from '@/lib/story-handoff';
 import {Button} from './ui/button';
 import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
@@ -45,6 +46,7 @@ function StoriesBar({user}:{user:Person}){
  const current=viewer!==null?stories.data?.[viewer]:null;
  useEffect(()=>{if(!current||current.user_id===user.id)return;void supabase.from('story_views').upsert({story_id:current.id,viewer_id:user.id,viewer_name:user.businessName||user.fullName},{onConflict:'story_id,viewer_id',ignoreDuplicates:true}).then(({error})=>{if(error)setMsg('רישום הצפייה נכשל');});},[current?.id]);
  const storyInput=useRef<HTMLInputElement>(null);
+ useEffect(()=>{const consume=()=>{const f=takeStory();if(f)void addStory(f);};consume();return onStoryQueued(consume);},[]);
  return <><section aria-label="סטוריז מהקהילה" className="flex items-center gap-3 overflow-x-auto pb-2 mb-6">
   <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{void addStory(e.target.files?.[0]??null);e.target.value='';}}/>
   <button onClick={()=>storyInput.current?.click()} className="shrink-0 w-24 h-40 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition flex flex-col items-center justify-center gap-2 p-2 text-center">

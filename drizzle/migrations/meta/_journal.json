@@ -120,6 +120,13 @@
       "when": 1793113939932,
       "tag": "0016_require_trade_review_before_publication",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793114003127,
+      "tag": "0017_allow_trade_review_statuses",
+      "breakpoints": true
     }
   ]
 }

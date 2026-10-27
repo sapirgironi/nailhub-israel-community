@@ -1,0 +1,2 @@
+ALTER TABLE public.nail_trade_items DROP CONSTRAINT nail_trade_items_status_check;
+ALTER TABLE public.nail_trade_items ADD CONSTRAINT nail_trade_items_status_check CHECK (status IN ('pending','approved','rejected','available','reserved','sold'));

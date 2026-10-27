@@ -704,6 +704,7 @@ export type Database = {
           account_role: string
           account_status: string | null
           additional_services: string[] | null
+          avatar_url: string | null
           business_name: string | null
           city: string | null
           created_at: string
@@ -723,6 +724,7 @@ export type Database = {
           account_role?: string
           account_status?: string | null
           additional_services?: string[] | null
+          avatar_url?: string | null
           business_name?: string | null
           city?: string | null
           created_at?: string
@@ -742,6 +744,7 @@ export type Database = {
           account_role?: string
           account_status?: string | null
           additional_services?: string[] | null
+          avatar_url?: string | null
           business_name?: string | null
           city?: string | null
           created_at?: string
@@ -891,6 +894,7 @@ export type Database = {
       stories: {
         Row: {
           alt_text: string | null
+          background_media_url: string | null
           caption: string | null
           created_at: string
           id: string
@@ -899,6 +903,7 @@ export type Database = {
         }
         Insert: {
           alt_text?: string | null
+          background_media_url?: string | null
           caption?: string | null
           created_at?: string
           id?: string
@@ -907,6 +912,7 @@ export type Database = {
         }
         Update: {
           alt_text?: string | null
+          background_media_url?: string | null
           caption?: string | null
           created_at?: string
           id?: string

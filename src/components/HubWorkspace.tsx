@@ -43,11 +43,12 @@ function StoriesBar({user}:{user:Person}){
  async function addStory(f:File|null){if(!f)return;setMsg('');try{const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url});if(error)throw error;await qc.invalidateQueries({queryKey:['hub-stories']});}catch{setMsg('פרסום הסטורי נכשל');}}
  async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setViewer(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  const current=viewer!==null?stories.data?.[viewer]:null;
+ const storyInput=useRef<HTMLInputElement>(null);
  return <><section aria-label="סטוריז מהקהילה" className="flex items-center gap-3 overflow-x-auto pb-2 mb-6">
-  <div className="shrink-0 w-24 h-40 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center gap-2 p-2 text-center">
+  <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{void addStory(e.target.files?.[0]??null);e.target.value='';}}/>
+  <button onClick={()=>storyInput.current?.click()} className="shrink-0 w-24 h-40 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition flex flex-col items-center justify-center gap-2 p-2 text-center">
    <Plus className="w-6 h-6 text-primary"/><span className="text-[11px] font-black leading-tight">הסטורי שלי</span><span className="text-[9px] text-primary font-bold">פרסום ל־24 שעות</span>
-   <HebrewPhotoInput label="העלאת סטורי" onChange={f=>void addStory(f)}/>
-  </div>
+  </button>
   {(stories.data??[]).map((s,i)=><button key={s.id} onClick={()=>{setViewer(i);setProgress(0);}} className="shrink-0 w-24 h-40 rounded-2xl relative overflow-hidden border border-border shadow-soft">
    {s.displayUrl&&<img src={s.displayUrl} alt="סטורי מהקהילה" className="w-full h-full object-cover"/>}
    <span className="absolute bottom-2 inset-x-2 text-[10px] font-black text-white drop-shadow-md text-right">{s.user_id===user.id?user.businessName:'חברת קהילה'}</span>

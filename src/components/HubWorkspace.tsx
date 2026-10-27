@@ -11,7 +11,10 @@ import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
 import {plainText,whatsappLink} from '@/lib/input-security';
 import {publishComment} from '@/lib/moderation.functions';
-import {calculatePrice,healthSchema,insuranceSchema,priceItemSchema} from '@/lib/hub-tools';
+import {healthSchema,insuranceSchema,priceItemSchema} from '@/lib/hub-tools';
+import {calculateTreatment,TREATMENTS,LENGTHS,EFFECTS,EXPERIENCE,DEFAULT_OVERHEAD,type PricingInput,type LengthId} from '@/lib/pricing';
+import {estimateMaterialCost} from '@/lib/pricing.functions';
+import {useServerFn} from '@tanstack/react-start';
 import type {Database} from '@/integrations/supabase/types';
 
 const field='text-right w-full border border-input rounded-lg bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
@@ -22,7 +25,7 @@ function Notice({text}:{text:string}){return <p role="status" className="text-sm
 function Heading({title}:{title:string}){return <h1 className="font-black text-2xl mb-6">{title}</h1>}
 export function HubWorkspace({section,user}:{section:HubSection;user:Person}){
  if(section==='draft')return <PostDraftWriter/>;
- if(section==='calculator')return <PricingCalculator/>;
+ if(section==='calculator')return <PricingCalculator user={user}/>;
  if(section==='health_form')return <HealthForm user={user}/>;
  if(section==='insurance')return <InsuranceForm user={user}/>;
  if(section==='pricelist')return <PriceList user={user}/>;

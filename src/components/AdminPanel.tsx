@@ -4,6 +4,10 @@ import { ShieldCheck, Users, Ban, Flag, Inbox, FileSpreadsheet, Megaphone, Pin, 
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import { plainText, whatsappLink } from '@/lib/input-security';
+import { useServerFn } from '@tanstack/react-start';
+import { listAdminUsers } from '@/lib/admin.functions';
+import { matchesAdminSearch } from '@/lib/admin-rules';
+import { ROLE_DEFINITIONS, type AccountRole } from '@/lib/roles';
 
 const field = 'text-right w-full border border-input rounded-lg bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 const TABS = [
@@ -36,6 +40,7 @@ function csvDownload(filename: string, rows: Record<string, unknown>[]) {
 function UsersTab() {
   const qc = useQueryClient();
   const [msg, setMsg] = useState('');
+  const [busyUser, setBusyUser] = useState<string | null>(null);
   const profiles = useQuery({
     queryKey: ['admin-profiles'],
     queryFn: async () => {
@@ -74,10 +79,12 @@ function UsersTab() {
     if (!error) await refresh();
   }
   async function banForever(id: string, name: string) {
-    if (!window.confirm(`לחסום את ${name} לצמיתות? היא לא תוכל לפרסם או להגיב.`)) return;
+    if (!window.confirm(`לחסום את ${name} לצמיתות? הגישה שלה לאפליקציה תיחסם.`)) return;
+    setBusyUser(id);
     const { error } = await supabase.from('user_sanctions').insert({ user_id: id, kind: 'ban', until: null, reason: 'חסימה לצמיתות על ידי מנהלת' });
     setMsg(error ? 'החסימה נכשלה' : 'המשתמשת נחסמה לצמיתות');
     if (!error) await refresh();
+    setBusyUser(null);
   }
   async function unmute(id: string) {
     const { error } = await supabase.from('user_sanctions').delete().eq('user_id', id);
@@ -104,7 +111,7 @@ function UsersTab() {
                   <span className="font-bold text-sm break-words">{p.display_name}</span>
                   {p.is_verified && <BadgeCheck className="w-4 h-4 text-primary shrink-0" />}
                 </div>
-                <p className="text-xs text-muted-foreground break-words">{p.business_name} • {p.city} • {p.account_role}</p>
+                <p className="text-xs text-muted-foreground break-words">{p.business_name} • {p.city} • {ROLE_DEFINITIONS[p.account_role as AccountRole]?.label ?? 'חברת קהילה'}</p>
               </div>
               {s && <span className="text-[11px] font-bold bg-destructive/10 text-destructive px-2 py-1 rounded-lg">מושהית {s.until ? `עד ${new Date(s.until).toLocaleString('he-IL')}` : 'לצמיתות'}</span>}
               {q?.unlimited && <span className="text-[11px] font-bold bg-accent text-primary px-2 py-1 rounded-lg">פרסום ללא הגבלה</span>}
@@ -113,7 +120,8 @@ function UsersTab() {
               <Button size="sm" variant="outline" onClick={() => verify(p.id, !p.is_verified)}><BadgeCheck />{p.is_verified ? 'הסרת אימות' : 'אימות מקצועי'}</Button>
               {s
                 ? <Button size="sm" variant="outline" onClick={() => unmute(p.id)}>{s.until ? 'ביטול השהיה' : 'ביטול חסימה'}</Button>
-                : <><Button size="sm" variant="outline" onClick={() => mute(p.id, 24)}>השהיה ל־24 שעות</Button><Button size="sm" variant="outline" onClick={() => mute(p.id, 168)}>השהיה לשבוע</Button><Button size="sm" variant="destructive" onClick={() => banForever(p.id, p.display_name)}><Ban />חסימה לצמיתות</Button></>}
+                : <><Button size="sm" variant="outline" onClick={() => mute(p.id, 24)}>השהיה ל־24 שעות</Button><Button size="sm" variant="outline" onClick={() => mute(p.id, 168)}>השהיה לשבוע</Button></>}
+              {!(s?.kind === 'ban' && !s.until) && <Button size="sm" variant="destructive" disabled={busyUser === p.id} onClick={() => banForever(p.id, p.display_name)}><Ban />חסימה לצמיתות</Button>}
               <Button size="sm" variant="outline" onClick={() => setQuota(p.id, !q?.unlimited)}>{q?.unlimited ? 'החזרת מכסה' : 'ללא מכסה'}</Button>
             </div>
           </div>
@@ -360,32 +368,47 @@ function PinsTab() {
 function TradeQueueTab() {
   const qc = useQueryClient();
   const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
   const items = useQuery({
     queryKey: ['admin-trade-queue'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('nail_trade_items').select('id,title,category,condition,price_nis,city,description,status,created_at').eq('status', 'pending').order('created_at', { ascending: true });
+      const { data, error } = await supabase.from('nail_trade_items').select('id,title,category,condition,price_nis,city,description,status,created_at,photos,profiles!nail_trade_items_seller_id_fkey(display_name)').eq('status', 'pending').order('created_at', { ascending: true });
       if (error) throw error;
-      return data;
+      return Promise.all(data.map(async item => {
+        const photo = item.photos?.[0] ?? '';
+        let image = '';
+        if (photo.startsWith('community-work/')) {
+          const { data: signed } = await supabase.storage.from('community-work').createSignedUrl(photo.slice(15), 3600);
+          image = signed?.signedUrl ?? '';
+        } else { try { const url = new URL(photo); if (url.protocol === 'https:') image = url.href; } catch { /* No image supplied. */ } }
+        return { ...item, image };
+      }));
     },
   });
   async function decide(id: string, status: 'approved' | 'rejected') {
-    const { error } = await supabase.from('nail_trade_items').update({ status }).eq('id', id);
+    setBusy(id);
+    const { data, error } = await supabase.from('nail_trade_items').update({ status }).eq('id', id).eq('status', 'pending').select('id').single();
+    if (!data || error) { setMsg('העדכון נכשל; ייתכן שהמודעה כבר טופלה'); setBusy(null); return; }
     setMsg(error ? 'העדכון נכשל' : status === 'approved' ? 'המודעה אושרה ופורסמה' : 'המודעה נדחתה');
     if (!error) { await qc.invalidateQueries({ queryKey: ['admin-trade-queue'] }); await qc.invalidateQueries({ queryKey: ['hub-trade'] }); }
+    setBusy(null);
   }
   if (items.isError) return <Notice text="טעינת התור נכשלה" />;
   return (
     <div className="space-y-3">
       {msg && <Notice text={msg} />}
+      {items.isPending && <Notice text="טוענת מודעות שממתינות לאישור..." />}
       {items.data && items.data.length === 0 && <Notice text="אין מודעות שממתינות לאישור" />}
       {(items.data ?? []).map((t) => (
         <div key={t.id} className="bg-card border border-border rounded-2xl p-4 space-y-2">
+          {t.image ? <img src={t.image} alt={t.title} className="w-full max-h-72 object-contain bg-muted rounded-lg" /> : <Notice text="אין תמונה זמינה" />}
           <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm break-words">{t.title}</span><span className="text-sm font-bold">₪{t.price_nis}</span></div>
+          <p className="text-xs text-muted-foreground">{t.profiles?.display_name ?? 'חברת קהילה'} • <time>{new Date(t.created_at).toLocaleString('he-IL')}</time></p>
           <p className="text-xs text-muted-foreground break-words">{t.category} • {t.condition} • {t.city}</p>
           <p className="text-sm break-words line-clamp-3">{t.description}</p>
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => decide(t.id, 'approved')}>אשר</Button>
-            <Button size="sm" variant="outline" onClick={() => decide(t.id, 'rejected')}>דחה</Button>
+            <Button size="sm" variant="success" disabled={busy === t.id} onClick={() => decide(t.id, 'approved')}>אשר מודעה</Button>
+            <Button size="sm" variant="destructive" disabled={busy === t.id} onClick={() => decide(t.id, 'rejected')}>דחה מודעה</Button>
           </div>
         </div>
       ))}
@@ -395,15 +418,14 @@ function TradeQueueTab() {
 
 function SuppliersTab() {
   const qc = useQueryClient();
+  const getUsers = useServerFn(listAdminUsers);
+  const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const profiles = useQuery({
     queryKey: ['admin-supplier-profiles'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('id,display_name,business_name,account_role').in('account_role', ['nail_tech', 'supplier']).order('display_name');
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => getUsers(),
   });
   const ledger = useQuery({
     queryKey: ['admin-credit-ledger'],
@@ -415,36 +437,42 @@ function SuppliersTab() {
   });
   const balance = (id: string) => (ledger.data ?? []).filter((l) => l.user_id === id).reduce((s, l) => s + l.amount, 0);
   async function setRole(id: string, role: 'supplier' | 'nail_tech') {
-    const { error } = await supabase.from('profiles').update({ account_role: role }).eq('id', id);
+    setBusy(id);
+    const { error } = await supabase.from('profiles').update({ account_role: role, ...(role === 'supplier' ? { account_status: 'active' } : {}) }).eq('id', id).select('id').single();
     setMsg(error ? 'שינוי התפקיד נכשל' : role === 'supplier' ? 'החשבון הוגדר כספק' : 'החשבון הוחזר לנייליסטית');
     if (!error) { await qc.invalidateQueries({ queryKey: ['admin-supplier-profiles'] }); await qc.invalidateQueries({ queryKey: ['admin-profiles'] }); }
+    setBusy(null);
   }
-  async function setCredits(id: string) {
+  async function setCredits(id: string, mode: 'set' | 'add') {
     const target = Number(amounts[id]);
-    if (!Number.isInteger(target) || target < 0 || target > 100000) { setMsg('הזיני מספר קרדיטים שלם בין 0 ל־100,000'); return; }
-    const delta = target - balance(id);
-    if (delta === 0) { setMsg('היתרה כבר מוגדרת לכמות הזו'); return; }
-    const { error } = await supabase.rpc('adjust_community_credit', { target_user: id, delta, explanation: `הגדרת יתרת קרדיטים לפרסום: ${target}`, operation_id: crypto.randomUUID() });
-    setMsg(error ? 'עדכון הקרדיטים נכשל' : `היתרה עודכנה ל־${target} קרדיטים`);
-    if (!error) await qc.invalidateQueries({ queryKey: ['admin-credit-ledger'] });
+    if (!amounts[id]?.trim() || !Number.isInteger(target) || target < 0 || target > 100000) { setMsg('הזיני מספר קרדיטים שלם בין 0 ל־100,000'); return; }
+    setBusy(id);
+    const { data, error } = await supabase.rpc('manage_supplier_credits', { target_user: id, quantity: target, credit_mode: mode, operation_id: crypto.randomUUID() });
+    setMsg(error ? 'עדכון הקרדיטים נכשל' : `היתרה עודכנה ל־${data} קרדיטים`);
+    if (!error) { setAmounts(prev => ({ ...prev, [id]: '' })); await qc.invalidateQueries({ queryKey: ['admin-credit-ledger'] }); }
+    setBusy(null);
   }
   if (profiles.isError || ledger.isError) return <Notice text="טעינת הספקים נכשלה" />;
   return (
     <div className="space-y-3">
+      <input type="search" aria-label="חיפוש משתמשת לפי שם או אימייל" placeholder="חיפוש לפי שם או אימייל" className={field} value={search} onChange={event => setSearch(event.target.value)} />
       {msg && <Notice text={msg} />}
-      {(profiles.data ?? []).map((p) => {
+      {profiles.isPending && <Notice text="טוענת משתמשות..." />}
+      {profiles.data && !profiles.data.some(p => matchesAdminSearch(p, search)) && <Notice text="לא נמצאו משתמשות" />}
+      {(profiles.data ?? []).filter(p => matchesAdminSearch(p, search)).map((p) => {
         const isSupplier = p.account_role === 'supplier';
         return (
           <div key={p.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="min-w-0"><span className="font-bold text-sm break-words">{p.display_name}</span><p className="text-xs text-muted-foreground break-words">{p.business_name} • {isSupplier ? 'ספק' : 'נייליסטית'}</p></div>
+              <div className="min-w-0"><span className="font-bold text-sm break-words">{p.display_name}</span><p className="text-xs text-muted-foreground break-words">{p.business_name} • {isSupplier ? 'ספק מאושר' : ROLE_DEFINITIONS[p.account_role as AccountRole]?.label ?? 'חברת קהילה'}</p><p dir="ltr" className="text-xs text-muted-foreground break-all text-right">{p.email}</p></div>
               {isSupplier && <span className="text-[11px] font-bold bg-accent text-primary px-2 py-1 rounded-lg">{balance(p.id)} קרדיטים</span>}
             </div>
             <div className="flex flex-wrap gap-2 items-center">
-              <Button size="sm" variant="outline" onClick={() => setRole(p.id, isSupplier ? 'nail_tech' : 'supplier')}>{isSupplier ? 'החזרה לנייליסטית' : 'הגדרה כספק'}</Button>
+              <Button size="sm" variant="outline" disabled={busy === p.id} onClick={() => setRole(p.id, isSupplier ? 'nail_tech' : 'supplier')}>{isSupplier ? 'החזרה לנייליסטית' : 'הגדרה כספק מאושר'}</Button>
               {isSupplier && <>
                 <input type="number" min={0} max={100000} aria-label="כמות קרדיטים" placeholder="כמות קרדיטים" value={amounts[p.id] ?? ''} onChange={(e) => setAmounts({ ...amounts, [p.id]: e.target.value })} className={`${field} w-36`} />
-                <Button size="sm" onClick={() => setCredits(p.id)}>שמירת קרדיטים</Button>
+                <Button size="sm" disabled={busy === p.id} onClick={() => setCredits(p.id, 'set')}>הגדרת יתרה</Button>
+                <Button size="sm" variant="outline" disabled={busy === p.id} onClick={() => setCredits(p.id, 'add')}><Plus />הוספת קרדיטים</Button>
               </>}
             </div>
           </div>

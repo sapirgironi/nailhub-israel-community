@@ -54,7 +54,8 @@ async function smallDataUrl(file:File){const url=URL.createObjectURL(file);try{c
 function EditableText({initial,onChange,onDone}:{initial:string;onChange:(t:string)=>void;onDone:()=>void}){
  const ref=useRef<HTMLSpanElement>(null);
  useEffect(()=>{const n=ref.current;if(!n)return;n.textContent=initial;n.focus();const r=document.createRange();r.selectNodeContents(n);r.collapse(false);const s=getSelection();s?.removeAllRanges();s?.addRange(r);},[]);// eslint-disable-line react-hooks/exhaustive-deps
- return <span ref={ref} contentEditable suppressContentEditableWarning role="textbox" aria-label="טקסט הסטורי" onPointerDown={e=>e.stopPropagation()} onInput={e=>onChange((e.currentTarget.innerText||'').slice(0,120))} onBlur={onDone} className="outline-none min-w-[1ch] inline-block whitespace-pre-wrap caret-current"/>;
+ useEffect(()=>{const n=ref.current;if(n&&document.activeElement!==n&&n.innerText!==initial)n.textContent=initial;},[initial]);
+ return <span ref={ref} contentEditable suppressContentEditableWarning role="textbox" aria-label="טקסט הסטורי" data-placeholder="הקלידי כאן" onPointerDown={e=>e.stopPropagation()} onInput={e=>onChange((e.currentTarget.innerText||'').slice(0,120))} onBlur={onDone} className="outline-none min-w-[1ch] inline-block whitespace-pre-wrap caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"/>;
 }
 
 export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>void;onPublish:(f:File,alt:string,backgroundUrl:string)=>Promise<void>}){
@@ -92,10 +93,10 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
    <div className="flex gap-2"><Button size="sm" variant="secondary" onClick={()=>add('text','')}><Type/>טקסט</Button><Button size="sm" variant="secondary" onClick={()=>setPanel(panel==='stickers'?null:'stickers')}><Smile/>סטיקרים</Button></div></div>
   <div ref={frame} onPointerDown={frameDown} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{touchAction:'none',backgroundImage:`url(${src})`}} className="relative w-full max-w-sm aspect-[9/16] max-h-[64vh] shrink-0 rounded-3xl overflow-hidden bg-cover bg-center select-none">
    {els.map(e=>{const f=fontOf(e.font);const active=sel===e.id;
-    return <div key={e.id} onPointerDown={ev=>down(ev,e)} onDoubleClick={()=>e.kind==='text'&&setEditing(e.id)} style={{left:e.x+'%',top:e.y+'%',zIndex:e.z,transform:`translate(-50%,-50%) scale(${e.scale})`,touchAction:'none'}} className={'absolute cursor-grab max-w-[90%] text-center '+(drag?.id===e.id&&over?'opacity-50 ':'')+(active?'outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md':'')}>
-     {e.kind==='image'&&e.src&&<img src={e.src} alt={e.text||'סטיקר'} draggable={false} style={{width:IMG_BASE}} className="pointer-events-none"/>}
-     {e.kind==='pill'&&<span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">{e.text}</span>}
-     {e.kind==='text'&&<span style={{fontFamily:`"${f.family}"`,fontStyle:f.italic?'italic':'normal',fontWeight:e.bold?700:400,textDecoration:e.underline?'underline':'none',color:e.color,fontSize:BASE,lineHeight:1.25,background:e.highlight?highlightBg(e.color):'transparent',textShadow:e.highlight?'none':'0 1px 6px rgba(0,0,0,.35)'}} className="inline-block rounded-lg px-2 whitespace-pre-wrap break-words">
+     return <div key={e.id} onPointerDown={ev=>down(ev,e)} onDoubleClick={()=>e.kind==='text'&&setEditing(e.id)} style={{left:e.x+'%',top:e.y+'%',zIndex:e.z,transform:`translate(-50%,-50%) scale(${e.scale})`,touchAction:'none',width:'max-content',maxWidth:'90%',opacity:drag?.id===e.id&&over?0.5:1}} className={'absolute cursor-grab text-center '+(active?'outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md':'')}>
+      {e.kind==='image'&&e.src&&<img src={e.src} alt={e.text||'סטיקר'} draggable={false} style={{width:IMG_BASE}} className="pointer-events-none"/>}
+      {e.kind==='pill'&&<span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">{e.text}</span>}
+      {e.kind==='text'&&<span style={{fontFamily:`"${f.family}"`,fontStyle:f.italic?'italic':'normal',fontWeight:e.bold?700:400,textDecoration:e.underline?'underline':'none',color:e.color,opacity:1,fontSize:BASE,lineHeight:1.25,background:e.highlight?highlightBg(e.color):'transparent',textShadow:e.highlight?'none':'0 1px 6px rgba(0,0,0,.35)',whiteSpace:'pre-wrap',overflowWrap:'normal',wordBreak:'normal'}} className="inline-block rounded-lg px-2">
       {editing===e.id?<EditableText initial={e.text} onChange={t=>patch(e.id,{text:t})} onDone={()=>setEditing(null)}/>:(e.text||<span className="opacity-60">הקלידי כאן</span>)}</span>}
     </div>;})}
    {drag&&<div className={'absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] '+(over?'bg-destructive text-destructive-foreground scale-125':'bg-card/80 text-foreground')}><Trash2/></div>}
@@ -106,6 +107,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
     <input aria-label="שינוי גודל" type="range" min={0.4} max={5} step={0.05} value={selected.scale} onChange={e=>patch(selected.id,{scale:Number(e.target.value)})} className="flex-1 accent-primary"/>
     <Button size="icon" variant="outline" aria-label="הגדלה" onClick={()=>patch(selected.id,{scale:Math.min(5,selected.scale+0.15)})}><Plus/></Button></div>
    {selected.kind==='text'&&<>
+    <textarea aria-label="הקלדת טקסט לסטורי" dir="rtl" rows={2} maxLength={120} value={selected.text} placeholder="הקלידי כאן" onFocus={()=>setEditing(null)} onChange={ev=>patch(selected.id,{text:ev.target.value.slice(0,120)})} className="w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm text-right"/>
     <div className="flex gap-1.5 overflow-x-auto pb-1">{STORY_FONTS.map(f=><button key={f.id} type="button" onClick={()=>style({font:f.id})} className={'shrink-0 rounded-xl border px-3 py-1.5 text-right '+(selected.font===f.id?'border-primary bg-accent':'border-border')}>
      <span style={{fontFamily:`"${f.family}"`,fontStyle:f.italic?'italic':'normal'}} className="block text-base leading-tight">{f.desc}</span><span className="block text-[10px] text-muted-foreground">{f.label}</span></button>)}</div>
     <div className="flex gap-1.5 flex-wrap">

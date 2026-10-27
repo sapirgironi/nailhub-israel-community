@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, Users, Ban, Flag, Inbox, FileSpreadsheet, Megaphone, Pin, BadgeCheck, Trash2, Plus, MessageCircle, ShoppingBag, Coins } from 'lucide-react';
+import { ShieldCheck, Users, Ban, Flag, Inbox, FileSpreadsheet, Megaphone, Pin, BadgeCheck, Trash2, Plus, MessageCircle, ShoppingBag, Coins, Sticker } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import { plainText, whatsappLink } from '@/lib/input-security';
@@ -20,6 +20,7 @@ const TABS = [
   { id: 'leads', label: 'לידים', icon: FileSpreadsheet },
   { id: 'announce', label: 'הודעת מערכת', icon: Megaphone },
   { id: 'pins', label: 'נעיצת פוסטים', icon: Pin },
+  { id: 'stickers', label: 'סטיקרים לסטורי', icon: Sticker },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -482,6 +483,63 @@ function SuppliersTab() {
   );
 }
 
+function StickersTab() {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState('');
+  const [label, setLabel] = useState('');
+  const [busy, setBusy] = useState(false);
+  const list = useQuery({
+    queryKey: ['story-stickers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('story_stickers').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return (await Promise.all(data.map(async (s) => { const { data: b } = await supabase.storage.from('story-stickers').download(s.image_path); return b ? { ...s, url: URL.createObjectURL(b) } : null; }))).filter((s): s is NonNullable<typeof s> => !!s);
+    },
+  });
+  async function upload(file: File) {
+    if (file.type !== 'image/png' || file.size > 2 * 1024 * 1024) { setMsg('יש לבחור קובץ PNG שקוף עד 2 מגה־בייט'); return; }
+    const clean = plainText(40).safeParse(label);
+    if (!clean.success) { setMsg('שם הסטיקר חייב להיות טקסט רגיל עד 40 תווים'); return; }
+    setBusy(true); setMsg('');
+    const path = `${crypto.randomUUID()}.png`;
+    const { error: upErr } = await supabase.storage.from('story-stickers').upload(path, file, { contentType: 'image/png' });
+    if (upErr) { setMsg('העלאת הסטיקר נכשלה'); setBusy(false); return; }
+    const { error } = await supabase.from('story_stickers').insert({ image_path: path, label: clean.data });
+    if (error) { await supabase.storage.from('story-stickers').remove([path]); setMsg('שמירת הסטיקר נכשלה'); }
+    else { setMsg('הסטיקר נוסף לבורר של כל המשתמשות'); setLabel(''); await qc.invalidateQueries({ queryKey: ['story-stickers'] }); }
+    setBusy(false);
+  }
+  async function remove(id: string, path: string) {
+    const { error } = await supabase.from('story_stickers').delete().eq('id', id);
+    if (error) { setMsg('המחיקה נכשלה'); return; }
+    await supabase.storage.from('story-stickers').remove([path]);
+    setMsg('הסטיקר נמחק'); await qc.invalidateQueries({ queryKey: ['story-stickers'] });
+  }
+  return (
+    <div className="space-y-3">
+      <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
+        <input value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} placeholder="שם הסטיקר (לנגישות)" className={field} />
+        <label className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-bold cursor-pointer">
+          <Plus className="w-4 h-4" />{busy ? 'מעלה...' : 'העלאת סטיקר PNG'}
+          <input type="file" accept="image/png" className="sr-only" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f); }} />
+        </label>
+      </div>
+      {msg && <Notice text={msg} />}
+      {list.isError && <Notice text="טעינת הסטיקרים נכשלה" />}
+      {list.data?.length === 0 && <Notice text="עדיין אין סטיקרים מותאמים" />}
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+        {(list.data ?? []).map((s) => (
+          <div key={s.id} className="bg-muted rounded-2xl p-2 space-y-1 text-center">
+            <img src={s.url} alt={s.label || 'סטיקר'} className="w-full aspect-square object-contain" />
+            <p className="text-xs truncate">{s.label || 'ללא שם'}</p>
+            <Button size="sm" variant="ghost" aria-label="מחיקת סטיקר" onClick={() => remove(s.id, s.image_path)}><Trash2 /></Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function AdminPanel() {
   const [tab, setTab] = useState<Tab>('users');
   return (
@@ -501,6 +559,7 @@ export function AdminPanel() {
       {tab === 'leads' && <LeadsTab />}
       {tab === 'announce' && <AnnounceTab />}
       {tab === 'pins' && <PinsTab />}
+      {tab === 'stickers' && <StickersTab />}
     </div>
   );
 }

@@ -31,3 +31,5 @@
 - Story editor layers use a fixed 9:16 frame and percentage text widths; export rasterizes the same DOM layout to JPEG so browser Hebrew wrapping and fonts stay consistent. Admin stickers are private blobs to avoid cross-origin canvas taint.
 - Story mentions persist stable member IDs with normalized image hit areas; community discovery uses the authenticated narrow community_members projection, never full private profiles, so contact information stays protected.
 - Prebundle the router, query and story export dependencies with React in Vite to avoid mixed dependency generations; keep react-start out of prebundling because its server boundaries require the framework transform.
+- Feed composition is isolated in FeedPostComposer; tags use posts.service_tags and mentions store validated member IDs plus labels so rendering never trusts caller URLs.
+- Feed photo-assisted writing uses request-scoped direct OpenAI GPT-4o; premium_subscriptions is owner-readable and admin-managed, and active unexpired access is rechecked server-side before every AI call, without admin bypass or automatic subscription grants.

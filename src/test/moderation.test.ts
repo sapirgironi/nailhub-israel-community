@@ -6,7 +6,7 @@ vi.mock('@tanstack/react-start', () => ({ createServerFn: () => {
   return builder;
 } }));
 vi.mock('@/integrations/supabase/auth-middleware', () => ({ requireSupabaseAuth: {} }));
-vi.mock('../lib/moderation.server', () => ({ moderateCommentText: mocks.ai, rephraseCommentText: mocks.rewrite }));
+vi.mock('../lib/moderation.server', () => ({ moderateCommentText: mocks.ai, rephraseCommentText: mocks.rewrite, ModerationServiceError: class extends Error {} }));
 vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: {from: () => ({insert:mocks.insert})} }));
 import { moderateComment, publishComment } from '../lib/moderation.functions';
 

@@ -78,6 +78,7 @@ async function reviewComment(body: string, context: { supabase: import("@supabas
     } catch (e) {
       const status = (e as { statusCode?: number })?.statusCode;
       console.error("moderateComment failed", status);
-      return { ok: false, flagged: [], suggestion: "", error: 'שירות סינון התגובות אינו זמין כרגע. התגובה לא פורסמה; נסי שוב מאוחר יותר' };
+      const { ModerationServiceError } = await import('./moderation.server');
+      return { ok: false, flagged: [], suggestion: "", error: e instanceof ModerationServiceError ? e.userMessage : 'שירות סינון התגובות אינו זמין כרגע. התגובה לא פורסמה; נסי שוב מאוחר יותר' };
     }
 }

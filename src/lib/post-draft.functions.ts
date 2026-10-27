@@ -1,12 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveAccount } from './account-access';
 import { z } from 'zod';
 import { plainText } from './input-security';
 
 const TONES = ["מקצועי", "חם ואישי", "מעורר השראה"];
 
 export const draftPost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveAccount])
   .inputValidator((input: { description: string; tone: string }) => z.object({
     description: plainText(2000).refine(v => v.length >= 10, 'התיאור צריך להכיל לפחות 10 תווים'),
     tone: z.string().refine(v => TONES.includes(v), 'סגנון לא תקין'),

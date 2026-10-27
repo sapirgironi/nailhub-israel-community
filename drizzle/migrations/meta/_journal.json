@@ -99,6 +99,34 @@
       "when": 1793102480398,
       "tag": "0013_trade_queue_and_supplier_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793113712912,
+      "tag": "0014_enforce_permanent_bans_and_atomic_supplier_credits",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793113805057,
+      "tag": "0015_allow_admin_trade_decisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793113939932,
+      "tag": "0016_require_trade_review_before_publication",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793114003127,
+      "tag": "0017_allow_trade_review_statuses",
+      "breakpoints": true
     }
   ]
 }

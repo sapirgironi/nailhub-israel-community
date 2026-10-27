@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveAccount } from './account-access';
 import { plainText } from "./input-security";
 import { z } from 'zod';
 
@@ -11,7 +11,7 @@ export interface ModerationReply {
 }
 
 export const moderateComment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveAccount])
   .inputValidator((input: { body: string }) => {
     const parsed = plainText(500).refine((v) => v.length > 0, "התגובה ריקה").safeParse(input.body);
     if (!parsed.success) throw new Error("התגובה חייבת להיות טקסט רגיל עד 500 תווים");
@@ -22,7 +22,7 @@ export const moderateComment = createServerFn({ method: "POST" })
   });
 
 export const publishComment = createServerFn({ method: 'POST' })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveAccount])
   .inputValidator((input: { postId: string; body: string }) => z.object({ postId: z.string().uuid(), body: plainText(500).refine(v => v.length > 0) }).parse(input))
   .handler(async ({ data, context }) => {
     const review = await reviewComment(data.body, context);

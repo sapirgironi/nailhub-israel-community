@@ -1,0 +1,2 @@
+ALTER TABLE public.nail_trade_items ALTER COLUMN status SET DEFAULT 'pending';
+CREATE TRIGGER trade_approval BEFORE INSERT OR UPDATE ON public.nail_trade_items FOR EACH ROW EXECUTE FUNCTION public.guard_trade_approval();

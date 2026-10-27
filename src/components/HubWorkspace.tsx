@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {Link, useSearch} from '@tanstack/react-router';
 import {useQuery,useQueryClient} from '@tanstack/react-query';
-import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw,Heart,MessageCircle,Handshake,X,Send,ChevronRight,ChevronLeft,Eye} from 'lucide-react';
+import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw,Heart,MessageCircle,Handshake,X,Send,ChevronRight,ChevronLeft,Eye,Flag,Pin} from 'lucide-react';
 import {supabase} from '@/integrations/supabase/client';
 import {HebrewPhotoInput} from './HebrewPhotoInput';
 import {takeStory,onStoryQueued} from '@/lib/story-handoff';
@@ -10,6 +10,7 @@ import {Button} from './ui/button';
 import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
 import {plainText,whatsappLink} from '@/lib/input-security';
+import {moderateComment} from '@/lib/moderation.functions';
 import {calculatePrice,healthSchema,insuranceSchema,priceItemSchema} from '@/lib/hub-tools';
 import type {Database} from '@/integrations/supabase/types';
 

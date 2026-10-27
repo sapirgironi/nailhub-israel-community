@@ -36,7 +36,7 @@ export function HubShell({section,children,name,onSignOut,isAdmin}:{section:HubS
    {menu&&<div className="md:hidden fixed inset-0 z-50 bg-overlay" onClick={()=>setMenu(false)}><aside role="dialog" aria-label="תפריט ניווט" onClick={e=>e.stopPropagation()} className="absolute top-0 right-0 h-full w-72 max-w-[85vw] bg-card shadow-soft p-5 flex flex-col animate-in slide-in-from-right duration-200">
     <div className="flex items-center justify-between mb-4"><span className="font-black text-xl text-primary">NailHub</span><Button size="icon" variant="ghost" aria-label="סגירת תפריט" onClick={()=>setMenu(false)}><X/></Button></div>
     <Button asChild className="w-full mb-3 bg-rose-glam text-primary-foreground text-xs"><a href={INSURANCE_WA} target="_blank" rel="noopener noreferrer"><ShieldCheck/>ביטוח מקצועי לעסק 🛡️</a></Button>
-    <nav className="space-y-1 overflow-y-auto flex-1"><NavLinks section={section} onPick={()=>setMenu(false)}/></nav>
+    <nav className="space-y-1 overflow-y-auto flex-1"><NavLinks section={section} onPick={()=>setMenu(false)} isAdmin={isAdmin}/></nav>
    <div className="border-t border-border mt-4 pt-4"><div className="text-sm font-bold break-words">{name??'NailHub'}</div>{onSignOut&&<Button variant="ghost" className="mt-2 text-muted-foreground text-xs" onClick={()=>{setMenu(false);onSignOut();}}><LogOut/>התנתקות</Button>}</div>
   </aside></div>}
   {sheet&&<div className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm flex flex-col justify-end" onClick={()=>setSheet(false)}><div role="dialog" aria-label="יצירה חדשה" onClick={e=>e.stopPropagation()} className="bg-card rounded-t-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-w-lg w-full mx-auto shadow-soft animate-in slide-in-from-bottom duration-200">

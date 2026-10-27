@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [ ] Add public /terms with owner-supplied policy, signup/sidebar links, and back-to-top; verify public access and navigation.
 - [x] 24-hour stories, feed interactions, notifications, story viewers — verified
 - [x] Auth, Hebrew errors, palette, navigation, story editor, Google/Apple sign-in — verified
 - [x] Primary admin assignment — sapiryedidia@gmail.com verified via auth-session --self

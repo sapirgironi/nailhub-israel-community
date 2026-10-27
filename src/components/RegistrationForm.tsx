@@ -1,4 +1,5 @@
 import {type FormEvent} from 'react';
+import {Link} from '@tanstack/react-router';
 import {ArrowLeft,Check,Crown,Gem,Heart,Sparkles,User,Mail,Phone,MapPin,Building2} from 'lucide-react';
 import {Button} from './ui/button';
 import {PasswordField} from './PasswordField';
@@ -22,5 +23,6 @@ export function RegistrationForm({details,onChange,email,onEmail,password,onPass
   <fieldset className="space-y-4"><legend className="font-bold mb-4">בחרי את התפקיד שלך באפליקציה</legend>{roles.map(({id,title,badge,icon:Icon,items})=><label key={id} className={'block rounded-3xl border p-5 md:p-6 cursor-pointer shadow-soft '+(details.role===id?'bg-accent/45 border-ring':'bg-card border-border')}><div className="flex items-start gap-3"><span className="w-11 h-11 bg-accent text-primary rounded-2xl grid place-items-center shrink-0"><Icon className="w-5 h-5"/></span><div className="flex-1 min-w-0"><h3 className="font-bold text-sm">{title}</h3><span className="inline-block mt-2 text-xs rounded-full px-2.5 py-1 bg-accent text-accent-foreground border border-border">{badge}</span></div><input type="radio" name="role" aria-label={title} value={id} checked={details.role===id} onChange={()=>onChange({...details,role:id})} className="mt-1 accent-primary"/></div><ul className="grid sm:grid-cols-2 gap-2 border-t border-border mt-4 pt-4">{items.map(item=><li key={item} className="flex gap-2 items-start text-xs text-muted-foreground"><Check className="w-3.5 h-3.5 shrink-0 text-primary"/>{item}</li>)}</ul></label>)}</fieldset>
   <div className="space-y-5">{([{key:'specialties',title:'תחומי התמחות',options:specialties},{key:'additionalServices',title:'שירותים נוספים בקליניקה',options:services}] as const).map(({key,title,options})=><fieldset key={key}><legend className="font-bold text-sm mb-3">{title}</legend><div className="flex flex-wrap gap-2">{options.map(value=><Button type="button" variant={details[key].includes(value)?'secondary':'outline'} aria-pressed={details[key].includes(value)} key={value} onClick={()=>toggle(key,value)}>{details[key].includes(value)&&<Check/>}{value}</Button>)}</div></fieldset>)}</div>
   {error&&<p role="alert" className="text-sm text-destructive text-right">{error}</p>}<Button type="submit" disabled={busy} className="w-full min-h-12 rounded-3xl font-bold">{busy?'משלימה הרשמה...':'סיום הרשמה'}<ArrowLeft/></Button>
+  <p className="text-center text-xs text-muted-foreground"><Link to="/terms" className="underline underline-offset-4 transition-colors hover:text-primary">תנאי שימוש ומדיניות קהילה</Link></p>
   </form></div></div>;
 }

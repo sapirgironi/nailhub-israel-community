@@ -1,0 +1,3 @@
+import {createFileRoute} from '@tanstack/react-router';
+import {DemoHealth} from '@/components/DemoHealth';
+export const Route=createFileRoute('/demo-health')({head:()=>({meta:[{title:'הצהרות בריאות וחתימה — הדגמת NailHub'},{name:'description',content:'התנסות בטופס חתימה וארכיון הצהרות עם נתונים מומצאים בלבד.'},{property:'og:title',content:'הצהרות בריאות ב־NailHub — הדגמה'},{property:'og:description',content:'טופס חתימה וארכיון לדוגמה, ללא מידע רפואי אמיתי.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]}),component:DemoHealth});

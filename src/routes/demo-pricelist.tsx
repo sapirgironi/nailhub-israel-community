@@ -1,0 +1,3 @@
+import {createFileRoute} from '@tanstack/react-router';
+import {DemoPricelist} from '@/components/DemoPricelist';
+export const Route=createFileRoute('/demo-pricelist')({head:()=>({meta:[{title:'מחולל מחירון — הדגמת NailHub'},{name:'description',content:'יצירת מחירון לדוגמה עם שירותים, עיצוב, הורדה ושיתוף.'},{property:'og:title',content:'מחולל המחירון של NailHub — הדגמה'},{property:'og:description',content:'התנסות ביצירת מחירון דיגיטלי מעוצב.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]}),component:DemoPricelist});

@@ -4,6 +4,7 @@ import { ShieldCheck, Users, Ban, Flag, Inbox, FileSpreadsheet, Megaphone, Pin, 
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import { plainText, whatsappLink } from '@/lib/input-security';
+import { QuestionnairesTab, CreditsTab, TradeApprovalTab, AnalyticsTab } from './AdminOperations';
 
 const field = 'text-right w-full border border-input rounded-lg bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 const TABS = [
@@ -14,6 +15,10 @@ const TABS = [
   { id: 'leads', label: 'לידים', icon: FileSpreadsheet },
   { id: 'announce', label: 'הודעת מערכת', icon: Megaphone },
   { id: 'pins', label: 'נעיצת פוסטים', icon: Pin },
+  { id: 'questionnaires', label: 'שאלונים חכמים', icon: FileSpreadsheet },
+  { id: 'credits', label: 'קרדיטים', icon: Plus },
+  { id: 'trade', label: 'אישורי יד שנייה', icon: ShieldCheck },
+  { id: 'analytics', label: 'נתוני פעילות', icon: Users },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -366,6 +371,10 @@ export function AdminPanel() {
       {tab === 'leads' && <LeadsTab />}
       {tab === 'announce' && <AnnounceTab />}
       {tab === 'pins' && <PinsTab />}
+      {tab === 'questionnaires' && <QuestionnairesTab />}
+      {tab === 'credits' && <CreditsTab />}
+      {tab === 'trade' && <TradeApprovalTab />}
+      {tab === 'analytics' && <AnalyticsTab />}
     </div>
   );
 }

@@ -76,7 +76,7 @@ function StoriesBar({user}:{user:Person}){
    </div>
   </div>
   <div onPointerDown={()=>{downAt.current=Date.now();setPaused(true);}} onPointerUp={tap} onPointerCancel={()=>setPaused(false)} className="relative flex-1 flex items-center justify-center my-4 overflow-hidden rounded-2xl select-none">
-   {current.displayUrl&&<div className="relative" style={{height:'100%',maxWidth:'100%',aspectRatio:'9 / 16'}}><img src={current.displayUrl} alt={current.alt_text||'סטורי'} className="w-full h-full object-contain pointer-events-none"/>
+   {current.displayUrl&&<div className="relative shrink-0" style={{width:'min(100%,calc((100dvh - 180px) * 9 / 16))',aspectRatio:'9 / 16'}}><img src={current.displayUrl} alt={current.alt_text||'סטורי'} className="w-full h-full object-contain pointer-events-none"/>
     <div className="absolute inset-0 pointer-events-none">{readMentions(current.mentions).map((m,i)=><Button key={`${m.userId}-${i}`} asChild variant="ghost" className="absolute pointer-events-auto p-0 min-w-0 min-h-0 bg-transparent hover:bg-primary/10" style={{left:m.x+'%',top:m.y+'%',width:m.width+'%',height:m.height+'%'}}><Link to="/members/$memberId" params={{memberId:m.userId}} aria-label={`פרופיל ${m.label}`} onPointerDown={e=>{e.stopPropagation();setPaused(true);}} onPointerUp={e=>e.stopPropagation()}><span className="sr-only">{m.label}</span></Link></Button>)}</div>
    </div>}
    <span className="sr-only"><button type="button" onClick={prev}>סטורי קודם</button><button type="button" onClick={next}>סטורי הבא</button></span>

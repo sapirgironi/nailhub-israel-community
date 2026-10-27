@@ -20,8 +20,9 @@ type Tab = (typeof TABS)[number]['id'];
 function Notice({ text }: { text: string }) { return <p role="status" className="text-sm text-muted-foreground py-3">{text}</p>; }
 
 function csvDownload(filename: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]);
+  const first = rows[0];
+  if (!first) return;
+  const keys = Object.keys(first);
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const csv = '﻿' + [keys.join(','), ...rows.map((r) => keys.map((k) => esc(r[k])).join(','))].join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -220,7 +221,7 @@ function TicketsTab() {
   return (
     <div className="space-y-3">
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {[['all', 'הכול'], ['bug', 'תקלות'], ['feature', 'הצעות'], ['collab', 'שת״פ עסקי'], ['other', 'אחר']].map(([id, label]) => (
+        {([['all', 'הכול'], ['bug', 'תקלות'], ['feature', 'הצעות'], ['collab', 'שת״פ עסקי'], ['other', 'אחר']] as const).map(([id, label]) => (
           <Button key={id} size="sm" variant={filter === id ? 'secondary' : 'ghost'} onClick={() => setFilter(id)}>{label}</Button>
         ))}
       </div>

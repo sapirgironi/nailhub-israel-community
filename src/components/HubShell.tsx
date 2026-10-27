@@ -18,7 +18,7 @@ function AnnouncementBar(){
  return <div role="status" className="bg-rose-glam text-primary-foreground text-center text-xs font-bold px-4 py-2 flex items-center justify-center gap-2"><Megaphone className="w-4 h-4 shrink-0"/>{a.body}</div>;
 }
 
-function NavLinks({section,onPick,isAdmin}:{section:HubSection;onPick?:()=>void;isAdmin?:boolean}){
+function NavLinks({section,onPick,isAdmin}:{section:HubSection;onPick?:()=>void;isAdmin?:boolean|undefined}){
  return <>{links.map(({id,path,label,icon:Icon})=><Button asChild key={id} variant={section===id?'secondary':'ghost'} className="w-full justify-start h-auto min-h-10 whitespace-normal text-right text-xs"><Link to={path} onClick={onPick}><Icon/><span>{label}</span></Link></Button>)}{isAdmin&&<Button asChild variant={section==='admin'?'secondary':'ghost'} className="w-full justify-start h-auto min-h-10 whitespace-normal text-right text-xs font-bold text-primary"><Link to={adminLink.path} onClick={onPick}><adminLink.icon/><span>{adminLink.label}</span></Link></Button>}</>;
 }
 

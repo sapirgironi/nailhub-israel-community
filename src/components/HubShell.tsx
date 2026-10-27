@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Sparkles,Users,ShoppingBag,ShieldCheck,Calculator,FileSignature,Palette,Bookmark,User,Home,Search,Plus,Gem,PenLine,LogOut,Menu,X,Camera,ImageIcon } from 'lucide-react';
+import { Sparkles,Users,ShoppingBag,ShieldCheck,Calculator,FileSignature,Palette,Bookmark,User,Home,Search,Plus,PenLine,LogOut,Menu,X,Camera,ImageIcon } from 'lucide-react';
 import {Button} from './ui/button';
 import {NotificationsBell} from './NotificationsBell';
 import {queueStory} from '@/lib/story-handoff';
 export type HubSection='feed'|'directory'|'boards'|'nailtrade'|'insurance'|'calculator'|'health_form'|'pricelist'|'saved'|'profile'|'draft';
+const INSURANCE_WA='https://wa.me/972523425266?text='+encodeURIComponent('שלום, אשמח לבירור על פוליסת ביטוח מקצועית לעסק שלי');
 const links=[{id:'feed',path:'/feed',label:'הפיד המקצועי',icon:Sparkles},{id:'directory',path:'/directory',label:'אינדקס חברות',icon:Users},{id:'boards',path:'/boards',label:'לוחות הקהילה',icon:Users},{id:'nailtrade',path:'/nailtrade',label:'ציוד יד שנייה',icon:ShoppingBag},{id:'insurance',path:'/insurance',label:'ביטוח מקצועי לעסק',icon:ShieldCheck},{id:'calculator',path:'/calculator',label:'מחשבון תמחור ורווחיות',icon:Calculator},{id:'health_form',path:'/health',label:'הצהרת בריאות חתומה',icon:FileSignature},{id:'pricelist',path:'/pricelist',label:'מחירון דיגיטלי',icon:Palette},{id:'draft',path:'/draft',label:'כתיבת פוסט חכמה',icon:PenLine},{id:'saved',path:'/saved',label:'השמורים שלי',icon:Bookmark},{id:'profile',path:'/profile',label:'הפרופיל שלי',icon:User}] as const;
 
 function NavLinks({section,onPick}:{section:HubSection;onPick?:()=>void}){
@@ -13,7 +14,7 @@ function NavLinks({section,onPick}:{section:HubSection;onPick?:()=>void}){
 
 export function HubShell({section,children,name,onSignOut}:{section:HubSection;children:ReactNode;name?:string|undefined;onSignOut?:()=>void}){
  const [menu,setMenu]=useState(false);const [sheet,setSheet]=useState(false);const navigate=useNavigate();
- const mobileItems=[{path:'/feed',label:'בית ופיד',icon:Home,active:section==='feed'},{path:'/directory',label:'אינדקס וחיפוש',icon:Search,active:section==='directory'},{path:'/nailtrade',label:'מתחם קהילה ויד שנייה',icon:Gem,active:section==='nailtrade'||section==='boards'},{path:'/profile',label:'הפרופיל שלי',icon:User,active:section==='profile'}] as const;
+ const mobileItems=[{path:'/feed',label:'בית',icon:Home,active:section==='feed'},{path:'/directory',label:'חיפוש',icon:Search,active:section==='directory'},{path:'/nailtrade',label:'יד שנייה',icon:ShoppingBag,active:section==='nailtrade'},{path:'/profile',label:'הפרופיל שלי',icon:User,active:section==='profile'}] as const;
  const item=(i:typeof mobileItems[number])=><Button key={i.path} asChild variant="ghost" className={'mx-auto w-11 h-11 p-0 '+(i.active?'text-primary bg-accent':'text-muted-foreground')}><Link to={i.path} aria-label={i.label} title={i.label}><i.icon/></Link></Button>;
  return <div dir="rtl" className="min-h-screen bg-background text-foreground text-right md:flex [&_svg]:stroke-[1.5]">
   <aside className="hidden md:flex md:sticky md:top-0 md:h-screen w-64 shrink-0 border-l border-border bg-card p-5 flex-col">
@@ -21,10 +22,11 @@ export function HubShell({section,children,name,onSignOut}:{section:HubSection;c
   <nav className="space-y-1 overflow-y-auto flex-1"><NavLinks section={section}/></nav>
   <div className="border-t border-border mt-4 pt-4"><div className="text-sm font-bold break-words">{name??'NailHub'}</div>{onSignOut&&<Button variant="ghost" className="mt-2 text-muted-foreground text-xs" onClick={onSignOut}><LogOut/>התנתקות</Button>}</div>
   </aside>
-  <div className="min-w-0 flex-1"><header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-xl grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3"><div className="flex items-center gap-1 min-w-0"><Button size="icon" variant="ghost" className="md:hidden" aria-label="פתיחת תפריט" onClick={()=>setMenu(true)}><Menu/></Button><Link to="/feed" search={{compose:false}} className="min-w-0 font-black text-xl text-primary">NailHub</Link></div><div className="flex items-center gap-1 shrink-0"><Button asChild size="sm" className="text-xs"><Link to="/insurance"><ShieldCheck/>ביטוח מקצועי</Link></Button><NotificationsBell/></div></header><main className="max-w-5xl mx-auto p-4 md:p-8 pb-28 md:pb-12">{children}</main></div>
-  {menu&&<div className="md:hidden fixed inset-0 z-50 bg-overlay" onClick={()=>setMenu(false)}><aside role="dialog" aria-label="תפריט ניווט" onClick={e=>e.stopPropagation()} className="absolute top-0 right-0 h-full w-72 max-w-[85vw] bg-card shadow-soft p-5 flex flex-col animate-in slide-in-from-right duration-200">
-   <div className="flex items-center justify-between mb-4"><span className="font-black text-xl text-primary">NailHub</span><Button size="icon" variant="ghost" aria-label="סגירת תפריט" onClick={()=>setMenu(false)}><X/></Button></div>
-   <nav className="space-y-1 overflow-y-auto flex-1"><NavLinks section={section} onPick={()=>setMenu(false)}/></nav>
+   <div className="min-w-0 flex-1"><header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-xl grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3"><div className="flex items-center gap-1 min-w-0"><Button size="icon" variant="ghost" className="md:hidden" aria-label="פתיחת תפריט" onClick={()=>setMenu(true)}><Menu/></Button><Link to="/feed" search={{compose:false}} className="min-w-0 font-black text-xl text-primary">NailHub</Link></div><div className="flex items-center gap-1 shrink-0"><NotificationsBell/></div></header><main className="max-w-5xl mx-auto p-4 md:p-8 pb-28 md:pb-12">{children}</main></div>
+   {menu&&<div className="md:hidden fixed inset-0 z-50 bg-overlay" onClick={()=>setMenu(false)}><aside role="dialog" aria-label="תפריט ניווט" onClick={e=>e.stopPropagation()} className="absolute top-0 right-0 h-full w-72 max-w-[85vw] bg-card shadow-soft p-5 flex flex-col animate-in slide-in-from-right duration-200">
+    <div className="flex items-center justify-between mb-4"><span className="font-black text-xl text-primary">NailHub</span><Button size="icon" variant="ghost" aria-label="סגירת תפריט" onClick={()=>setMenu(false)}><X/></Button></div>
+    <Button asChild className="w-full mb-3 bg-rose-glam text-primary-foreground text-xs"><a href={INSURANCE_WA} target="_blank" rel="noopener noreferrer"><ShieldCheck/>ביטוח מקצועי לעסק 🛡️</a></Button>
+    <nav className="space-y-1 overflow-y-auto flex-1"><NavLinks section={section} onPick={()=>setMenu(false)}/></nav>
    <div className="border-t border-border mt-4 pt-4"><div className="text-sm font-bold break-words">{name??'NailHub'}</div>{onSignOut&&<Button variant="ghost" className="mt-2 text-muted-foreground text-xs" onClick={()=>{setMenu(false);onSignOut();}}><LogOut/>התנתקות</Button>}</div>
   </aside></div>}
   {sheet&&<div className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm flex flex-col justify-end" onClick={()=>setSheet(false)}><div role="dialog" aria-label="יצירה חדשה" onClick={e=>e.stopPropagation()} className="bg-card rounded-t-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-w-lg w-full mx-auto shadow-soft animate-in slide-in-from-bottom duration-200">

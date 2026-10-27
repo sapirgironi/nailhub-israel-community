@@ -7,6 +7,13 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  vite: {
+    optimizeDeps: {
+      // Prebundle router hooks and story export together with React before the
+      // first page loads, avoiding a second React graph during lazy discovery.
+      include: ["@tanstack/react-router", "@tanstack/react-query", "react-dom", "html-to-image"],
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

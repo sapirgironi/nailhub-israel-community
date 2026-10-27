@@ -1,0 +1,7 @@
+export type StoryMention = {userId:string;label:string;x:number;y:number;width:number;height:number};
+export type MentionMember = {id:string;display_name:string;business_name:string|null;avatar_url:string|null;city:string|null;account_role:string};
+export function mentionLabel(name:string){return '@'+name.trim().replace(/\s+/g,'_');}
+export function activeMention(text:string,caret:number){const before=text.slice(0,caret);const token=/(?:^|\s)(@[^\s@]*)$/.exec(before)?.[1];return token?{start:caret-token.length,end:caret,query:token.slice(1).replace(/_/g,' ')}:null;}
+export function insertMention(text:string,range:{start:number;end:number},name:string){const label=mentionLabel(name);return {text:text.slice(0,range.start)+label+' '+text.slice(range.end),caret:range.start+label.length+1,label};}
+export function resizedTextWidth(width:number,dx:number,dy:number,rotation:number,scale:number,frameWidth:number,side:1|-1){const a=rotation*Math.PI/180;return Math.min(90,Math.max(15,width+side*(dx*Math.cos(a)+dy*Math.sin(a))*2/scale/frameWidth*100));}
+export function readMentions(value:unknown):StoryMention[]{if(!Array.isArray(value))return [];return value.filter((m):m is StoryMention=>!!m&&typeof m==='object'&&typeof m.userId==='string'&&/^[0-9a-f-]{36}$/i.test(m.userId)&&typeof m.label==='string'&&['x','y','width','height'].every(k=>typeof m[k]==='number'&&Number.isFinite(m[k])&&m[k]>=0&&m[k]<=100));}

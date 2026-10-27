@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState,type PointerEvent as RPointerEvent} from 'react';
-import {Trash2,Type,X,Smile,Bold,Underline,Highlighter,Sparkles,Accessibility,Minus,Plus} from 'lucide-react';
+import {Trash2,Type,X,Smile,Bold,Underline,Highlighter,Sparkles,Accessibility,Minus,Plus,AtSign} from 'lucide-react';
 import {useQuery} from '@tanstack/react-query';
 import {useServerFn} from '@tanstack/react-start';
 import {supabase} from '@/integrations/supabase/client';
@@ -7,6 +7,10 @@ import {storyTextAssist,storyAltText} from '@/lib/story-ai.functions';
 import {uploadPhoto} from '@/lib/media';
 import {ImageUploadStatus} from './ImageUploadStatus';
 import {Button} from './ui/button';
+import {toBlob} from 'html-to-image';
+import {flushSync} from 'react-dom';
+import {StoryMentionPicker} from './StoryMentionPicker';
+import {activeMention,insertMention,resizedTextWidth,type StoryMention,type MentionMember} from '@/lib/story-layout';
 
 export const STORY_STICKERS=['התפנה תור להיום ⏰','מחפשת מודליסטית 🔍','מבצע לספקים 🔥','השתלמות מקצועית 👑'];
 export const STORY_FONTS=[
@@ -20,8 +24,8 @@ export const STORY_FONTS=[
 ] as const;
 type FontId=(typeof STORY_FONTS)[number]['id'];
 const COLORS=['#FFFFFF','#000000','#5B0E2D','#E91E63','#F48FB1','#FCE4EC','#D7B19D','#C8A27A','#D4AF37','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#FF6F61'];
-const ROSE='#5B0E2D';const BASE=28;const IMG_BASE=110;
-type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;rot:number;z:number;src?:string|undefined};
+const BASE=28;const IMG_BASE=110;
+type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;rot:number;z:number;width:number;mentions:{userId:string;label:string}[];src?:string|undefined};
 
 const fontOf=(id:FontId)=>STORY_FONTS.find(f=>f.id===id)??STORY_FONTS[0];
 function isLight(hex:string){const n=parseInt(hex.slice(1),16);return ((n>>16)*299+((n>>8)&255)*587+(n&255)*114)/1000>160;}
@@ -30,36 +34,16 @@ function isTrash(x:number,y:number){return y>86&&Math.abs(x-50)<18;}
 function cssFont(e:El,px:number){const f=fontOf(e.font);return `${f.italic?'italic ':''}${e.bold?'700':'400'} ${px}px "${f.family}"`;}
 
 async function loadImg(src:string){const img=new Image();img.src=src;await img.decode();return img;}
-async function flatten(src:string,els:El[],frameW:number):Promise<File>{
- const img=await loadImg(src);
- const W=1080,H=1920,k=W/frameW,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d')!;
- const s=Math.max(W/img.width,H/img.height);g.drawImage(img,(W-img.width*s)/2,(H-img.height*s)/2,img.width*s,img.height*s);
- g.textAlign='center';g.textBaseline='middle';g.direction='rtl';
- for(const e of [...els].sort((a,b)=>a.z-b.z)){const x=e.x/100*W,y=e.y/100*H;
-  g.restore();g.save();g.globalAlpha=1;g.translate(x,y);g.rotate((e.rot||0)*Math.PI/180);g.translate(-x,-y);
-  if(e.kind==='image'&&e.src){const im=await loadImg(e.src);const w=IMG_BASE*e.scale*k,h=w*im.height/im.width;g.drawImage(im,x-w/2,y-h/2,w,h);continue;}
-  if(e.kind==='pill'){const px=15*e.scale*k;g.font=`800 ${px}px "Heebo"`;await document.fonts.load(g.font);const w=g.measureText(e.text).width+px*1.6;g.fillStyle='#ffffff';g.beginPath();g.roundRect(x-w/2,y-px,w,px*2,px);g.fill();g.fillStyle=ROSE;g.fillText(e.text,x,y);continue;}
-  const px=BASE*e.scale*k;g.font=cssFont(e,px);await document.fonts.load(g.font,e.text);
-  const lines=e.text.split('\n');const lh=px*1.25;const top=y-(lines.length-1)*lh/2;
-  lines.forEach((ln,i)=>{const ly=top+i*lh;const w=g.measureText(ln).width;
-   if(e.highlight){g.fillStyle=highlightBg(e.color);g.beginPath();g.roundRect(x-w/2-px*0.35,ly-lh/2,w+px*0.7,lh,px*0.3);g.fill();}
-   else{g.shadowColor='rgba(0,0,0,.35)';g.shadowBlur=px*0.25;}
-   g.fillStyle=e.color;g.fillText(ln,x,ly);g.shadowBlur=0;
-   if(e.underline)g.fillRect(x-w/2,ly+px*0.5,w,Math.max(2,px*0.07));});
- }
- const blob=await new Promise<Blob>((r,j)=>c.toBlob(b=>b?r(b):j(new Error('canvas')),'image/jpeg',0.9));
- return new File([blob],'story.jpg',{type:'image/jpeg'});
-}
-async function smallDataUrl(file:File){const url=URL.createObjectURL(file);try{const img=await loadImg(url);const s=Math.min(1,512/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext('2d')!.drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.7);}finally{URL.revokeObjectURL(url);}}
+async function smallDataUrl(file:File){const url=URL.createObjectURL(file);try{const img=await loadImg(url);const s=Math.min(1,512/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const g=c.getContext('2d');if(!g)throw new Error('עיבוד התמונה נכשל');g.drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.7);}finally{URL.revokeObjectURL(url);}}
 
-function EditableText({initial,onChange,onDone}:{initial:string;onChange:(t:string)=>void;onDone:()=>void}){
+function EditableText({initial,onChange,onDone}:{initial:string;onChange:(t:string,caret:number)=>void;onDone:()=>void}){
  const ref=useRef<HTMLSpanElement>(null);
  useEffect(()=>{const n=ref.current;if(!n)return;n.textContent=initial;n.focus();const r=document.createRange();r.selectNodeContents(n);r.collapse(false);const s=getSelection();s?.removeAllRanges();s?.addRange(r);},[]);// eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{const n=ref.current;if(n&&document.activeElement!==n&&n.innerText!==initial)n.textContent=initial;},[initial]);
- return <span ref={ref} contentEditable suppressContentEditableWarning role="textbox" aria-label="טקסט הסטורי" data-placeholder="הקלידי כאן" onPointerDown={e=>e.stopPropagation()} onInput={e=>onChange((e.currentTarget.innerText||'').slice(0,120))} onBlur={onDone} className="outline-none min-w-[1ch] inline-block whitespace-pre-wrap caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"/>;
+ return <span ref={ref} contentEditable suppressContentEditableWarning role="textbox" aria-label="טקסט הסטורי" data-placeholder="הקלידי כאן" onPointerDown={e=>e.stopPropagation()} onInput={e=>onChange((e.currentTarget.innerText||'').slice(0,120),(()=>{const selection=getSelection();if(!selection?.rangeCount)return 0;const range=selection.getRangeAt(0).cloneRange();range.selectNodeContents(e.currentTarget);range.setEnd(selection.anchorNode??e.currentTarget,selection.anchorOffset);return range.toString().length;})())} onBlur={onDone} className="outline-none w-full min-w-[1ch] block whitespace-pre-wrap caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"/>;
 }
 
-export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>void;onPublish:(f:File,alt:string,backgroundUrl:string)=>Promise<void>}){
+export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>void;onPublish:(f:File,alt:string,backgroundUrl:string,mentions:StoryMention[])=>Promise<void>}){
  const [src,setSrc]=useState('');useEffect(()=>{const u=URL.createObjectURL(file);setSrc(u);return()=>URL.revokeObjectURL(u);},[file]);
  const backgroundUrl=useRef<{file:File;url:string}|null>(null);
   const [els,setEls]=useState<El[]>([]);const [sel,setSel]=useState<number|null>(null);const [editing,setEditing]=useState<number|null>(null);
@@ -71,44 +55,52 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
  const assist=useServerFn(storyTextAssist);const describe=useServerFn(storyAltText);
  const stickers=useQuery({queryKey:['story-stickers'],staleTime:60_000,queryFn:async()=>{const {data,error}=await supabase.from('story_stickers').select('*').order('created_at',{ascending:false});if(error)throw error;
   return (await Promise.all(data.map(async s=>{const {data:b}=await supabase.storage.from('story-stickers').download(s.image_path);return b?{...s,url:URL.createObjectURL(b)}:null;}))).filter((s):s is NonNullable<typeof s>=>!!s);}});
+ const [exporting,setExporting]=useState(false);
+ const [mention,setMention]=useState<{id:number;start:number;end:number;query:string}|null>(null);const inputRef=useRef<HTMLTextAreaElement>(null);
+ const resize=useRef<{id:number;side:1|-1;x:number;y:number;width:number;scale:number;rotation:number}|null>(null);
  const selected=els.find(e=>e.id===sel)??null;
  const patch=(id:number,p:Partial<El>)=>setEls(v=>v.map(e=>e.id===id?{...e,...p}:e));
  const last=useRef<Pick<El,'font'|'bold'|'underline'|'highlight'|'color'>>({font:'assistant',bold:true,underline:false,highlight:false,color:'#FFFFFF'});
- function add(kind:El['kind'],text:string,src?:string){const id=nid.current++;const z=++topZ.current;setEls(v=>[...v,{id,kind,text,src,...last.current,x:50,y:kind==='text'?40:55,scale:1,rot:0,z}]);setSel(id);setPanel(null);if(kind==='text')setEditing(id);}
- const pos=(ev:{clientX:number;clientY:number})=>{const r=frame.current!.getBoundingClientRect();return {x:(ev.clientX-r.left)/r.width*100,y:(ev.clientY-r.top)/r.height*100};};
+ function add(kind:El['kind'],text:string,src?:string){const id=nid.current++;const z=++topZ.current;setEls(v=>[...v,{id,kind,text,src,width:80,mentions:[],...last.current,x:50,y:kind==='text'?40:55,scale:1,rot:0,z}]);setSel(id);setPanel(null);if(kind==='text')setEditing(id);}
+ const pos=(ev:{clientX:number;clientY:number})=>{const r=frame.current?.getBoundingClientRect();if(!r)return {x:50,y:50};return {x:(ev.clientX-r.left)/r.width*100,y:(ev.clientY-r.top)/r.height*100};};
  const clamp=(p:{x:number;y:number})=>({x:Math.min(97,Math.max(3,p.x)),y:Math.min(98,Math.max(2,p.y))});
  const tap=useRef<{id:number;x:number;y:number;was:boolean;moved:boolean}|null>(null);
- function startPinch(target:El){const [a,b]=[...pointers.current.values()];pinch.current={d:Math.hypot(a!.x-b!.x,a!.y-b!.y),a:Math.atan2(b!.y-a!.y,b!.x-a!.x),s:target.scale,r:target.rot};setDrag(null);if(tap.current)tap.current.moved=true;}
+ function startPinch(target:El){const [a,b]=[...pointers.current.values()];if(!a||!b)return;pinch.current={d:Math.hypot(a.x-b.x,a.y-b.y),a:Math.atan2(b.y-a.y,b.x-a.x),s:target.scale,r:target.rot};setDrag(null);if(tap.current)tap.current.moved=true;}
  function down(ev:RPointerEvent,e:El){ev.stopPropagation();if(editing===e.id)return;frame.current?.setPointerCapture(ev.pointerId);pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
   if(pointers.current.size===2){const t=els.find(x=>x.id===sel)??e;startPinch(t);return;}
   tap.current={id:e.id,x:ev.clientX,y:ev.clientY,was:sel===e.id,moved:false};
   const z=++topZ.current;patch(e.id,{z});setSel(e.id);if(editing!==null&&editing!==e.id)setEditing(null);const p=pos(ev);setDrag({id:e.id,dx:p.x-e.x,dy:p.y-e.y});}
  function frameDown(ev:RPointerEvent){pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});if(pointers.current.size===2&&selected){startPinch(selected);}else if(pointers.current.size===1&&!drag){setSel(null);setEditing(null);}}
- function move(ev:RPointerEvent){if(!pointers.current.has(ev.pointerId))return;pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+ function beginResize(ev:RPointerEvent,e:El,side:1|-1){ev.preventDefault();ev.stopPropagation();setEditing(null);frame.current?.setPointerCapture(ev.pointerId);resize.current={id:e.id,side,x:ev.clientX,y:ev.clientY,width:e.width,scale:e.scale,rotation:e.rot};}
+ function move(ev:RPointerEvent){if(resize.current){const r=resize.current;const width=frame.current?.getBoundingClientRect().width;if(width)patch(r.id,{width:resizedTextWidth(r.width,ev.clientX-r.x,ev.clientY-r.y,r.rotation,r.scale,width,r.side)});return;}if(!pointers.current.has(ev.pointerId))return;pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
   if(tap.current&&Math.hypot(ev.clientX-tap.current.x,ev.clientY-tap.current.y)>6)tap.current.moved=true;
-  if(pinch.current&&sel!==null&&pointers.current.size>=2){const [a,b]=[...pointers.current.values()];const d=Math.hypot(a!.x-b!.x,a!.y-b!.y);const ang=Math.atan2(b!.y-a!.y,b!.x-a!.x);patch(sel,{scale:Math.min(5,Math.max(0.4,pinch.current.s*d/pinch.current.d)),rot:pinch.current.r+(ang-pinch.current.a)*180/Math.PI});return;}
+  if(pinch.current&&sel!==null&&pointers.current.size>=2){const [a,b]=[...pointers.current.values()];if(!a||!b)return;const d=Math.hypot(a.x-b.x,a.y-b.y);const ang=Math.atan2(b.y-a.y,b.x-a.x);patch(sel,{scale:Math.min(5,Math.max(0.4,pinch.current.s*d/pinch.current.d)),rot:pinch.current.r+(ang-pinch.current.a)*180/Math.PI});return;}
   if(!drag)return;const p=pos(ev);setOver(isTrash(p.x,p.y));patch(drag.id,clamp({x:p.x-drag.dx,y:p.y-drag.dy}));}
- function up(ev:RPointerEvent){pointers.current.delete(ev.pointerId);if(pointers.current.size<2)pinch.current=null;
+ function up(ev:RPointerEvent){if(resize.current){resize.current=null;return;}pointers.current.delete(ev.pointerId);if(pointers.current.size<2)pinch.current=null;
   const t=tap.current;if(pointers.current.size===0)tap.current=null;
   if(t&&!t.moved&&t.was){const el=els.find(x=>x.id===t.id);if(el?.kind==='text')setEditing(el.id);}
   if(!drag)return;const p=pos(ev);if(isTrash(p.x,p.y)){setEls(v=>v.filter(e=>e.id!==drag.id));setSel(null);}setDrag(null);setOver(false);}
  function style(p:Partial<El>){if(!selected)return;Object.assign(last.current,p);patch(selected.id,p);}
  async function ai(mode:'improve'|'shorten'|'nikud'|'emoji'){if(!selected?.text.trim())return;setAiBusy(true);setErr('');const r=await assist({data:{text:selected.text,mode}}).catch(()=>({text:'',error:'הבינה המלאכותית לא הצליחה כרגע'}));setAiBusy(false);if(r.error||!r.text){setErr(r.error??'לא התקבל טקסט');return;}setEditing(null);patch(selected.id,{text:r.text});}
- async function makeAlt(){setAltBusy(true);setErr('');try{const f=await flatten(src,els,frame.current!.getBoundingClientRect().width);const r=await describe({data:{image:await smallDataUrl(f)}});if(r.error)setErr(r.error);else setAlt(r.alt);}catch{setErr('הפקת התיאור נכשלה');}setAltBusy(false);}
- async function publish(){setBusy(true);setErr('');setEditing(null);try{if(backgroundUrl.current?.file!==file)backgroundUrl.current={file,url:await uploadPhoto(file)};const clean=els.filter(e=>e.kind!=='text'||e.text.trim());await onPublish(await flatten(src,clean,frame.current!.getBoundingClientRect().width),alt.trim().replace(/[<>]/g,'').slice(0,400),backgroundUrl.current.url);}catch{setErr('פרסום הסטורי נכשל. נסי שוב.');setBusy(false);}}
+ function changeText(id:number,text:string,caret:number){patch(id,{text});const range=activeMention(text,caret);setMention(range?{id,...range}:null);}
+ function chooseMember(member:MentionMember){if(!mention)return;const e=els.find(x=>x.id===mention.id);if(!e)return;const result=insertMention(e.text,mention,member.display_name);if(result.text.length>120){setErr('הטקסט ארוך מדי');return;}patch(e.id,{text:result.text,mentions:[...e.mentions.filter(m=>m.label!==result.label),{userId:member.id,label:result.label}]});setMention(null);setEditing(null);requestAnimationFrame(()=>{inputRef.current?.focus();inputRef.current?.setSelectionRange(result.caret,result.caret);});}
+ async function snapshot(){const node=frame.current;if(!node)throw new Error('התמונה אינה מוכנה');flushSync(()=>{setEditing(null);setExporting(true);});try{await document.fonts.ready;await Promise.all(els.filter(e=>e.kind==='text').map(e=>document.fonts.load(cssFont(e,BASE),e.text)));const box=node.getBoundingClientRect();const links:StoryMention[]=[];for(const el of els){const target=node.querySelector(`[data-layer-id="${el.id}"]`);if(!target)continue;const walker=document.createTreeWalker(target,NodeFilter.SHOW_TEXT);const nodes:Text[]=[];while(walker.nextNode()){const n=walker.currentNode;if(n instanceof Text)nodes.push(n);}for(const m of el.mentions.filter(m=>el.text.includes(m.label))){for(const n of nodes){let offset=n.textContent?.indexOf(m.label)??-1;while(offset>=0){const range=document.createRange();range.setStart(n,offset);range.setEnd(n,offset+m.label.length);for(const r of range.getClientRects()){const left=Math.max(box.left,r.left),top=Math.max(box.top,r.top),right=Math.min(box.right,r.right),bottom=Math.min(box.bottom,r.bottom);if(right>left&&bottom>top)links.push({...m,x:(left-box.left)/box.width*100,y:(top-box.top)/box.height*100,width:(right-left)/box.width*100,height:(bottom-top)/box.height*100});}offset=n.textContent?.indexOf(m.label,offset+m.label.length)??-1;}}}}const blob=await toBlob(node,{pixelRatio:1080/box.width,filter:n=>!(n instanceof HTMLElement&&n.dataset['editorControl']==='true'),skipFonts:false});if(!blob)throw new Error('ייצוא התמונה נכשל');const image=await loadImg(URL.createObjectURL(blob));const c=document.createElement('canvas');c.width=1080;c.height=1920;const g=c.getContext('2d');if(!g)throw new Error('ייצוא התמונה נכשל');g.drawImage(image,0,0,1080,1920);URL.revokeObjectURL(image.src);const jpeg=await new Promise<Blob>((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('ייצוא התמונה נכשל')),'image/jpeg',0.95));return {file:new File([jpeg],'story.jpg',{type:'image/jpeg'}),mentions:links};}finally{setExporting(false);}}
+ async function makeAlt(){setAltBusy(true);setErr('');try{const {file:f}=await snapshot();const r=await describe({data:{image:await smallDataUrl(f)}});if(r.error)setErr(r.error);else setAlt(r.alt);}catch{setErr('הפקת התיאור נכשלה');}setAltBusy(false);}
+ async function publish(){setBusy(true);setErr('');setEditing(null);try{if(backgroundUrl.current?.file!==file)backgroundUrl.current={file,url:await uploadPhoto(file)};const result=await snapshot();await onPublish(result.file,alt.trim().replace(/[<>]/g,'').slice(0,400),backgroundUrl.current.url,result.mentions);}catch{setErr('פרסום הסטורי נכשל. נסי שוב.');setBusy(false);}}
 
  return <div dir="rtl" role="dialog" aria-label="עורך סטורי" className="fixed inset-0 z-[60] bg-foreground/95 flex flex-col items-center p-3 gap-2 overflow-y-auto">
   <div className="w-full max-w-sm flex items-center justify-between shrink-0"><Button size="icon" variant="ghost" className="text-primary-foreground" aria-label="ביטול" onClick={onCancel}><X/></Button>
    <div className="flex gap-2"><Button size="sm" variant="secondary" onClick={()=>add('text','')}><Type/>טקסט</Button><Button size="sm" variant="secondary" onClick={()=>setPanel(panel==='stickers'?null:'stickers')}><Smile/>סטיקרים</Button></div></div>
-  <div ref={frame} onPointerDown={frameDown} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{touchAction:'none',backgroundImage:`url(${src})`}} className={'relative w-full max-w-sm aspect-[9/16] '+(selected?'max-h-[50vh]':'max-h-[64vh]')+' shrink-0 rounded-3xl overflow-hidden bg-cover bg-center select-none'}>
-   {els.map(e=>{const f=fontOf(e.font);const active=sel===e.id;
-     return <div key={e.id} onPointerDown={ev=>down(ev,e)} onDoubleClick={()=>e.kind==='text'&&setEditing(e.id)} style={{left:e.x+'%',top:e.y+'%',zIndex:e.z,transform:`translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,touchAction:'none',width:'max-content',maxWidth:'90%',opacity:drag?.id===e.id&&over?0.5:1}} className={'absolute cursor-grab text-center '+(active?'outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md':'')}>
+  <div ref={frame} onPointerDown={frameDown} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{touchAction:'none',backgroundImage:`url(${src})`,width:'min(100%,384px,calc(58dvh * 9 / 16))',aspectRatio:'9 / 16'}} className="relative shrink-0 overflow-hidden bg-cover bg-center select-none">
+   {els.filter(e=>!exporting||e.kind!=='text'||e.text.trim()).map(e=>{const f=fontOf(e.font);const active=sel===e.id&&!exporting;
+     return <div data-layer-id={e.id} key={e.id} onPointerDown={ev=>down(ev,e)} onDoubleClick={()=>e.kind==='text'&&setEditing(e.id)} style={{left:e.x+'%',top:e.y+'%',zIndex:e.z,transform:`translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,touchAction:'none',width:e.kind==='text'?e.width+'%':'max-content',maxWidth:'90%',opacity:drag?.id===e.id&&over?0.5:1}} className={'absolute cursor-grab text-center '+(active?'outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md':'')}>
       {e.kind==='image'&&e.src&&<img src={e.src} alt={e.text||'סטיקר'} draggable={false} style={{width:IMG_BASE}} className="pointer-events-none"/>}
       {e.kind==='pill'&&<span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">{e.text}</span>}
-      {e.kind==='text'&&<span style={{fontFamily:`"${f.family}"`,fontStyle:f.italic?'italic':'normal',fontWeight:e.bold?700:400,textDecoration:e.underline?'underline':'none',color:e.color,opacity:1,fontSize:BASE,lineHeight:1.25,background:e.highlight?highlightBg(e.color):'transparent',textShadow:e.highlight?'none':'0 1px 6px rgba(0,0,0,.35)',whiteSpace:'pre-wrap',overflowWrap:'normal',wordBreak:'normal'}} className="inline-block rounded-lg px-2">
-      {editing===e.id?<EditableText initial={e.text} onChange={t=>patch(e.id,{text:t})} onDone={()=>setEditing(null)}/>:(e.text||<span className="opacity-60">הקלידי כאן</span>)}</span>}
-    </div>;})}
-   {drag&&<div className={'absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] '+(over?'bg-destructive text-destructive-foreground scale-125':'bg-card/80 text-foreground')}><Trash2/></div>}
+      {e.kind==='text'&&<span style={{fontFamily:`"${f.family}"`,fontStyle:f.italic?'italic':'normal',fontWeight:e.bold?700:400,textDecoration:e.underline?'underline':'none',color:e.color,opacity:1,fontSize:BASE,lineHeight:1.25,background:e.highlight?highlightBg(e.color):'transparent',textShadow:e.highlight?'none':'0 1px 6px rgba(0,0,0,.35)',whiteSpace:'pre-wrap',overflowWrap:'normal',wordBreak:'normal'}} className="block rounded-lg px-2">
+      {editing===e.id?<EditableText initial={e.text} onChange={(t,caret)=>changeText(e.id,t,caret)} onDone={()=>setEditing(null)}/>:(e.text||<span className="opacity-60">הקלידי כאן</span>)}</span>}
+    {e.kind==='text'&&active&&([-1,1] as const).map(side=><Button key={side} data-editor-control="true" size="icon" variant="secondary" aria-label={side===-1?'שינוי רוחב משמאל':'שינוי רוחב מימין'} onPointerDown={ev=>beginResize(ev,e,side)} style={{position:'absolute',top:'50%',left:side===-1?-16:undefined,right:side===1?-16:undefined,transform:'translateY(-50%)',touchAction:'none'}} className="w-8 h-10 cursor-ew-resize border border-primary rounded-full"><span className="w-1 h-5 bg-primary rounded-full"/></Button>)}
+     </div>;})}
+   {drag&&!exporting&&<div data-editor-control="true" className={'absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] '+(over?'bg-destructive text-destructive-foreground scale-125':'bg-card/80 text-foreground')}><Trash2/></div>}
   </div>
 
   {selected&&<div className="sticky bottom-0 z-10 w-full max-w-sm max-h-[40vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl rounded-b-2xl p-3 space-y-2 shrink-0 shadow-soft">
@@ -116,14 +108,16 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
     <input aria-label="שינוי גודל" type="range" min={0.4} max={5} step={0.05} value={selected.scale} onChange={e=>patch(selected.id,{scale:Number(e.target.value)})} className="flex-1 accent-primary"/>
     <Button size="icon" variant="outline" aria-label="הגדלה" onClick={()=>patch(selected.id,{scale:Math.min(5,selected.scale+0.15)})}><Plus/></Button></div>
    {selected.kind==='text'&&<>
-    <textarea aria-label="הקלדת טקסט לסטורי" dir="rtl" rows={2} maxLength={120} value={selected.text} placeholder="הקלידי כאן" onFocus={()=>setEditing(null)} onChange={ev=>patch(selected.id,{text:ev.target.value.slice(0,120)})} className="w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm text-right"/>
-    <div className="flex gap-1.5 overflow-x-auto pb-1">{STORY_FONTS.map(f=><button key={f.id} type="button" onClick={()=>style({font:f.id})} className={'shrink-0 rounded-xl border px-3 py-1.5 text-right '+(selected.font===f.id?'border-primary bg-accent':'border-border')}>
+    <textarea ref={inputRef} aria-label="הקלדת טקסט לסטורי" dir="rtl" rows={2} maxLength={120} value={selected.text} placeholder="הקלידי כאן" onFocus={()=>setEditing(null)} onSelect={ev=>{const range=activeMention(ev.currentTarget.value,ev.currentTarget.selectionStart);setMention(range?{id:selected.id,...range}:null);}} onChange={ev=>changeText(selected.id,ev.target.value.slice(0,120),ev.target.selectionStart)} className="w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm text-right"/>
+    {mention?.id===selected.id&&<StoryMentionPicker query={mention.query} onSelect={chooseMember}/>}
+     <div className="flex gap-1.5 overflow-x-auto pb-1">{STORY_FONTS.map(f=><button key={f.id} type="button" onClick={()=>style({font:f.id})} className={'shrink-0 rounded-xl border px-3 py-1.5 text-right '+(selected.font===f.id?'border-primary bg-accent':'border-border')}>
      <span style={{fontFamily:`"${f.family}"`,fontStyle:f.italic?'italic':'normal'}} className="block text-base leading-tight">{f.desc}</span><span className="block text-[10px] text-muted-foreground">{f.label}</span></button>)}</div>
     <div className="flex gap-1.5 flex-wrap">
      <Button size="icon" variant={selected.bold?'default':'outline'} aria-label="עיבוי" aria-pressed={selected.bold} onClick={()=>style({bold:!selected.bold})}><Bold/></Button>
      <Button size="icon" variant={selected.underline?'default':'outline'} aria-label="קו תחתון" aria-pressed={selected.underline} onClick={()=>style({underline:!selected.underline})}><Underline/></Button>
      <Button size="icon" variant={selected.highlight?'default':'outline'} aria-label="רקע מרקר" aria-pressed={selected.highlight} onClick={()=>style({highlight:!selected.highlight})}><Highlighter/></Button>
-     <Button size="sm" variant="outline" onClick={()=>setEditing(selected.id)}><Type/>עריכה</Button>
+     <Button size="icon" variant="outline" aria-label="תיוג חברה" title="תיוג חברה" onClick={()=>{const caret=inputRef.current?.selectionStart??selected.text.length;const text=selected.text.slice(0,caret)+' @'+selected.text.slice(caret);changeText(selected.id,text,caret+2);inputRef.current?.focus();}}><AtSign/></Button>
+      <Button size="sm" variant="outline" onClick={()=>setEditing(selected.id)}><Type/>עריכה</Button>
     </div>
     <div className="flex gap-1.5 flex-wrap items-center">{COLORS.map(c=><button key={c} type="button" aria-label={`צבע ${c}`} onClick={()=>style({color:c})} style={{background:c}} className={'w-7 h-7 rounded-full border-2 '+(selected.color===c?'border-primary scale-110':'border-border')}/>)}
      <label className="w-7 h-7 rounded-full overflow-hidden border-2 border-border relative bg-rose-glam" title="צבע חופשי"><input type="color" aria-label="בחירת צבע חופשי" value={selected.color} onChange={e=>style({color:e.target.value.toUpperCase()})} className="absolute inset-0 opacity-0 cursor-pointer"/></label></div>
@@ -135,7 +129,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
 
   {panel==='stickers'&&<div className="w-full max-w-sm bg-card rounded-2xl p-3 space-y-2 shrink-0">
    <div className="grid grid-cols-2 gap-2">{STORY_STICKERS.map(s=><button key={s} type="button" onClick={()=>add('pill',s)} className="rounded-full bg-accent text-[#5B0E2D] font-bold text-xs px-3 py-2">{s}</button>)}</div>
-   {(stickers.data?.length??0)>0&&<div className="grid grid-cols-4 gap-2">{stickers.data!.map(s=><button key={s.id} type="button" aria-label={s.label||'סטיקר'} onClick={()=>add('image',s.label,s.url)} className="aspect-square rounded-xl bg-muted p-1"><img src={s.url} alt={s.label||'סטיקר'} className="w-full h-full object-contain"/></button>)}</div>}
+   {(stickers.data?.length??0)>0&&<div className="grid grid-cols-4 gap-2">{stickers.data?.map(s=><button key={s.id} type="button" aria-label={s.label||'סטיקר'} onClick={()=>add('image',s.label,s.url)} className="aspect-square rounded-xl bg-muted p-1"><img src={s.url} alt={s.label||'סטיקר'} className="w-full h-full object-contain"/></button>)}</div>}
    {stickers.isError&&<p className="text-xs text-muted-foreground">טעינת הסטיקרים נכשלה</p>}
   </div>}
 

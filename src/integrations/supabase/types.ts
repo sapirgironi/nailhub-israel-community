@@ -899,6 +899,7 @@ export type Database = {
           created_at: string
           id: string
           media_url: string
+          mentions: Json
           user_id: string
         }
         Insert: {
@@ -908,6 +909,7 @@ export type Database = {
           created_at?: string
           id?: string
           media_url: string
+          mentions?: Json
           user_id: string
         }
         Update: {
@@ -917,6 +919,7 @@ export type Database = {
           created_at?: string
           id?: string
           media_url?: string
+          mentions?: Json
           user_id?: string
         }
         Relationships: [
@@ -1128,6 +1131,17 @@ export type Database = {
           target_user: string
         }
         Returns: string
+      }
+      community_members: {
+        Args: { member_id?: string; search_text?: string }
+        Returns: {
+          account_role: string
+          avatar_url: string
+          business_name: string
+          city: string
+          display_name: string
+          id: string
+        }[]
       }
       has_role: {
         Args: {

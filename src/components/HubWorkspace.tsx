@@ -9,6 +9,7 @@ import {StoryEditor} from './StoryEditor';
 import {photoUrl,uploadPhoto} from '@/lib/media';
 import {ImageUploadStatus} from './ImageUploadStatus';
 import {groupStories} from '@/lib/story-groups';
+import {readMentions,type StoryMention} from '@/lib/story-layout';
 import {Button} from './ui/button';
 import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
@@ -45,7 +46,7 @@ function StoriesBar({user}:{user:Person}){
  const nextRef=useRef(next);nextRef.current=next;
  useEffect(()=>{if(!open||paused)return;const t=setInterval(()=>{setProgress(p=>{if(p>=100){queueMicrotask(()=>nextRef.current());return 0;}return p+2;});},100);return()=>clearInterval(t);},[open?.g,open?.i,paused]);
  const [draft,setDraft]=useState<File|null>(null);
- async function addStory(f:File,alt:string,background_media_url:string){setMsg('');const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url,background_media_url,alt_text:alt||null});if(error)throw error;setDraft(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
+ async function addStory(f:File,alt:string,background_media_url:string,mentions:StoryMention[]){setMsg('');const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url,background_media_url,alt_text:alt||null,mentions});if(error)throw error;setDraft(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setOpen(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  useEffect(()=>{if(!current||current.user_id===user.id)return;void supabase.from('story_views').upsert({story_id:current.id,viewer_id:user.id,viewer_name:user.businessName||user.fullName},{onConflict:'story_id,viewer_id',ignoreDuplicates:true}).then(({error})=>{if(error)setMsg('רישום הצפייה נכשל');});},[current?.id]);
  const storyInput=useRef<HTMLInputElement>(null);const downAt=useRef(0);
@@ -75,7 +76,9 @@ function StoriesBar({user}:{user:Person}){
    </div>
   </div>
   <div onPointerDown={()=>{downAt.current=Date.now();setPaused(true);}} onPointerUp={tap} onPointerCancel={()=>setPaused(false)} className="relative flex-1 flex items-center justify-center my-4 overflow-hidden rounded-2xl select-none">
-   {current.displayUrl&&<img src={current.displayUrl} alt={current.alt_text||'סטורי'} className="max-h-full max-w-full object-contain pointer-events-none"/>}
+   {current.displayUrl&&<div className="relative shrink-0" style={{width:'min(100%,calc((100dvh - 180px) * 9 / 16))',aspectRatio:'9 / 16'}}><img src={current.displayUrl} alt={current.alt_text||'סטורי'} className="w-full h-full object-contain pointer-events-none"/>
+    <div className="absolute inset-0 pointer-events-none">{readMentions(current.mentions).map((m,i)=><Button key={`${m.userId}-${i}`} asChild variant="ghost" className="absolute pointer-events-auto p-0 min-w-0 min-h-0 bg-transparent hover:bg-primary/10" style={{left:m.x+'%',top:m.y+'%',width:m.width+'%',height:m.height+'%'}}><Link to="/members/$memberId" params={{memberId:m.userId}} aria-label={`פרופיל ${m.label}`} onPointerDown={e=>{e.stopPropagation();setPaused(true);}} onPointerUp={e=>e.stopPropagation()}><span className="sr-only">{m.label}</span></Link></Button>)}</div>
+   </div>}
    <span className="sr-only"><button type="button" onClick={prev}>סטורי קודם</button><button type="button" onClick={next}>סטורי הבא</button></span>
   </div>
   {current.caption&&<p className="text-white text-sm text-center">{current.caption}</p>}

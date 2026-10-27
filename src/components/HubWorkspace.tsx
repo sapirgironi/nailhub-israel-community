@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {Link, useSearch} from '@tanstack/react-router';
 import {useQuery,useQueryClient} from '@tanstack/react-query';
-import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw} from 'lucide-react';
+import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw,Heart,MessageCircle,Handshake,X,Send,ChevronRight,ChevronLeft} from 'lucide-react';
 import {supabase} from '@/integrations/supabase/client';
 import {HebrewPhotoInput} from './HebrewPhotoInput';
 import {Button} from './ui/button';
@@ -36,20 +36,98 @@ async function uploadPhoto(file:File,userId:string){
  const path=`${userId}/${crypto.randomUUID()}.${ext}`;
  const {error}=await supabase.storage.from('community-work').upload(path,file,{contentType:file.type});if(error)throw error;return `community-work/${path}`;
 }
+function StoriesBar({user}:{user:Person}){
+ const qc=useQueryClient();const [viewer,setViewer]=useState<number|null>(null);const [progress,setProgress]=useState(0);const [paused,setPaused]=useState(false);const [msg,setMsg]=useState('');
+ const stories=useQuery({queryKey:['hub-stories'],queryFn:async()=>{const {data,error}=await supabase.from('stories').select('*').order('created_at',{ascending:false});if(error)throw error;return Promise.all(data.map(async s=>({...s,displayUrl:await photoUrl(s.media_url)})));}});
+ useEffect(()=>{if(viewer===null||paused)return;const total=stories.data?.length??0;const t=setInterval(()=>{setProgress(p=>{if(p>=100){if(viewer<total-1){setViewer(viewer+1);return 0;}setViewer(null);return 0;}return p+2;});},100);return()=>clearInterval(t);},[viewer,paused,stories.data?.length]);
+ async function addStory(f:File|null){if(!f)return;setMsg('');try{const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url});if(error)throw error;await qc.invalidateQueries({queryKey:['hub-stories']});}catch{setMsg('פרסום הסטורי נכשל');}}
+ async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setViewer(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
+ const current=viewer!==null?stories.data?.[viewer]:null;
+ const storyInput=useRef<HTMLInputElement>(null);
+ return <><section aria-label="סטוריז מהקהילה" className="flex items-center gap-3 overflow-x-auto pb-2 mb-6">
+  <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{void addStory(e.target.files?.[0]??null);e.target.value='';}}/>
+  <button onClick={()=>storyInput.current?.click()} className="shrink-0 w-24 h-40 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition flex flex-col items-center justify-center gap-2 p-2 text-center">
+   <Plus className="w-6 h-6 text-primary"/><span className="text-[11px] font-black leading-tight">הסטורי שלי</span><span className="text-[9px] text-primary font-bold">פרסום ל־24 שעות</span>
+  </button>
+  {(stories.data??[]).map((s,i)=><button key={s.id} onClick={()=>{setViewer(i);setProgress(0);}} className="shrink-0 w-24 h-40 rounded-2xl relative overflow-hidden border border-border shadow-soft">
+   {s.displayUrl&&<img src={s.displayUrl} alt="סטורי מהקהילה" className="w-full h-full object-cover"/>}
+   <span className="absolute bottom-2 inset-x-2 text-[10px] font-black text-white drop-shadow-md text-right">{s.user_id===user.id?user.businessName:'חברת קהילה'}</span>
+  </button>)}
+  {stories.isError&&<Notice text="טעינת הסטוריז נכשלה"/>}{msg&&<Notice text={msg}/>}
+ </section>
+ {current&&<div role="dialog" aria-modal="true" aria-label="צפייה בסטורי" onPointerDown={()=>setPaused(true)} onPointerUp={()=>setPaused(false)} className="fixed inset-0 z-50 bg-black flex flex-col p-4">
+  <div className="flex gap-1.5 w-full mb-3">{(stories.data??[]).map((s,i)=><div key={s.id} className="flex-1 bg-white/20 h-1 rounded-full overflow-hidden"><div className="bg-white h-full" style={{width:i===viewer?`${progress}%`:i<(viewer??0)?'100%':'0%'}}/></div>)}</div>
+  <div className="flex items-center justify-between text-white">
+   <span className="font-extrabold text-sm">{current.user_id===user.id?user.businessName:'חברת קהילה'}</span>
+   <div className="flex items-center gap-1">
+    {current.user_id===user.id&&<Button size="icon" variant="ghost" aria-label="מחיקת סטורי" title="מחיקת סטורי" onClick={()=>removeStory(current.id)}><Trash2 className="text-white"/></Button>}
+    <Button size="icon" variant="ghost" aria-label="סגירת הסטורי" title="סגירה" onClick={()=>setViewer(null)}><X className="text-white"/></Button>
+   </div>
+  </div>
+  <div className="relative flex-1 flex items-center justify-center my-4 overflow-hidden rounded-2xl">
+   {current.displayUrl&&<img src={current.displayUrl} alt="סטורי" className="max-h-full max-w-full object-contain pointer-events-none"/>}
+   {viewer!==null&&viewer>0&&<Button size="icon" variant="ghost" aria-label="סטורי קודם" className="absolute right-2" onClick={()=>{setViewer(viewer-1);setProgress(0);}}><ChevronRight className="text-white"/></Button>}
+   {viewer!==null&&viewer<(stories.data?.length??0)-1&&<Button size="icon" variant="ghost" aria-label="סטורי הבא" className="absolute left-2" onClick={()=>{setViewer(viewer+1);setProgress(0);}}><ChevronLeft className="text-white"/></Button>}
+  </div>
+  {current.caption&&<p className="text-white text-sm text-center">{current.caption}</p>}
+ </div>}</>;
+}
+function CommentsModal({post,user,onClose}:{post:Row<'posts'>;user:Person;onClose:()=>void}){
+ const qc=useQueryClient();const [text,setText]=useState('');const [msg,setMsg]=useState('');
+ const comments=useQuery({queryKey:['hub-comments',post.id],queryFn:async()=>{const {data,error}=await supabase.from('post_comments').select('*').eq('post_id',post.id).order('created_at');if(error)throw error;return data;}});
+ async function send(e:React.FormEvent){e.preventDefault();const parsed=plainText(500).safeParse(text);if(!parsed.success){setMsg('התגובה חייבת להיות טקסט רגיל עד 500 תווים');return;}const {error}=await supabase.from('post_comments').insert({post_id:post.id,user_id:user.id,body:parsed.data});if(error){setMsg('פרסום התגובה נכשל');return;}setText('');await qc.invalidateQueries({queryKey:['hub-comments']});}
+ async function remove(id:string){const {error}=await supabase.from('post_comments').delete().eq('id',id);if(error){setMsg('מחיקת התגובה נכשלה');return;}await qc.invalidateQueries({queryKey:['hub-comments']});}
+ return <div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="תגובות לעבודה" className="bg-card border border-border rounded-3xl p-6 max-w-md w-full space-y-4 text-right max-h-[80vh] overflow-y-auto">
+  <div className="flex items-center justify-between"><h2 className="font-bold">תגובות</h2><Button size="icon" variant="ghost" aria-label="סגירת התגובות" onClick={onClose}><X/></Button></div>
+  {comments.isError&&<Notice text="טעינת התגובות נכשלה"/>}
+  {(comments.data??[]).length===0?<Notice text="היי הראשונה להגיב"/>:comments.data?.map(c=><div key={c.id} className="border-b border-border pb-3 flex items-start justify-between gap-2"><div><span className="text-xs font-bold block">{c.user_id===user.id?user.businessName:'חברת קהילה'}</span><p className="text-sm whitespace-pre-wrap break-words">{c.body}</p></div>{c.user_id===user.id&&<Button size="icon" variant="ghost" aria-label="מחיקת תגובה" onClick={()=>remove(c.id)}><Trash2/></Button>}</div>)}
+  <form onSubmit={send} className="flex gap-2"><input aria-label="כתיבת תגובה" placeholder="כתבי תגובה..." maxLength={500} value={text} onChange={e=>setText(e.target.value)} className={field}/><Button type="submit" size="icon" aria-label="שליחת תגובה"><Send/></Button></form>
+  {msg&&<Notice text={msg}/>}
+ </div></div>;
+}
+function CollabModal({post,user,onClose}:{post:Row<'posts'>;user:Person;onClose:()=>void}){
+ const [note,setNote]=useState('');const [msg,setMsg]=useState('');const [sent,setSent]=useState(false);
+ async function send(e:React.FormEvent){e.preventDefault();const parsed=plainText(500).safeParse(note);if(!parsed.success){setMsg('ההודעה חייבת להיות טקסט רגיל עד 500 תווים');return;}const {error}=await supabase.from('collab_offers').insert({post_id:post.id,sender_id:user.id,note:parsed.data});if(error){setMsg('שליחת ההצעה נכשלה');return;}setSent(true);}
+ return <div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="הצעת שיתוף פעולה" className="bg-card border border-border rounded-3xl p-6 max-w-md w-full space-y-4 text-right">
+  <div className="flex items-center justify-between"><h2 className="font-bold">הצעת שת״פ</h2><Button size="icon" variant="ghost" aria-label="סגירה" onClick={onClose}><X/></Button></div>
+  {sent?<Notice text="ההצעה נשלחה ליוצרת העבודה"/>:<form onSubmit={send} className="space-y-4"><Entry label="מה מציעים?"><textarea aria-label="תוכן ההצעה" maxLength={500} required rows={4} value={note} onChange={e=>setNote(e.target.value)} className={field} placeholder="לדוגמה: שיתוף פעולה בצילומים, חילופי טיפולים..."/></Entry><Button type="submit"><Handshake/>שליחת הצעה</Button></form>}
+  {msg&&<Notice text={msg}/>}
+ </div></div>;
+}
+function OffersModal({post,onClose}:{post:Row<'posts'>;onClose:()=>void}){
+ const offers=useQuery({queryKey:['hub-offers',post.id],queryFn:async()=>{const {data,error}=await supabase.from('collab_offers').select('*').eq('post_id',post.id).order('created_at',{ascending:false});if(error)throw error;return data;}});
+ return <div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="הצעות שיתוף פעולה שהתקבלו" className="bg-card border border-border rounded-3xl p-6 max-w-md w-full space-y-4 text-right max-h-[80vh] overflow-y-auto">
+  <div className="flex items-center justify-between"><h2 className="font-bold">הצעות שת״פ שהתקבלו</h2><Button size="icon" variant="ghost" aria-label="סגירה" onClick={onClose}><X/></Button></div>
+  {offers.isError&&<Notice text="טעינת ההצעות נכשלה"/>}
+  {(offers.data??[]).length===0?<Notice text="עדיין לא התקבלו הצעות"/>:offers.data?.map(o=><div key={o.id} className="border-b border-border pb-3"><p className="text-sm whitespace-pre-wrap break-words">{o.note}</p><time className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString('he-IL')}</time></div>)}
+ </div></div>;
+}
 function Feed({user,savedOnly}:{user:Person;savedOnly:boolean}){
  const routeSearch=useSearch({strict:false});
  const qc=useQueryClient();const [caption,setCaption]=useState('');const [file,setFile]=useState<File|null>(null);const [search,setSearch]=useState('');const [busy,setBusy]=useState(false);const [msg,setMsg]=useState('');const [open,setOpen]=useState(false);const [deleting,setDeleting]=useState<Row<'posts'>|null>(null);
+ const [commentPost,setCommentPost]=useState<Row<'posts'>|null>(null);const [collabPost,setCollabPost]=useState<Row<'posts'>|null>(null);const [offersPost,setOffersPost]=useState<Row<'posts'>|null>(null);const [heartPost,setHeartPost]=useState<string|null>(null);
  useEffect(()=>{if('compose' in routeSearch && routeSearch.compose===true)setOpen(true);},[routeSearch]);
  const saved=useQuery({queryKey:['hub-saved',user.id],queryFn:async()=>{const {data,error}=await supabase.from('saved_posts').select('*').eq('user_id',user.id);if(error)throw error;return data;}});
  const posts=useQuery({queryKey:['hub-posts',user.id],queryFn:async()=>{const {data,error}=await supabase.from('posts').select('*').order('created_at',{ascending:false});if(error)throw error;return Promise.all(data.map(async p=>({...p,displayUrl:await photoUrl(p.image_url)})));}});
+ const likes=useQuery({queryKey:['hub-likes'],queryFn:async()=>{const {data,error}=await supabase.from('post_likes').select('*');if(error)throw error;return data;}});
+ const comments=useQuery({queryKey:['hub-comments'],queryFn:async()=>{const {data,error}=await supabase.from('post_comments').select('id,post_id');if(error)throw error;return data;}});
  async function publish(e:React.FormEvent){e.preventDefault();setMsg('');const parsed=plainText(2000).safeParse(caption);if(!parsed.success||!file){setMsg('נדרשים תמונה וטקסט רגיל עד 2000 תווים');return;}setBusy(true);try{const image_url=await uploadPhoto(file,user.id);const {error}=await supabase.from('posts').insert({author_id:user.id,image_url,caption:parsed.data});if(error)throw error;await qc.invalidateQueries({queryKey:['hub-posts']});setOpen(false);setCaption('');setFile(null);setMsg('העבודה פורסמה');}catch{setMsg('הפרסום נכשל. בדקי את התמונה ונסי שוב');}finally{setBusy(false);}}
  async function toggle(id:string){const existing=saved.data?.find(s=>s.post_id===id);const result=existing?await supabase.from('saved_posts').delete().eq('id',existing.id):await supabase.from('saved_posts').insert({user_id:user.id,post_id:id});if(result.error){setMsg('עדכון השמורים נכשל');return;}await qc.invalidateQueries({queryKey:['hub-saved',user.id]});}
  async function remove(p:Row<'posts'>){const {error}=await supabase.from('posts').delete().eq('id',p.id);if(error){setMsg('המחיקה נכשלה');return;}setDeleting(null);await qc.invalidateQueries({queryKey:['hub-posts']});}
+ const liked=(id:string)=>likes.data?.some(l=>l.post_id===id&&l.user_id===user.id)??false;
+ async function toggleLike(id:string){const mine=likes.data?.find(l=>l.post_id===id&&l.user_id===user.id);const result=mine?await supabase.from('post_likes').delete().eq('id',mine.id):await supabase.from('post_likes').insert({post_id:id,user_id:user.id});if(result.error){setMsg('עדכון הלייק נכשל');return;}await Promise.all([qc.invalidateQueries({queryKey:['hub-likes']}),qc.invalidateQueries({queryKey:['hub-posts']})]);}
+ function doubleTap(p:Row<'posts'>){setHeartPost(p.id);setTimeout(()=>setHeartPost(null),850);if(!liked(p.id))void toggleLike(p.id);}
  const list=(posts.data??[]).filter(p=>(!savedOnly||saved.data?.some(s=>s.post_id===p.id))&&(!search||(p.caption??'').includes(search)));
- return <><div className="grid grid-cols-[minmax(0,1fr)_auto] sm:flex items-start justify-between gap-3"><Heading title={savedOnly?'השמורים שלי':'הפיד המקצועי'}/>{!savedOnly&&<Button onClick={()=>setOpen(!open)}><Plus/>פרסום עבודה</Button>}</div>
+ return <>{!savedOnly&&<StoriesBar user={user}/>}<div className="grid grid-cols-[minmax(0,1fr)_auto] sm:flex items-start justify-between gap-3"><Heading title={savedOnly?'השמורים שלי':'הפיד המקצועי'}/>{!savedOnly&&<Button onClick={()=>setOpen(!open)}><Plus/>פרסום עבודה</Button>}</div>
  <input aria-label="חיפוש עבודות" placeholder="חיפוש עבודות וטכניקות..." value={search} onChange={e=>setSearch(e.target.value)} className={`${field} mb-6`}/>
  {open&&<form onSubmit={publish} className="border-y border-border py-5 mb-6 space-y-4"><Entry label="תמונת העבודה"><HebrewPhotoInput label="תמונת העבודה" onChange={setFile}/></Entry><Entry label="כיתוב לפוסט"><textarea aria-label="כיתוב לפוסט" maxLength={2000} required rows={3} value={caption} onChange={e=>setCaption(e.target.value)} className={field}/></Entry><Button disabled={busy} type="submit"><ImagePlus/>{busy?'מפרסמת...':'פרסום לפיד'}</Button></form>}
- {deleting&&<div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="מחיקת עבודה" className="bg-card border border-border rounded-3xl p-6 max-w-sm w-full space-y-4 text-right"><h2 className="font-bold">למחוק את העבודה?</h2><p className="text-sm text-muted-foreground">לא ניתן לשחזר עבודה שנמחקה.</p><div className="flex gap-2"><Button variant="destructive" onClick={()=>remove(deleting)}>מחיקה</Button><Button variant="outline" onClick={()=>setDeleting(null)}>ביטול</Button></div></div></div>}{msg&&<Notice text={msg}/>} {(posts.isError||saved.isError)&&<Notice text="טעינת העבודות נכשלה"/>}{posts.isPending?<Notice text="טוענת עבודות..."/>:list.length===0?<div className="py-16 text-center border-y border-border"><Sparkles className="mx-auto text-primary mb-3"/><p className="font-bold">{savedOnly?'אין עדיין עבודות שמורות':'אין עדיין עבודות בפיד'}</p></div>:<div className="grid md:grid-cols-2 gap-6">{list.map(p=><article key={p.id} className="bg-card border border-border rounded-3xl shadow-soft overflow-hidden"><div className="flex items-center justify-between p-4"><span className="text-xs font-bold">{p.author_id===user.id?user.businessName:'עבודה מהקהילה'}</span><time className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString('he-IL')}</time></div>{p.displayUrl&&<img src={p.displayUrl} alt="עבודת ציפורניים" className="w-full h-auto object-contain bg-card"/>}<div className="p-5"><p className="text-sm whitespace-pre-wrap break-words mb-4">{p.caption}</p><div className="flex justify-between"><Button size="icon" variant="ghost" aria-label="שמירת עבודה" title="שמירת עבודה" onClick={()=>toggle(p.id)}><Bookmark className={saved.data?.some(s=>s.post_id===p.id)?'fill-primary text-primary':''}/></Button>{p.author_id===user.id&&<Button size="icon" variant="ghost" aria-label="מחיקת עבודה" title="מחיקת עבודה" onClick={()=>setDeleting(p)}><Trash2/></Button>}</div></div></article>)}</div>}</>;
+ {deleting&&<div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="מחיקת עבודה" className="bg-card border border-border rounded-3xl p-6 max-w-sm w-full space-y-4 text-right"><h2 className="font-bold">למחוק את העבודה?</h2><p className="text-sm text-muted-foreground">לא ניתן לשחזר עבודה שנמחקה.</p><div className="flex gap-2"><Button variant="destructive" onClick={()=>remove(deleting)}>מחיקה</Button><Button variant="outline" onClick={()=>setDeleting(null)}>ביטול</Button></div></div></div>}
+ {commentPost&&<CommentsModal post={commentPost} user={user} onClose={()=>setCommentPost(null)}/>}
+ {collabPost&&<CollabModal post={collabPost} user={user} onClose={()=>setCollabPost(null)}/>}
+ {offersPost&&<OffersModal post={offersPost} onClose={()=>setOffersPost(null)}/>}
+ {msg&&<Notice text={msg}/>} {(posts.isError||saved.isError||likes.isError)&&<Notice text="טעינת העבודות נכשלה"/>}{posts.isPending?<Notice text="טוענת עבודות..."/>:list.length===0?<div className="py-16 text-center border-y border-border"><Sparkles className="mx-auto text-primary mb-3"/><p className="font-bold">{savedOnly?'אין עדיין עבודות שמורות':'אין עדיין עבודות בפיד'}</p></div>:<div className="grid md:grid-cols-2 gap-6">{list.map(p=><article key={p.id} className="bg-card border border-border rounded-3xl shadow-soft overflow-hidden"><div className="flex items-center justify-between p-4"><span className="text-xs font-bold">{p.author_id===user.id?user.businessName:'עבודה מהקהילה'}</span><div className="flex items-center gap-2"><time className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString('he-IL')}</time>{p.author_id!==user.id&&<Button size="sm" variant="outline" onClick={()=>setCollabPost(p)}><Handshake/>הצעת שת״פ</Button>}</div></div>
+ <div onDoubleClick={()=>doubleTap(p)} className="relative cursor-pointer">{p.displayUrl&&<img src={p.displayUrl} alt="עבודת ציפורניים" className="w-full h-auto object-contain bg-card"/>}{heartPost===p.id&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Heart className="w-20 h-20 text-primary fill-primary animate-ping opacity-90 drop-shadow-xl"/></div>}</div>
+ <div className="p-5"><p className="text-sm whitespace-pre-wrap break-words mb-4">{p.caption}</p><div className="flex items-center justify-between"><div className="flex items-center gap-1"><Button size="icon" variant="ghost" aria-label="לייק לעבודה" title="לייק" onClick={()=>toggleLike(p.id)}><Heart className={liked(p.id)?'fill-primary text-primary':''}/></Button><span className="text-xs font-bold">{p.likes_count??0}</span><Button size="icon" variant="ghost" aria-label="תגובות לעבודה" title="תגובות" onClick={()=>setCommentPost(p)}><MessageCircle/></Button><span className="text-xs font-bold">{comments.data?.filter(c=>c.post_id===p.id).length??0}</span><Button size="icon" variant="ghost" aria-label="שמירת עבודה" title="שמירת עבודה" onClick={()=>toggle(p.id)}><Bookmark className={saved.data?.some(s=>s.post_id===p.id)?'fill-primary text-primary':''}/></Button></div><div className="flex items-center gap-1">{p.author_id===user.id&&<><Button size="sm" variant="ghost" onClick={()=>setOffersPost(p)}><Handshake/>הצעות</Button><Button size="icon" variant="ghost" aria-label="מחיקת עבודה" title="מחיקת עבודה" onClick={()=>setDeleting(p)}><Trash2/></Button></>}</div></div></div></article>)}</div>}</>;
 }
 function PricingCalculator(){const [c,setC]=useState({monthlyExpenses:2500,targetSalary:12000,monthlyHours:120,duration:1.5,materials:25});let result;try{result=calculatePrice(c);}catch{result=null;}
  return <><Heading title="מחשבון תמחור ורווחיות"/><div className="max-w-xl space-y-5">{([['monthlyExpenses','הוצאות קבועות בחודש (₪)'],['targetSalary','משכורת רצויה (₪)'],['monthlyHours','שעות עבודה בחודש'],['duration','משך טיפול בשעות'],['materials','עלות חומרים לטיפול (₪)']]as const).map(([key,label])=><Entry key={key} label={label}><input type="number" min={key==='monthlyHours'||key==='duration'?0.1:0} step="any" value={c[key]} onChange={e=>setC({...c,[key]:Number(e.target.value)})} className={field}/></Entry>)}{result?<div className="border-t border-border pt-6 flex justify-between items-center gap-4"><span className="font-bold text-sm">מחיר מינימום מומלץ לטיפול</span><output className="text-3xl font-black text-primary">{result.minimum} ₪</output></div>:<Notice text="הזיני שעות ומשך טיפול גדולים מאפס"/>}</div></>;

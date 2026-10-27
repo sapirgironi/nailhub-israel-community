@@ -57,6 +57,13 @@
       "when": 1793052588537,
       "tag": "0007_safe_shared_text_trigger_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793089469726,
+      "tag": "0008_stories_and_feed_interactions",
+      "breakpoints": true
     }
   ]
 }

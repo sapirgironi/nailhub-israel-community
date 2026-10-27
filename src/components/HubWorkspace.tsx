@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {Link, useSearch} from '@tanstack/react-router';
 import {useQuery,useQueryClient} from '@tanstack/react-query';
-import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw} from 'lucide-react';
+import {Sparkles,Bookmark,Trash2,Plus,ImagePlus,Copy,Check,RotateCcw,Heart,MessageCircle,Handshake,X,Send,ChevronRight,ChevronLeft} from 'lucide-react';
 import {supabase} from '@/integrations/supabase/client';
 import {HebrewPhotoInput} from './HebrewPhotoInput';
 import {Button} from './ui/button';

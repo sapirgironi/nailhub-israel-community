@@ -10,7 +10,7 @@ import {Button} from './ui/button';
 import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
 import {plainText,whatsappLink} from '@/lib/input-security';
-import {moderateComment} from '@/lib/moderation.functions';
+import {publishComment} from '@/lib/moderation.functions';
 import {calculatePrice,healthSchema,insuranceSchema,priceItemSchema} from '@/lib/hub-tools';
 import type {Database} from '@/integrations/supabase/types';
 
@@ -93,14 +93,14 @@ function CommentsModal({post,user,onClose}:{post:Row<'posts'>;user:Person;onClos
  const qc=useQueryClient();const [text,setText]=useState('');const [msg,setMsg]=useState('');const [checking,setChecking]=useState(false);
  const [blocked,setBlocked]=useState<{flagged:string[];suggestion:string}|null>(null);
  const comments=useQuery({queryKey:['hub-comments',post.id],queryFn:async()=>{const {data,error}=await supabase.from('post_comments').select('*').eq('post_id',post.id).order('created_at');if(error)throw error;return data;}});
- async function insertComment(body:string){const {error}=await supabase.from('post_comments').insert({post_id:post.id,user_id:user.id,body});if(error){setMsg('פרסום התגובה נכשל');return false;}if(post.author_id!==user.id)await supabase.from('notifications').insert({user_id:post.author_id,actor_id:user.id,actor_name:user.businessName||user.fullName,type:'comment',post_id:post.id,body:body.slice(0,120)});setText('');setBlocked(null);await qc.invalidateQueries({queryKey:['hub-comments']});return true;}
- async function send(e:React.FormEvent){e.preventDefault();const parsed=plainText(500).safeParse(text);if(!parsed.success||!parsed.data){setMsg('התגובה חייבת להיות טקסט רגיל עד 500 תווים');return;}setMsg('');setChecking(true);try{const result=await moderateComment({data:{body:parsed.data}});if(result.error){setMsg(result.error);return;}if(!result.ok){setBlocked({flagged:result.flagged,suggestion:result.suggestion});return;}await insertComment(parsed.data);}catch{setMsg('בדיקת התגובה נכשלה. נסי שוב');}finally{setChecking(false);}}
+ async function insertComment(body:string){if(checking)return false;setMsg('');setChecking(true);try{const result=await publishComment({data:{postId:post.id,body}});if(result.error){setMsg(result.error);return false;}if(!result.ok){setBlocked({flagged:result.flagged,suggestion:result.suggestion});return false;}setText('');setBlocked(null);await qc.invalidateQueries({queryKey:['hub-comments']});return true;}catch{setMsg('פרסום התגובה נכשל. נסי שוב');return false;}finally{setChecking(false);}}
+ async function send(e:React.FormEvent){e.preventDefault();const parsed=plainText(500).safeParse(text);if(!parsed.success||!parsed.data){setMsg('התגובה חייבת להיות טקסט רגיל עד 500 תווים');return;}setMsg('');await insertComment(parsed.data);}
  async function remove(id:string){const {error}=await supabase.from('post_comments').delete().eq('id',id);if(error){setMsg('מחיקת התגובה נכשלה');return;}await qc.invalidateQueries({queryKey:['hub-comments']});}
  return <div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="תגובות לעבודה" className="bg-card border border-border rounded-3xl p-6 max-w-md w-full space-y-4 text-right max-h-[80vh] overflow-y-auto">
   <div className="flex items-center justify-between"><h2 className="font-bold">תגובות</h2><Button size="icon" variant="ghost" aria-label="סגירת התגובות" onClick={onClose}><X/></Button></div>
   {comments.isError&&<Notice text="טעינת התגובות נכשלה"/>}
   {(comments.data??[]).length===0?<Notice text="היי הראשונה להגיב"/>:comments.data?.map(c=><div key={c.id} className="border-b border-border pb-3 flex items-start justify-between gap-2"><div><span className="text-xs font-bold block">{c.user_id===user.id?user.businessName:'חברת קהילה'}</span><p className="text-sm whitespace-pre-wrap break-words">{c.body}</p></div>{c.user_id===user.id&&<Button size="icon" variant="ghost" aria-label="מחיקת תגובה" onClick={()=>remove(c.id)}><Trash2/></Button>}</div>)}
-  <form onSubmit={send} className="flex gap-2"><input aria-label="כתיבת תגובה" placeholder="כתבי תגובה..." maxLength={500} value={text} onChange={e=>setText(e.target.value)} className={field}/><Button type="submit" size="icon" aria-label="שליחת תגובה" disabled={checking}><Send/></Button></form>
+  <form onSubmit={send} className="flex gap-2"><input aria-label="כתיבת תגובה" disabled={checking||blocked!==null} placeholder="כתבי תגובה..." maxLength={500} value={text} onChange={e=>setText(e.target.value)} className={field}/><Button type="submit" size="icon" aria-label="שליחת תגובה" disabled={checking||blocked!==null}><Send/></Button></form>
   {checking&&<Notice text="בודקת את התגובה..."/>}
   {msg&&<Notice text={msg}/>}
   {blocked&&<div role="alertdialog" aria-label="התגובה נחסמה" className="border border-destructive/30 bg-destructive/5 rounded-2xl p-4 space-y-3">
@@ -108,9 +108,9 @@ function CommentsModal({post,user,onClose}:{post:Row<'posts'>;user:Person;onClos
    {blocked.flagged.length>0&&<div className="flex flex-wrap gap-1.5">{blocked.flagged.map(w=><mark key={w} className="bg-destructive/15 text-destructive text-xs font-bold px-2 py-0.5 rounded-lg">{w}</mark>)}</div>}
    {blocked.suggestion&&<div className="bg-card border border-border rounded-xl p-3"><p className="text-[11px] font-bold text-muted-foreground mb-1">הצעה לנוסח מכבד:</p><p className="text-sm whitespace-pre-wrap break-words">{blocked.suggestion}</p></div>}
    <div className="flex flex-wrap gap-2">
-    {blocked.suggestion&&<Button size="sm" onClick={()=>void insertComment(blocked.suggestion)}>השתמשי בנוסח המוצע</Button>}
-    <Button size="sm" variant="outline" onClick={()=>setBlocked(null)}>עריכה מחדש</Button>
-    <Button size="sm" variant="ghost" onClick={()=>{setBlocked(null);setText('');}}>ביטול</Button>
+    {blocked.suggestion&&<Button size="sm" disabled={checking} onClick={()=>void insertComment(blocked.suggestion)}>שליחת הנוסח החלופי</Button>}
+    <Button size="sm" disabled={checking} variant="outline" onClick={()=>setBlocked(null)}>עריכה בעצמי</Button>
+    <Button size="sm" disabled={checking} variant="ghost" onClick={()=>{setBlocked(null);setText('');}}>ביטול</Button>
    </div>
   </div>}
  </div></div>;

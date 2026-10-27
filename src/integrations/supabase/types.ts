@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_questionnaires: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          purpose: string
+          questions: Json
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          purpose: string
+          questions: Json
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          purpose?: string
+          questions?: Json
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_questionnaires_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           active: boolean
@@ -86,6 +121,109 @@ export type Database = {
           {
             foreignKeyName: "collab_offers_sender_id_fkey"
             columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comment_moderation_events: {
+        Row: {
+          created_at: string
+          id: string
+          outcome: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          outcome: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          outcome?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_moderation_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_activity: {
+        Row: {
+          activity_day: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_day?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Update: {
+          activity_day?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_activity_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_credit_ledger: {
+        Row: {
+          actor_id: string
+          amount: number
+          created_at: string
+          id: string
+          reason: string
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string
+          amount: number
+          created_at?: string
+          id?: string
+          reason: string
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          reason?: string
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_credit_ledger_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_credit_ledger_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -949,6 +1087,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_community_credit: {
+        Args: {
+          delta: number
+          explanation: string
+          operation_id: string
+          target_user: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

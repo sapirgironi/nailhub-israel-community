@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS trade_approval ON public.nail_trade_items;
+DROP POLICY IF EXISTS "Admin trade approval" ON public.nail_trade_items;
+ALTER TABLE public.nail_trade_items ALTER COLUMN status SET DEFAULT 'available';
+COMMENT ON TABLE public.ai_questionnaires IS 'DEPRECATED: deferred by user; no application feature uses this table';
+COMMENT ON TABLE public.community_credit_ledger IS 'DEPRECATED: deferred by user; no application feature uses this table';
+COMMENT ON TABLE public.community_activity IS 'DEPRECATED: deferred by user; no application feature uses this table';
+REVOKE EXECUTE ON FUNCTION public.adjust_community_credit(uuid,integer,text,uuid) FROM authenticated;
+REVOKE ALL ON public.ai_questionnaires FROM authenticated;
+REVOKE ALL ON public.community_activity FROM authenticated;
+REVOKE ALL ON public.community_credit_ledger FROM authenticated;

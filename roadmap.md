@@ -35,3 +35,4 @@
 - [x] In-app notifications — notifications table (like/comment/collab) with recipient-only RLS, bell with unread badge in header, created on like/comment/collab; verified in browser with real cross-user data
 - [ ] Story editor (text, stickers, trash) wired to + sheet and feed
 - [ ] Verify Google/Apple sign-in on mobile lands new users in feed
+- [ ] Admin top bar + admin role for sapiryedidia0@walla.com (needs verified ownership)

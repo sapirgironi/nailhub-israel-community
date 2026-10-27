@@ -33,12 +33,12 @@ export const moderateComment = createServerFn({ method: "POST" })
     const lower = data.body.toLowerCase();
     const localHits = (words ?? []).map((w) => w.word).filter((w) => w && lower.includes(w.toLowerCase()));
     if (localHits.length > 0) {
-      const { moderateCommentText } = await import("./moderation.server");
+      const { rephraseCommentText } = await import("./moderation.server");
       let suggestion = "";
       try {
-        suggestion = (await moderateCommentText(data.body)).suggestion;
-      } catch {
-        suggestion = "";
+        suggestion = await rephraseCommentText(data.body, localHits);
+      } catch (e) {
+        console.error("rephrase failed", (e as { statusCode?: number })?.statusCode);
       }
       return { ok: false, flagged: localHits, suggestion, error: null };
     }

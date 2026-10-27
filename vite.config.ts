@@ -11,7 +11,7 @@ export default defineConfig({
     optimizeDeps: {
       // Prebundle router hooks and story export together with React before the
       // first page loads, avoiding a second React graph during lazy discovery.
-      include: ["@tanstack/react-router", "@tanstack/react-query", "@tanstack/react-start", "react-dom", "html-to-image"],
+      include: ["@tanstack/react-router", "@tanstack/react-query", "react-dom", "html-to-image"],
     },
   },
   tanstackStart: {

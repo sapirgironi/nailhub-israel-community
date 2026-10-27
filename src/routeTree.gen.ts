@@ -14,6 +14,7 @@ import { Route as AcademyRouteImport } from './routes/academy'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BoardsRouteImport } from './routes/boards'
 import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as ClinicRouteImport } from './routes/clinic'
 import { Route as DemoHealthRouteImport } from './routes/demo-health'
 import { Route as DemoPricelistRouteImport } from './routes/demo-pricelist'
 import { Route as DirectoryRouteImport } from './routes/directory'
@@ -55,6 +56,11 @@ const BoardsRoute = BoardsRouteImport.update({
 const CalculatorRoute = CalculatorRouteImport.update({
   id: '/calculator',
   path: '/calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClinicRoute = ClinicRouteImport.update({
+  id: '/clinic',
+  path: '/clinic',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoHealthRoute = DemoHealthRouteImport.update({
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
+  '/clinic': typeof ClinicRoute
   '/demo-health': typeof DemoHealthRoute
   '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
+  '/clinic': typeof ClinicRoute
   '/demo-health': typeof DemoHealthRoute
   '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
+  '/clinic': typeof ClinicRoute
   '/demo-health': typeof DemoHealthRoute
   '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/boards'
     | '/calculator'
+    | '/clinic'
     | '/demo-health'
     | '/demo-pricelist'
     | '/directory'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/boards'
     | '/calculator'
+    | '/clinic'
     | '/demo-health'
     | '/demo-pricelist'
     | '/directory'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/boards'
     | '/calculator'
+    | '/clinic'
     | '/demo-health'
     | '/demo-pricelist'
     | '/directory'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   BoardsRoute: typeof BoardsRoute
   CalculatorRoute: typeof CalculatorRoute
+  ClinicRoute: typeof ClinicRoute
   DemoHealthRoute: typeof DemoHealthRoute
   DemoPricelistRoute: typeof DemoPricelistRoute
   DirectoryRoute: typeof DirectoryRoute
@@ -351,6 +364,13 @@ declare module '@tanstack/react-router' {
       path: '/calculator'
       fullPath: '/calculator'
       preLoaderRoute: typeof CalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clinic': {
+      id: '/clinic'
+      path: '/clinic'
+      fullPath: '/clinic'
+      preLoaderRoute: typeof ClinicRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo-health': {
@@ -481,6 +501,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   BoardsRoute: BoardsRoute,
   CalculatorRoute: CalculatorRoute,
+  ClinicRoute: ClinicRoute,
   DemoHealthRoute: DemoHealthRoute,
   DemoPricelistRoute: DemoPricelistRoute,
   DirectoryRoute: DirectoryRoute,

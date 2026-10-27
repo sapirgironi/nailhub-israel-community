@@ -153,7 +153,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     supabase.auth.getSession().then(({ data }) => { if (data.session) loadData(data.session.user.id); });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) loadData(session.user.id);
-      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setCurrentStep('login'); }
+      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setIsAdmin(false); setCurrentStep('login'); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -278,8 +278,10 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   });
 
   return (
-    <HubShell section={section} name={currentUser?.fullName} onSignOut={handleSignOut}>
+    <HubShell section={section} name={currentUser?.fullName} onSignOut={handleSignOut} isAdmin={isAdmin}>
         {authError && <p role="alert" className="text-right text-sm text-destructive mb-4">{authError}</p>}
+        {activeTab === 'admin' && (isAdmin ? <AdminPanel /> : <p className="text-sm text-muted-foreground py-8 text-center">אזור הניהול פתוח למנהלות בלבד</p>)}
+        {activeTab === 'support' && currentUser && <SupportForm user={currentUser} />}
         {activeTab === 'directory' && (
           <div className="space-y-6">
             

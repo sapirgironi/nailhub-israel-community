@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { setResponseHeader } from '@tanstack/react-start/server';
 import { requireActiveAccount } from './account-access';
 import { cloudinaryReference, IMAGE_OPTIMIZATION, validateImage } from './cloudinary';
 import { fetchOptimizedImage } from './cloudinary.server';
@@ -13,6 +14,7 @@ export const uploadCloudinaryImage = createServerFn({ method: 'POST' })
     return input;
   })
   .handler(async ({ data, context }) => {
+    setResponseHeader('Cache-Control', 'private, no-store');
     const cloud = process.env['CLOUDINARY_CLOUD_NAME'];
     const key = process.env['CLOUDINARY_API_KEY'];
     const secret = process.env['CLOUDINARY_API_SECRET'];
@@ -55,6 +57,7 @@ export const readCloudinaryImage = createServerFn({ method: 'POST' })
     return input;
   })
   .handler(async ({ data, context }) => {
+    setResponseHeader('Cache-Control', 'private, no-store');
     const cloud = process.env['CLOUDINARY_CLOUD_NAME'];
     const secret = process.env['CLOUDINARY_API_SECRET'];
     if (!cloud || !secret) throw new Error('שירות התמונות אינו מוגדר כרגע');

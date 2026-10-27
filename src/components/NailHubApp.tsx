@@ -131,6 +131,19 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
   const [authLoading, setAuthLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  const checkAccess = async (userId: string) => {
+    const { data, error } = await supabase.rpc('is_account_banned', { target_user: userId });
+    if (error || data !== false) {
+      setBlocked(true); setCurrentUser(null); setMembers([]); setIsAdmin(false);
+      setAuthError(error ? 'בדיקת הגישה נכשלה. נסי שוב.' : 'החשבון נחסם לצמיתות. אין אפשרות להיכנס לאפליקציה.');
+      setAccessChecked(true);
+      return false;
+    }
+    setBlocked(false); setAccessChecked(true); return true;
+  };
 
   const toMember = (p: any): Member => ({
     id: p.id, fullName: p.display_name, businessName: p.business_name || p.display_name, role: p.account_role,
@@ -139,6 +152,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   });
 
   const loadData = async (userId: string) => {
+    if (!await checkAccess(userId)) return;
     const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) { setAuthError('טעינת הפרופיל נכשלה. נסי להתחבר שוב.'); return; }
     const list = (data || []).map(toMember);
@@ -150,13 +164,21 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { if (data.session) loadData(data.session.user.id); });
+    supabase.auth.getSession().then(({ data }) => { if (data.session) void loadData(data.session.user.id); else setAccessChecked(true); });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) loadData(session.user.id);
       if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setIsAdmin(false); setCurrentStep('login'); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const refreshAccess = () => { void checkAccess(currentUser.id); };
+    const timer = window.setInterval(refreshAccess, 15000);
+    window.addEventListener('focus', refreshAccess);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refreshAccess); };
+  }, [currentUser?.id]);
 
   const [filterRole, setFilterRole] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -216,6 +238,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   // ==========================================
   // מסך 2: התחברות מהירה
   // ==========================================
+  if (!accessChecked) return <div dir="rtl" className="min-h-screen grid place-items-center text-muted-foreground">בודקת גישה...</div>;
+  if (blocked) return <div dir="rtl" className="min-h-screen flex flex-col items-center justify-center p-6 gap-4 text-right"><h1 className="text-xl font-bold">אין גישה לאפליקציה</h1><p role="alert" className="text-destructive">{authError}</p><Button variant="outline" onClick={() => { setBlocked(false); void handleSignOut(); }}>התנתקות</Button></div>;
   if (currentStep === 'login') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 font-sans text-right" dir="rtl">

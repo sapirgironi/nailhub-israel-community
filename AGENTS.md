@@ -28,4 +28,5 @@
 - Owner-authored policy pages are standalone public routes without auth-dependent loaders or HubShell, so legal information remains accessible before signup.
 - Permanent bans use the central is_account_banned predicate with restrictive application/storage policies and active-account AI middleware; the UI checks on load, focus and periodically to deny existing sessions too.
 - Admin-only email lookup verifies has_role before importing the privileged client; supplier credit set/add uses a serialized database function so concurrent updates cannot overwrite balances.
-- Story editor layers are client state flattened to one JPEG on publish; admin stickers live in a private bucket and are downloaded as blobs so canvas export is never cross-origin tainted.
+- Story editor layers use a fixed 9:16 frame and percentage text widths; export rasterizes the same DOM layout to JPEG so browser Hebrew wrapping and fonts stay consistent. Admin stickers are private blobs to avoid cross-origin canvas taint.
+- Story mentions persist stable member IDs with normalized image hit areas; community discovery uses the authenticated narrow community_members projection, never full private profiles, so contact information stays protected.

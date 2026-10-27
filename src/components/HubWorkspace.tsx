@@ -50,14 +50,15 @@ function StoriesBar({user}:{user:Person}){
  useEffect(()=>{if(!current||current.user_id===user.id)return;void supabase.from('story_views').upsert({story_id:current.id,viewer_id:user.id,viewer_name:user.businessName||user.fullName},{onConflict:'story_id,viewer_id',ignoreDuplicates:true}).then(({error})=>{if(error)setMsg('רישום הצפייה נכשל');});},[current?.id]);
  const storyInput=useRef<HTMLInputElement>(null);
  useEffect(()=>{const consume=()=>{const f=takeStory();if(f)setDraft(f);};consume();return onStoryQueued(consume);},[]);
- return <>{draft&&<StoryEditor file={draft} onCancel={()=>setDraft(null)} onPublish={addStory}/>}<section aria-label="סטוריז מהקהילה" className="flex items-center gap-3 overflow-x-auto pb-2 mb-6">
+ return <>{draft&&<StoryEditor file={draft} onCancel={()=>setDraft(null)} onPublish={addStory}/>}<section aria-label="סטוריז מהקהילה" className="flex items-start gap-4 overflow-x-auto pb-3 mb-6 bg-card rounded-3xl border border-border shadow-soft p-4">
   <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)setDraft(f);}}/>
-  <button onClick={()=>storyInput.current?.click()} className="shrink-0 w-24 h-40 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition flex flex-col items-center justify-center gap-2 p-2 text-center">
-   <Plus className="w-6 h-6 text-primary"/><span className="text-[11px] font-black leading-tight">הסטורי שלי</span><span className="text-[9px] text-primary font-bold">פרסום ל־24 שעות</span>
+  <button type="button" aria-label="הוספת סטורי חדש" onClick={()=>storyInput.current?.click()} className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center">
+   <span className="relative w-[4.5rem] h-[4.5rem] rounded-full border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center"><Plus className="w-7 h-7 text-primary"/></span>
+   <span className="text-[11px] font-bold leading-tight text-foreground">הסטורי שלי</span>
   </button>
-  {(stories.data??[]).map((s,i)=><button key={s.id} onClick={()=>{setViewer(i);setProgress(0);}} className="shrink-0 w-24 h-40 rounded-2xl relative overflow-hidden border border-border shadow-soft">
-   {s.displayUrl&&<img src={s.displayUrl} alt="סטורי מהקהילה" className="w-full h-full object-cover"/>}
-   <span className="absolute bottom-2 inset-x-2 text-[10px] font-black text-white drop-shadow-md text-right">{s.user_id===user.id?user.businessName:'חברת קהילה'}</span>
+  {(stories.data??[]).map((s,i)=><button type="button" key={s.id} aria-label="פתיחת סטורי" onClick={()=>{setViewer(i);setProgress(0);}} className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center">
+   <span className="w-[4.5rem] h-[4.5rem] rounded-full p-[3px] bg-gradient-to-tr from-primary via-ring to-accent"><span className="block w-full h-full rounded-full overflow-hidden border-2 border-card bg-muted">{s.displayUrl&&<img src={s.displayUrl} alt="סטורי מהקהילה" className="w-full h-full object-cover"/>}</span></span>
+   <span className="w-full truncate text-[11px] font-bold leading-tight text-primary">{s.user_id===user.id?(user.businessName||'הסטורי שלך'):'חברת קהילה'}</span>
   </button>)}
   {stories.isError&&<Notice text="טעינת הסטוריז נכשלה"/>}{msg&&<Notice text={msg}/>}
  </section>

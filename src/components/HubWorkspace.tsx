@@ -16,6 +16,7 @@ import {readMentions,type StoryMention} from '@/lib/story-layout';
 import {Button} from './ui/button';
 import type {HubSection} from './HubShell';
 import {PostDraftWriter} from './PostDraftWriter';
+import {ClinicHub} from './ClinicHub';
 import {plainText,whatsappLink} from '@/lib/input-security';
 import {publishComment} from '@/lib/moderation.functions';
 import {healthSchema,insuranceSchema,priceItemSchema} from '@/lib/hub-tools';
@@ -31,6 +32,7 @@ function Entry({label,children}:{label:string;children:React.ReactNode}){return 
 function Notice({text}:{text:string}){return <p role="status" className="text-sm text-muted-foreground py-4">{text}</p>}
 function Heading({title}:{title:string}){return <h1 className="font-black text-2xl mb-6">{title}</h1>}
 export function HubWorkspace({section,user}:{section:HubSection;user:Person}){
+ if(section==='clinic')return <ClinicHub/>;
  if(section==='draft')return <PostDraftWriter/>;
  if(section==='calculator')return <PricingCalculator user={user}/>;
  if(section==='health_form')return <HealthForm user={user}/>;
@@ -156,7 +158,7 @@ function Feed({user,savedOnly}:{user:Person;savedOnly:boolean}){
  async function toggleLike(p:Row<'posts'>){const mine=likes.data?.find(l=>l.post_id===p.id&&l.user_id===user.id);const result=mine?await supabase.from('post_likes').delete().eq('id',mine.id):await supabase.from('post_likes').insert({post_id:p.id,user_id:user.id});if(result.error){setMsg('עדכון הלייק נכשל');return;}if(!mine&&p.author_id!==user.id)await supabase.from('notifications').insert({user_id:p.author_id,actor_id:user.id,actor_name:user.businessName||user.fullName,type:'like',post_id:p.id});await Promise.all([qc.invalidateQueries({queryKey:['hub-likes']}),qc.invalidateQueries({queryKey:['hub-posts']})]);}
  function doubleTap(p:Row<'posts'>){setHeartPost(p.id);setTimeout(()=>setHeartPost(null),850);if(!liked(p.id))void toggleLike(p);}
  const list=(posts.data??[]).filter(p=>(!savedOnly||saved.data?.some(s=>s.post_id===p.id))&&matchesPostSearch(p,search)).sort((a,b)=>Number(b.is_pinned)-Number(a.is_pinned));
- return <>{!savedOnly&&<StoriesBar user={user}/>}<div className="grid grid-cols-[minmax(0,1fr)_auto] sm:flex items-start justify-between gap-3"><Heading title={savedOnly?'השמורים שלי':'הפיד המקצועי'}/>{!savedOnly&&<Button onClick={()=>setOpen(!open)}><Plus/>פרסום עבודה</Button>}</div>
+ return <>{!savedOnly&&<StoriesBar user={user}/>}<h1 className="font-black text-2xl mb-4">{savedOnly?'השמורים שלי':'הפיד המקצועי'}</h1>
  <input aria-label="חיפוש עבודות" placeholder="חיפוש עבודות, טכניקות או #תגיות..." value={search} onChange={e=>setSearch(e.target.value)} className={`${field} mb-6`}/>
  {open&&<FeedPostComposer userId={user.id} onClose={()=>setOpen(false)} onPublished={()=>{setOpen(false);setMsg('העבודה פורסמה');}}/>}
  {deleting&&<div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="מחיקת עבודה" className="bg-card border border-border rounded-3xl p-6 max-w-sm w-full space-y-4 text-right"><h2 className="font-bold">למחוק את העבודה?</h2><p className="text-sm text-muted-foreground">לא ניתן לשחזר עבודה שנמחקה.</p><div className="flex gap-2"><Button variant="destructive" onClick={()=>remove(deleting)}>מחיקה</Button><Button variant="outline" onClick={()=>setDeleting(null)}>ביטול</Button></div></div></div>}

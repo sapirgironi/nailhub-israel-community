@@ -168,7 +168,7 @@ function PricingCalculator({user}:{user:Person}){
  const [c,setC]=useState<PricingInput>({hourlyRate:120,minutes:120,length:'natural',effects:[],extraMinutes:0,materials:20,overhead:DEFAULT_OVERHEAD,vat:false,discountType:'percent',discount:0});
  const [treatment,setTreatment]=useState<string>(TREATMENTS[0][0]);const [exp,setExp]=useState<string>('experienced');const [brands,setBrands]=useState('');const [msg,setMsg]=useState('');const [aiNote,setAiNote]=useState('');const [busy,setBusy]=useState(false);
  const estimate=useServerFn(estimateMaterialCost);const qc=useQueryClient();
- let r;try{r=calculateTreatment(c);}catch{r=null;}
+ let r:ReturnType<typeof calculateTreatment>|null;try{r=calculateTreatment(c);}catch{r=null;}
  const tName=TREATMENTS.find(t=>t[0]===treatment)![1];const num=(k:keyof PricingInput)=>(e:React.ChangeEvent<HTMLInputElement>)=>setC({...c,[k]:Number(e.target.value)});
  function pickTreatment(id:string){setTreatment(id);const t=TREATMENTS.find(x=>x[0]===id);if(t)setC({...c,minutes:t[2]});}
  async function ai(){setBusy(true);setMsg('');try{const res=await estimate({data:{treatment:tName,length:LENGTHS.find(l=>l[0]===c.length)![1],effects:c.effects.map(e=>EFFECTS.find(x=>x[0]===e)![1]).join(', '),materials:brands}});if(res.error){setMsg(res.error);return;}setC(v=>({...v,materials:res.cost}));setAiNote(res.note);}catch{setMsg('פרטי את החומרים בטקסט רגיל (לפחות 3 תווים)');}finally{setBusy(false);}}

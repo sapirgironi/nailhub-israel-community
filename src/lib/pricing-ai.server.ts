@@ -22,7 +22,7 @@ export async function estimateMaterials(details: string) {
   });
   const text = (await result.text).trim();
   const [first, ...rest] = text.split("\n");
-  const cost = Number(first.replace(/[^\d.]/g, ""));
+  const cost = Number((first ?? "").replace(/[^\d.]/g, ""));
   if (!Number.isFinite(cost) || cost <= 0 || cost > 1000) throw new Error("unparseable");
   return { cost: Math.round(cost * 10) / 10, note: rest.join(" ").trim().slice(0, 300) };
 }

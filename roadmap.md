@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [x] 24-hour stories (upload, auto-advance viewer, owner delete) and feed interactions (double-tap like with heart burst, comments, collab offers with author inbox) on real tables stories/post_likes/post_comments/collab_offers with RLS, grants, likes-count trigger and plain-text validation triggers; verified end-to-end in browser (signup, post, story, like, comment)
 - [x] Integrate uploaded registration design with live auth; auto-confirm enabled, HIBP disabled, immediate signup-to-feed and profile persistence verified with six lowercase characters and no runtime errors. Two QA signup accounts remain for verification.
 - [ ] Primary admin assignment — requested account was unconfirmed before auto-confirm and requester identity did not match; needs independent ownership verification, not auto-confirmation or a typed email.
 - [x] Password visibility toggles and minimum-six-character-only client validation; both forms verified in browser and policy tests passed.

@@ -92,6 +92,13 @@
       "when": 1793101526550,
       "tag": "0012_defer_unrequested_admin_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793102480398,
+      "tag": "0013_trade_queue_and_supplier_credits",
+      "breakpoints": true
     }
   ]
 }

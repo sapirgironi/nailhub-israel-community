@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, Users, Ban, Flag, Inbox, FileSpreadsheet, Megaphone, Pin, BadgeCheck, Trash2, Plus, MessageCircle } from 'lucide-react';
+import { ShieldCheck, Users, Ban, Flag, Inbox, FileSpreadsheet, Megaphone, Pin, BadgeCheck, Trash2, Plus, MessageCircle, ShoppingBag, Coins } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import { plainText, whatsappLink } from '@/lib/input-security';
@@ -8,6 +8,8 @@ import { plainText, whatsappLink } from '@/lib/input-security';
 const field = 'text-right w-full border border-input rounded-lg bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 const TABS = [
   { id: 'users', label: 'משתמשות', icon: Users },
+  { id: 'trade', label: 'תור אישורי יד שנייה', icon: ShoppingBag },
+  { id: 'suppliers', label: 'ניהול ספקים וקרדיטים', icon: Coins },
   { id: 'words', label: 'מילים חסומות', icon: Ban },
   { id: 'reports', label: 'דיווחים', icon: Flag },
   { id: 'tickets', label: 'פניות', icon: Inbox },
@@ -71,6 +73,12 @@ function UsersTab() {
     setMsg(error ? 'ההשהיה נכשלה' : 'המשתמשת הושהתה');
     if (!error) await refresh();
   }
+  async function banForever(id: string, name: string) {
+    if (!window.confirm(`לחסום את ${name} לצמיתות? היא לא תוכל לפרסם או להגיב.`)) return;
+    const { error } = await supabase.from('user_sanctions').insert({ user_id: id, kind: 'ban', until: null, reason: 'חסימה לצמיתות על ידי מנהלת' });
+    setMsg(error ? 'החסימה נכשלה' : 'המשתמשת נחסמה לצמיתות');
+    if (!error) await refresh();
+  }
   async function unmute(id: string) {
     const { error } = await supabase.from('user_sanctions').delete().eq('user_id', id);
     setMsg(error ? 'ביטול ההשהיה נכשל' : 'ההשהיה בוטלה');
@@ -104,8 +112,8 @@ function UsersTab() {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => verify(p.id, !p.is_verified)}><BadgeCheck />{p.is_verified ? 'הסרת אימות' : 'אימות מקצועי'}</Button>
               {s
-                ? <Button size="sm" variant="outline" onClick={() => unmute(p.id)}>ביטול השהיה</Button>
-                : <><Button size="sm" variant="outline" onClick={() => mute(p.id, 24)}>השהיה ל־24 שעות</Button><Button size="sm" variant="outline" onClick={() => mute(p.id, 168)}>השהיה לשבוע</Button></>}
+                ? <Button size="sm" variant="outline" onClick={() => unmute(p.id)}>{s.until ? 'ביטול השהיה' : 'ביטול חסימה'}</Button>
+                : <><Button size="sm" variant="outline" onClick={() => mute(p.id, 24)}>השהיה ל־24 שעות</Button><Button size="sm" variant="outline" onClick={() => mute(p.id, 168)}>השהיה לשבוע</Button><Button size="sm" variant="destructive" onClick={() => banForever(p.id, p.display_name)}><Ban />חסימה לצמיתות</Button></>}
               <Button size="sm" variant="outline" onClick={() => setQuota(p.id, !q?.unlimited)}>{q?.unlimited ? 'החזרת מכסה' : 'ללא מכסה'}</Button>
             </div>
           </div>
@@ -349,6 +357,103 @@ function PinsTab() {
   );
 }
 
+function TradeQueueTab() {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState('');
+  const items = useQuery({
+    queryKey: ['admin-trade-queue'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('nail_trade_items').select('id,title,category,condition,price_nis,city,description,status,created_at').eq('status', 'pending').order('created_at', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+  async function decide(id: string, status: 'approved' | 'rejected') {
+    const { error } = await supabase.from('nail_trade_items').update({ status }).eq('id', id);
+    setMsg(error ? 'העדכון נכשל' : status === 'approved' ? 'המודעה אושרה ופורסמה' : 'המודעה נדחתה');
+    if (!error) { await qc.invalidateQueries({ queryKey: ['admin-trade-queue'] }); await qc.invalidateQueries({ queryKey: ['hub-trade'] }); }
+  }
+  if (items.isError) return <Notice text="טעינת התור נכשלה" />;
+  return (
+    <div className="space-y-3">
+      {msg && <Notice text={msg} />}
+      {items.data && items.data.length === 0 && <Notice text="אין מודעות שממתינות לאישור" />}
+      {(items.data ?? []).map((t) => (
+        <div key={t.id} className="bg-card border border-border rounded-2xl p-4 space-y-2">
+          <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm break-words">{t.title}</span><span className="text-sm font-bold">₪{t.price_nis}</span></div>
+          <p className="text-xs text-muted-foreground break-words">{t.category} • {t.condition} • {t.city}</p>
+          <p className="text-sm break-words line-clamp-3">{t.description}</p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => decide(t.id, 'approved')}>אשר</Button>
+            <Button size="sm" variant="outline" onClick={() => decide(t.id, 'rejected')}>דחה</Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SuppliersTab() {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState('');
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const profiles = useQuery({
+    queryKey: ['admin-supplier-profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('profiles').select('id,display_name,business_name,account_role').in('account_role', ['nail_tech', 'supplier']).order('display_name');
+      if (error) throw error;
+      return data;
+    },
+  });
+  const ledger = useQuery({
+    queryKey: ['admin-credit-ledger'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('community_credit_ledger').select('user_id,amount');
+      if (error) throw error;
+      return data;
+    },
+  });
+  const balance = (id: string) => (ledger.data ?? []).filter((l) => l.user_id === id).reduce((s, l) => s + l.amount, 0);
+  async function setRole(id: string, role: 'supplier' | 'nail_tech') {
+    const { error } = await supabase.from('profiles').update({ account_role: role }).eq('id', id);
+    setMsg(error ? 'שינוי התפקיד נכשל' : role === 'supplier' ? 'החשבון הוגדר כספק' : 'החשבון הוחזר לנייליסטית');
+    if (!error) { await qc.invalidateQueries({ queryKey: ['admin-supplier-profiles'] }); await qc.invalidateQueries({ queryKey: ['admin-profiles'] }); }
+  }
+  async function setCredits(id: string) {
+    const target = Number(amounts[id]);
+    if (!Number.isInteger(target) || target < 0 || target > 100000) { setMsg('הזיני מספר קרדיטים שלם בין 0 ל־100,000'); return; }
+    const delta = target - balance(id);
+    if (delta === 0) { setMsg('היתרה כבר מוגדרת לכמות הזו'); return; }
+    const { error } = await supabase.rpc('adjust_community_credit', { target_user: id, delta, explanation: `הגדרת יתרת קרדיטים לפרסום: ${target}`, operation_id: crypto.randomUUID() });
+    setMsg(error ? 'עדכון הקרדיטים נכשל' : `היתרה עודכנה ל־${target} קרדיטים`);
+    if (!error) await qc.invalidateQueries({ queryKey: ['admin-credit-ledger'] });
+  }
+  if (profiles.isError || ledger.isError) return <Notice text="טעינת הספקים נכשלה" />;
+  return (
+    <div className="space-y-3">
+      {msg && <Notice text={msg} />}
+      {(profiles.data ?? []).map((p) => {
+        const isSupplier = p.account_role === 'supplier';
+        return (
+          <div key={p.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="min-w-0"><span className="font-bold text-sm break-words">{p.display_name}</span><p className="text-xs text-muted-foreground break-words">{p.business_name} • {isSupplier ? 'ספק' : 'נייליסטית'}</p></div>
+              {isSupplier && <span className="text-[11px] font-bold bg-accent text-primary px-2 py-1 rounded-lg">{balance(p.id)} קרדיטים</span>}
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <Button size="sm" variant="outline" onClick={() => setRole(p.id, isSupplier ? 'nail_tech' : 'supplier')}>{isSupplier ? 'החזרה לנייליסטית' : 'הגדרה כספק'}</Button>
+              {isSupplier && <>
+                <input type="number" min={0} max={100000} aria-label="כמות קרדיטים" placeholder="כמות קרדיטים" value={amounts[p.id] ?? ''} onChange={(e) => setAmounts({ ...amounts, [p.id]: e.target.value })} className={`${field} w-36`} />
+                <Button size="sm" onClick={() => setCredits(p.id)}>שמירת קרדיטים</Button>
+              </>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function AdminPanel() {
   const [tab, setTab] = useState<Tab>('users');
   return (
@@ -360,6 +465,8 @@ export function AdminPanel() {
         ))}
       </div>
       {tab === 'users' && <UsersTab />}
+      {tab === 'trade' && <TradeQueueTab />}
+      {tab === 'suppliers' && <SuppliersTab />}
       {tab === 'words' && <WordsTab />}
       {tab === 'reports' && <ReportsTab />}
       {tab === 'tickets' && <TicketsTab />}

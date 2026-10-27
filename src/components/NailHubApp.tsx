@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { HubShell, type HubSection } from './HubShell';
 import { HubWorkspace } from './HubWorkspace';
+import { AdminPanel } from './AdminPanel';
+import { SupportForm } from './SupportForm';
 import { Link,useNavigate } from '@tanstack/react-router';
 import {RegistrationForm} from './RegistrationForm';
 import { Button } from './ui/button';
@@ -128,6 +130,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   const [authError, setAuthError] = useState('');
 
   const [authLoading, setAuthLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const toMember = (p: any): Member => ({
     id: p.id, fullName: p.display_name, businessName: p.business_name || p.display_name, role: p.account_role,
@@ -141,6 +144,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     const list = (data || []).map(toMember);
     setMembers(list);
     setCurrentUser(list.find((m) => m.id === userId) ?? null);
+    const { data: adminCheck } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });
+    setIsAdmin(adminCheck === true);
     setCurrentStep('app');
   };
 

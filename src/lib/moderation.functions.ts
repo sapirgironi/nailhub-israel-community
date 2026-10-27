@@ -35,12 +35,13 @@ export const moderateComment = createServerFn({ method: "POST" })
     if (localHits.length > 0) {
       const { moderateCommentText } = await import("./moderation.server");
       let suggestion = "";
+      let debugError: string | null = null;
       try {
         suggestion = (await moderateCommentText(data.body, true)).suggestion;
-      } catch {
-        suggestion = "";
+      } catch (e) {
+        debugError = String((e as Error)?.message ?? e).slice(0, 200);
       }
-      return { ok: false, flagged: localHits, suggestion, error: null };
+      return { ok: false, flagged: localHits, suggestion, error: debugError };
     }
 
     try {

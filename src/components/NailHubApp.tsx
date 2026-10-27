@@ -429,7 +429,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
         )}
 
         {/* תוכן עמוד פרופיל אישי */}
-        {!['directory', 'profile'].includes(activeTab) && currentUser && <HubWorkspace section={section} user={currentUser} />}
+        {!['directory', 'profile', 'admin', 'support'].includes(activeTab) && currentUser && <HubWorkspace section={section} user={currentUser} />}
 
         {activeTab === 'profile' && currentUser && (
           <div className="max-w-xl mx-auto bg-card backdrop-blur-xl rounded-3xl border border-border p-6 md:p-8 shadow-soft space-y-6">

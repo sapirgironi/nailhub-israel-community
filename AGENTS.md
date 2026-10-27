@@ -18,6 +18,7 @@
 - Free text uses shared plain-text schemas and database validation triggers; React renders it as text, never HTML, to prevent executable markup.
 - Contact links are reconstructed from validated phone numbers and exact WhatsApp hosts, never arbitrary caller URLs.
 - Hub content sections have individual routes with shared HubShell navigation; mobile uses five fixed actions and desktop uses a sidebar so links remain addressable.
+- The clinic hub links to existing real tool routes, and publication uses the shared HubShell creation sheet on both mobile and desktop, preventing duplicated controls or demo-tool substitutions.
 - New story, feed, profile and trade images use authenticated Cloudinary uploads through active-account server functions; persisted unsigned optimized URLs are resolved to image bytes through RLS-checked server requests, never permanent delivery signatures, to preserve privacy. Legacy storage images retain signed URLs and health signatures remain owner/admin-only.
 - Signature capture uses dynamically imported signature_pad after hydration; tool saves report success only after database confirmation.
 

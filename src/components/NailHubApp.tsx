@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { HubShell, type HubSection } from './HubShell';
 import { HubWorkspace } from './HubWorkspace';
+import { AdminPanel } from './AdminPanel';
+import { SupportForm } from './SupportForm';
 import { Link,useNavigate } from '@tanstack/react-router';
 import {RegistrationForm} from './RegistrationForm';
 import { Button } from './ui/button';
@@ -128,6 +130,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   const [authError, setAuthError] = useState('');
 
   const [authLoading, setAuthLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const toMember = (p: any): Member => ({
     id: p.id, fullName: p.display_name, businessName: p.business_name || p.display_name, role: p.account_role,
@@ -141,6 +144,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     const list = (data || []).map(toMember);
     setMembers(list);
     setCurrentUser(list.find((m) => m.id === userId) ?? null);
+    const { data: adminCheck } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });
+    setIsAdmin(adminCheck === true);
     setCurrentStep('app');
   };
 
@@ -148,7 +153,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     supabase.auth.getSession().then(({ data }) => { if (data.session) loadData(data.session.user.id); });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) loadData(session.user.id);
-      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setCurrentStep('login'); }
+      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setIsAdmin(false); setCurrentStep('login'); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -273,8 +278,10 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   });
 
   return (
-    <HubShell section={section} name={currentUser?.fullName} onSignOut={handleSignOut}>
+    <HubShell section={section} name={currentUser?.fullName} onSignOut={handleSignOut} isAdmin={isAdmin}>
         {authError && <p role="alert" className="text-right text-sm text-destructive mb-4">{authError}</p>}
+        {activeTab === 'admin' && (isAdmin ? <AdminPanel /> : <p className="text-sm text-muted-foreground py-8 text-center">אזור הניהול פתוח למנהלות בלבד</p>)}
+        {activeTab === 'support' && currentUser && <SupportForm user={currentUser} />}
         {activeTab === 'directory' && (
           <div className="space-y-6">
             
@@ -422,7 +429,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
         )}
 
         {/* תוכן עמוד פרופיל אישי */}
-        {!['directory', 'profile'].includes(activeTab) && currentUser && <HubWorkspace section={section} user={currentUser} />}
+        {!['directory', 'profile', 'admin', 'support'].includes(activeTab) && currentUser && <HubWorkspace section={section} user={currentUser} />}
 
         {activeTab === 'profile' && currentUser && (
           <div className="max-w-xl mx-auto bg-card backdrop-blur-xl rounded-3xl border border-border p-6 md:p-8 shadow-soft space-y-6">

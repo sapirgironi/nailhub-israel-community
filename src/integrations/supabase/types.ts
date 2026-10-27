@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          active: boolean
+          body: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          active?: boolean
+          body: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      blocked_words: {
+        Row: {
+          created_at: string
+          id: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          word?: string
+        }
+        Relationships: []
+      }
       collab_offers: {
         Row: {
           created_at: string
@@ -455,9 +494,11 @@ export type Database = {
           created_at: string
           id: string
           image_url: string
+          is_pinned: boolean
           likes_count: number | null
           price_nis: number | null
           service_tags: string[] | null
+          status: string
           treatment_category: string | null
         }
         Insert: {
@@ -466,9 +507,11 @@ export type Database = {
           created_at?: string
           id?: string
           image_url: string
+          is_pinned?: boolean
           likes_count?: number | null
           price_nis?: number | null
           service_tags?: string[] | null
+          status?: string
           treatment_category?: string | null
         }
         Update: {
@@ -477,9 +520,11 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string
+          is_pinned?: boolean
           likes_count?: number | null
           price_nis?: number | null
           service_tags?: string[] | null
+          status?: string
           treatment_category?: string | null
         }
         Relationships: [
@@ -575,6 +620,58 @@ export type Database = {
           specialties?: string[] | null
         }
         Relationships: []
+      }
+      reports: {
+        Row: {
+          comment_id: string | null
+          created_at: string
+          id: string
+          post_id: string | null
+          reason: string
+          reporter_id: string
+          status: string
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          reason?: string
+          reporter_id: string
+          status?: string
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          reason?: string
+          reporter_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_change_requests: {
         Row: {
@@ -724,6 +821,76 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          email: string
+          id: string
+          phone: string
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string
+          status?: string
+          subject: string
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_quotas: {
+        Row: {
+          daily_limit: number
+          unlimited: boolean
+          user_id: string
+        }
+        Insert: {
+          daily_limit?: number
+          unlimited?: boolean
+          user_id: string
+        }
+        Update: {
+          daily_limit?: number
+          unlimited?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_quotas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -741,6 +908,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_sanctions: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          reason: string
+          until: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          reason?: string
+          until?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          reason?: string
+          until?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sanctions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -67,7 +67,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
  const [panel,setPanel]=useState<'stickers'|null>(null);const [busy,setBusy]=useState(false);const [err,setErr]=useState('');
  const [alt,setAlt]=useState('');const [altBusy,setAltBusy]=useState(false);const [aiBusy,setAiBusy]=useState(false);
  const frame=useRef<HTMLDivElement>(null);const nid=useRef(1);const topZ=useRef(1);
- const pointers=useRef(new Map<number,{x:number;y:number}>());const pinch=useRef<{d:number;s:number}|null>(null);
+ const pointers=useRef(new Map<number,{x:number;y:number}>());const pinch=useRef<{d:number;a:number;s:number;r:number}|null>(null);
  const assist=useServerFn(storyTextAssist);const describe=useServerFn(storyAltText);
  const stickers=useQuery({queryKey:['story-stickers'],staleTime:60_000,queryFn:async()=>{const {data,error}=await supabase.from('story_stickers').select('*').order('created_at',{ascending:false});if(error)throw error;
   return (await Promise.all(data.map(async s=>{const {data:b}=await supabase.storage.from('story-stickers').download(s.image_path);return b?{...s,url:URL.createObjectURL(b)}:null;}))).filter((s):s is NonNullable<typeof s>=>!!s);}});

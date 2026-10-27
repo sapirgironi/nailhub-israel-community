@@ -634,6 +634,7 @@ export type Database = {
           image_url: string
           is_pinned: boolean
           likes_count: number | null
+          mentions: Json
           price_nis: number | null
           service_tags: string[] | null
           status: string
@@ -647,6 +648,7 @@ export type Database = {
           image_url: string
           is_pinned?: boolean
           likes_count?: number | null
+          mentions?: Json
           price_nis?: number | null
           service_tags?: string[] | null
           status?: string
@@ -660,6 +662,7 @@ export type Database = {
           image_url?: string
           is_pinned?: boolean
           likes_count?: number | null
+          mentions?: Json
           price_nis?: number | null
           service_tags?: string[] | null
           status?: string
@@ -670,6 +673,35 @@ export type Database = {
             foreignKeyName: "posts_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      premium_subscriptions: {
+        Row: {
+          expires_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

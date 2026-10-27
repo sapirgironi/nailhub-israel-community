@@ -21,7 +21,7 @@ export const STORY_FONTS=[
 type FontId=(typeof STORY_FONTS)[number]['id'];
 const COLORS=['#FFFFFF','#000000','#5B0E2D','#E91E63','#F48FB1','#FCE4EC','#D7B19D','#C8A27A','#D4AF37','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#FF6F61'];
 const ROSE='#5B0E2D';const BASE=28;const IMG_BASE=110;
-type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;z:number;src?:string|undefined};
+type El={id:number;kind:'text'|'pill'|'image';text:string;font:FontId;bold:boolean;underline:boolean;highlight:boolean;color:string;x:number;y:number;scale:number;rot:number;z:number;src?:string|undefined};
 
 const fontOf=(id:FontId)=>STORY_FONTS.find(f=>f.id===id)??STORY_FONTS[0];
 function isLight(hex:string){const n=parseInt(hex.slice(1),16);return ((n>>16)*299+((n>>8)&255)*587+(n&255)*114)/1000>160;}
@@ -36,6 +36,7 @@ async function flatten(src:string,els:El[],frameW:number):Promise<File>{
  const s=Math.max(W/img.width,H/img.height);g.drawImage(img,(W-img.width*s)/2,(H-img.height*s)/2,img.width*s,img.height*s);
  g.textAlign='center';g.textBaseline='middle';g.direction='rtl';
  for(const e of [...els].sort((a,b)=>a.z-b.z)){const x=e.x/100*W,y=e.y/100*H;
+  g.restore();g.save();g.globalAlpha=1;g.translate(x,y);g.rotate((e.rot||0)*Math.PI/180);g.translate(-x,-y);
   if(e.kind==='image'&&e.src){const im=await loadImg(e.src);const w=IMG_BASE*e.scale*k,h=w*im.height/im.width;g.drawImage(im,x-w/2,y-h/2,w,h);continue;}
   if(e.kind==='pill'){const px=15*e.scale*k;g.font=`800 ${px}px "Heebo"`;await document.fonts.load(g.font);const w=g.measureText(e.text).width+px*1.6;g.fillStyle='#ffffff';g.beginPath();g.roundRect(x-w/2,y-px,w,px*2,px);g.fill();g.fillStyle=ROSE;g.fillText(e.text,x,y);continue;}
   const px=BASE*e.scale*k;g.font=cssFont(e,px);await document.fonts.load(g.font,e.text);
@@ -73,16 +74,24 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
  const selected=els.find(e=>e.id===sel)??null;
  const patch=(id:number,p:Partial<El>)=>setEls(v=>v.map(e=>e.id===id?{...e,...p}:e));
  const last=useRef<Pick<El,'font'|'bold'|'underline'|'highlight'|'color'>>({font:'assistant',bold:true,underline:false,highlight:false,color:'#FFFFFF'});
- function add(kind:El['kind'],text:string,src?:string){const id=nid.current++;const z=++topZ.current;setEls(v=>[...v,{id,kind,text,src,...last.current,x:50,y:kind==='text'?40:55,scale:1,z}]);setSel(id);setPanel(null);if(kind==='text')setEditing(id);}
+ function add(kind:El['kind'],text:string,src?:string){const id=nid.current++;const z=++topZ.current;setEls(v=>[...v,{id,kind,text,src,...last.current,x:50,y:kind==='text'?40:55,scale:1,rot:0,z}]);setSel(id);setPanel(null);if(kind==='text')setEditing(id);}
  const pos=(ev:{clientX:number;clientY:number})=>{const r=frame.current!.getBoundingClientRect();return {x:(ev.clientX-r.left)/r.width*100,y:(ev.clientY-r.top)/r.height*100};};
  const clamp=(p:{x:number;y:number})=>({x:Math.min(97,Math.max(3,p.x)),y:Math.min(98,Math.max(2,p.y))});
+ const tap=useRef<{id:number;x:number;y:number;was:boolean;moved:boolean}|null>(null);
+ function startPinch(target:El){const [a,b]=[...pointers.current.values()];pinch.current={d:Math.hypot(a!.x-b!.x,a!.y-b!.y),a:Math.atan2(b!.y-a!.y,b!.x-a!.x),s:target.scale,r:target.rot};setDrag(null);if(tap.current)tap.current.moved=true;}
  function down(ev:RPointerEvent,e:El){ev.stopPropagation();if(editing===e.id)return;frame.current?.setPointerCapture(ev.pointerId);pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+  if(pointers.current.size===2){const t=els.find(x=>x.id===sel)??e;startPinch(t);return;}
+  tap.current={id:e.id,x:ev.clientX,y:ev.clientY,was:sel===e.id,moved:false};
   const z=++topZ.current;patch(e.id,{z});setSel(e.id);if(editing!==null&&editing!==e.id)setEditing(null);const p=pos(ev);setDrag({id:e.id,dx:p.x-e.x,dy:p.y-e.y});}
- function frameDown(ev:RPointerEvent){pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});if(pointers.current.size===2&&selected){const [a,b]=[...pointers.current.values()];pinch.current={d:Math.hypot(a!.x-b!.x,a!.y-b!.y),s:selected.scale};setDrag(null);}else if(pointers.current.size===1&&!drag){setSel(null);setEditing(null);}}
+ function frameDown(ev:RPointerEvent){pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});if(pointers.current.size===2&&selected){startPinch(selected);}else if(pointers.current.size===1&&!drag){setSel(null);setEditing(null);}}
  function move(ev:RPointerEvent){if(!pointers.current.has(ev.pointerId))return;pointers.current.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
-  if(pinch.current&&sel!==null&&pointers.current.size>=2){const [a,b]=[...pointers.current.values()];const d=Math.hypot(a!.x-b!.x,a!.y-b!.y);patch(sel,{scale:Math.min(5,Math.max(0.4,pinch.current.s*d/pinch.current.d))});return;}
+  if(tap.current&&Math.hypot(ev.clientX-tap.current.x,ev.clientY-tap.current.y)>6)tap.current.moved=true;
+  if(pinch.current&&sel!==null&&pointers.current.size>=2){const [a,b]=[...pointers.current.values()];const d=Math.hypot(a!.x-b!.x,a!.y-b!.y);const ang=Math.atan2(b!.y-a!.y,b!.x-a!.x);patch(sel,{scale:Math.min(5,Math.max(0.4,pinch.current.s*d/pinch.current.d)),rot:pinch.current.r+(ang-pinch.current.a)*180/Math.PI});return;}
   if(!drag)return;const p=pos(ev);setOver(isTrash(p.x,p.y));patch(drag.id,clamp({x:p.x-drag.dx,y:p.y-drag.dy}));}
- function up(ev:RPointerEvent){pointers.current.delete(ev.pointerId);if(pointers.current.size<2)pinch.current=null;if(!drag)return;const p=pos(ev);if(isTrash(p.x,p.y)){setEls(v=>v.filter(e=>e.id!==drag.id));setSel(null);}setDrag(null);setOver(false);}
+ function up(ev:RPointerEvent){pointers.current.delete(ev.pointerId);if(pointers.current.size<2)pinch.current=null;
+  const t=tap.current;if(pointers.current.size===0)tap.current=null;
+  if(t&&!t.moved&&t.was){const el=els.find(x=>x.id===t.id);if(el?.kind==='text')setEditing(el.id);}
+  if(!drag)return;const p=pos(ev);if(isTrash(p.x,p.y)){setEls(v=>v.filter(e=>e.id!==drag.id));setSel(null);}setDrag(null);setOver(false);}
  function style(p:Partial<El>){if(!selected)return;Object.assign(last.current,p);patch(selected.id,p);}
  async function ai(mode:'improve'|'shorten'|'nikud'|'emoji'){if(!selected?.text.trim())return;setAiBusy(true);setErr('');const r=await assist({data:{text:selected.text,mode}}).catch(()=>({text:'',error:'הבינה המלאכותית לא הצליחה כרגע'}));setAiBusy(false);if(r.error||!r.text){setErr(r.error??'לא התקבל טקסט');return;}setEditing(null);patch(selected.id,{text:r.text});}
  async function makeAlt(){setAltBusy(true);setErr('');try{const f=await flatten(src,els,frame.current!.getBoundingClientRect().width);const r=await describe({data:{image:await smallDataUrl(f)}});if(r.error)setErr(r.error);else setAlt(r.alt);}catch{setErr('הפקת התיאור נכשלה');}setAltBusy(false);}

@@ -56,7 +56,7 @@ function EditableText({initial,onChange,onDone}:{initial:string;onChange:(t:stri
 }
 
 export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>void;onPublish:(f:File,alt:string)=>Promise<void>}){
- const [src]=useState(()=>URL.createObjectURL(file));useEffect(()=>()=>URL.revokeObjectURL(src),[src]);
+ const [src,setSrc]=useState('');useEffect(()=>{const u=URL.createObjectURL(file);setSrc(u);return()=>URL.revokeObjectURL(u);},[file]);
  const [els,setEls]=useState<El[]>([]);const [sel,setSel]=useState<number|null>(null);const [editing,setEditing]=useState<number|null>(null);
  const [drag,setDrag]=useState<{id:number;dx:number;dy:number}|null>(null);const [over,setOver]=useState(false);
  const [panel,setPanel]=useState<'stickers'|null>(null);const [busy,setBusy]=useState(false);const [err,setErr]=useState('');

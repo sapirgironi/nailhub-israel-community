@@ -37,12 +37,13 @@ async function uploadPhoto(file:File,userId:string){
  const {error}=await supabase.storage.from('community-work').upload(path,file,{contentType:file.type});if(error)throw error;return `community-work/${path}`;
 }
 function StoriesBar({user}:{user:Person}){
- const qc=useQueryClient();const [viewer,setViewer]=useState<number|null>(null);const [progress,setProgress]=useState(0);const [paused,setPaused]=useState(false);const [msg,setMsg]=useState('');
+ const qc=useQueryClient();const [viewer,setViewer]=useState<number|null>(null);const [progress,setProgress]=useState(0);const [paused,setPaused]=useState(false);const [msg,setMsg]=useState('');const [viewersFor,setViewersFor]=useState<string|null>(null);
  const stories=useQuery({queryKey:['hub-stories'],queryFn:async()=>{const {data,error}=await supabase.from('stories').select('*').order('created_at',{ascending:false});if(error)throw error;return Promise.all(data.map(async s=>({...s,displayUrl:await photoUrl(s.media_url)})));}});
  useEffect(()=>{if(viewer===null||paused)return;const total=stories.data?.length??0;const t=setInterval(()=>{setProgress(p=>{if(p>=100){if(viewer<total-1){setViewer(viewer+1);return 0;}setViewer(null);return 0;}return p+2;});},100);return()=>clearInterval(t);},[viewer,paused,stories.data?.length]);
  async function addStory(f:File|null){if(!f)return;setMsg('');try{const media_url=await uploadPhoto(f,user.id);const {error}=await supabase.from('stories').insert({user_id:user.id,media_url});if(error)throw error;await qc.invalidateQueries({queryKey:['hub-stories']});}catch{setMsg('פרסום הסטורי נכשל');}}
  async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setViewer(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  const current=viewer!==null?stories.data?.[viewer]:null;
+ useEffect(()=>{if(!current||current.user_id===user.id)return;void supabase.from('story_views').upsert({story_id:current.id,viewer_id:user.id,viewer_name:user.businessName||user.fullName},{onConflict:'story_id,viewer_id',ignoreDuplicates:true}).then(({error})=>{if(error)setMsg('רישום הצפייה נכשל');});},[current?.id]);
  const storyInput=useRef<HTMLInputElement>(null);
  return <><section aria-label="סטוריז מהקהילה" className="flex items-center gap-3 overflow-x-auto pb-2 mb-6">
   <input ref={storyInput} aria-label="העלאת סטורי" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{void addStory(e.target.files?.[0]??null);e.target.value='';}}/>
@@ -60,6 +61,7 @@ function StoriesBar({user}:{user:Person}){
   <div className="flex items-center justify-between text-white">
    <span className="font-extrabold text-sm">{current.user_id===user.id?user.businessName:'חברת קהילה'}</span>
    <div className="flex items-center gap-1">
+    {current.user_id===user.id&&<Button size="icon" variant="ghost" aria-label="רשימת הצופות בסטורי" title="מי צפתה" onClick={()=>setViewersFor(current.id)}><Eye className="text-white"/></Button>}
     {current.user_id===user.id&&<Button size="icon" variant="ghost" aria-label="מחיקת סטורי" title="מחיקת סטורי" onClick={()=>removeStory(current.id)}><Trash2 className="text-white"/></Button>}
     <Button size="icon" variant="ghost" aria-label="סגירת הסטורי" title="סגירה" onClick={()=>setViewer(null)}><X className="text-white"/></Button>
    </div>

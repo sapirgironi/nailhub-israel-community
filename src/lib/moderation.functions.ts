@@ -39,7 +39,7 @@ export const moderateComment = createServerFn({ method: "POST" })
       try {
         const ai = await moderateCommentText(data.body, true);
         suggestion = ai.suggestion;
-        debugError = `v3 toxic=${ai.toxic} flagged=${ai.flagged.length} suggLen=${ai.suggestion.length}`;
+        debugError = `v4 toxic=${ai.toxic} raw=${ai.raw ?? "none"}`;
       } catch (e) {
         debugError = "v3 threw: " + String((e as Error)?.message ?? e).slice(0, 200);
       }

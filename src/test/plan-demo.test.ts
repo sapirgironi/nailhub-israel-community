@@ -1,0 +1,14 @@
+import {expect,it} from 'vitest';
+import {PLAN_PRICES,demoLimits,isDemoPlan,safeStoreUrl} from '../lib/plan-demo';
+it('Free costs 0 monthly and yearly',()=>{expect(PLAN_PRICES.free).toEqual({monthly:0,yearly:0});});
+it('Pro first year costs 29 monthly or 290 yearly',()=>{expect(PLAN_PRICES.pro).toEqual({monthly:29,yearly:290});});
+it('Academy costs 99 monthly or exactly 890 yearly',()=>{expect(PLAN_PRICES.academy).toEqual({monthly:99,yearly:890});});
+it('Vendor costs 149 monthly or 1490 yearly',()=>{expect(PLAN_PRICES.vendor).toEqual({monthly:149,yearly:1490});});
+it('Free demonstration allows 3 photo AI drafts per month',()=>{expect(demoLimits('free').photoAi).toBe(3);});
+it('Free demonstration allows 5 health declarations per month',()=>{expect(demoLimits('free').health).toBe(5);});
+it('Pro demonstration has unlimited photo AI drafts',()=>{expect(demoLimits('pro').photoAi).toBe(Infinity);});
+it('Pro demonstration has unlimited declarations',()=>{expect(demoLimits('pro').health).toBe(Infinity);});
+it('Academy includes 2 monthly boosts',()=>{expect(demoLimits('academy').boosts).toBe(2);});
+it('Vendor includes 2 monthly boosts',()=>{expect(demoLimits('vendor').boosts).toBe(2);});
+it('does not accept admin as a demo subscription',()=>{expect(isDemoPlan('admin')).toBe(false);expect(isDemoPlan('academy')).toBe(true);});
+it('rejects script store URLs',()=>{expect(safeStoreUrl('javascript:alert(1)')).toBeNull();expect(safeStoreUrl('https://user:pass@example.org')).toBeNull();expect(safeStoreUrl('https://example.org/shop')).toBe('https://example.org/shop');});

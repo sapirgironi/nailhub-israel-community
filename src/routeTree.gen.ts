@@ -10,26 +10,36 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AcademyRouteImport } from './routes/academy'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BoardsRouteImport } from './routes/boards'
 import { Route as CalculatorRouteImport } from './routes/calculator'
+import { Route as DemoHealthRouteImport } from './routes/demo-health'
+import { Route as DemoPricelistRouteImport } from './routes/demo-pricelist'
 import { Route as DirectoryRouteImport } from './routes/directory'
 import { Route as DraftRouteImport } from './routes/draft'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as InsuranceRouteImport } from './routes/insurance'
 import { Route as NailtradeRouteImport } from './routes/nailtrade'
+import { Route as PlansRouteImport } from './routes/plans'
 import { Route as PricelistRouteImport } from './routes/pricelist'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as VendorDealsRouteImport } from './routes/vendor-deals'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcademyRoute = AcademyRouteImport.update({
+  id: '/academy',
+  path: '/academy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -45,6 +55,16 @@ const BoardsRoute = BoardsRouteImport.update({
 const CalculatorRoute = CalculatorRouteImport.update({
   id: '/calculator',
   path: '/calculator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoHealthRoute = DemoHealthRouteImport.update({
+  id: '/demo-health',
+  path: '/demo-health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoPricelistRoute = DemoPricelistRouteImport.update({
+  id: '/demo-pricelist',
+  path: '/demo-pricelist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DirectoryRoute = DirectoryRouteImport.update({
@@ -77,6 +97,11 @@ const NailtradeRoute = NailtradeRouteImport.update({
   path: '/nailtrade',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlansRoute = PlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricelistRoute = PricelistRouteImport.update({
   id: '/pricelist',
   path: '/pricelist',
@@ -107,6 +132,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VendorDealsRoute = VendorDealsRouteImport.update({
+  id: '/vendor-deals',
+  path: '/vendor-deals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
   id: '/members/$memberId',
   path: '/members/$memberId',
@@ -115,139 +145,174 @@ const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/academy': typeof AcademyRoute
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
+  '/demo-health': typeof DemoHealthRoute
+  '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
   '/draft': typeof DraftRoute
   '/feed': typeof FeedRoute
   '/health': typeof HealthRoute
   '/insurance': typeof InsuranceRoute
   '/nailtrade': typeof NailtradeRoute
+  '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/vendor-deals': typeof VendorDealsRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/academy': typeof AcademyRoute
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
+  '/demo-health': typeof DemoHealthRoute
+  '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
   '/draft': typeof DraftRoute
   '/feed': typeof FeedRoute
   '/health': typeof HealthRoute
   '/insurance': typeof InsuranceRoute
   '/nailtrade': typeof NailtradeRoute
+  '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/vendor-deals': typeof VendorDealsRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/academy': typeof AcademyRoute
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
+  '/demo-health': typeof DemoHealthRoute
+  '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
   '/draft': typeof DraftRoute
   '/feed': typeof FeedRoute
   '/health': typeof HealthRoute
   '/insurance': typeof InsuranceRoute
   '/nailtrade': typeof NailtradeRoute
+  '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/vendor-deals': typeof VendorDealsRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/academy'
     | '/admin'
     | '/boards'
     | '/calculator'
+    | '/demo-health'
+    | '/demo-pricelist'
     | '/directory'
     | '/draft'
     | '/feed'
     | '/health'
     | '/insurance'
     | '/nailtrade'
+    | '/plans'
     | '/pricelist'
     | '/profile'
     | '/saved'
     | '/settings'
     | '/support'
     | '/terms'
+    | '/vendor-deals'
     | '/members/$memberId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/academy'
     | '/admin'
     | '/boards'
     | '/calculator'
+    | '/demo-health'
+    | '/demo-pricelist'
     | '/directory'
     | '/draft'
     | '/feed'
     | '/health'
     | '/insurance'
     | '/nailtrade'
+    | '/plans'
     | '/pricelist'
     | '/profile'
     | '/saved'
     | '/settings'
     | '/support'
     | '/terms'
+    | '/vendor-deals'
     | '/members/$memberId'
   id:
     | '__root__'
     | '/'
+    | '/academy'
     | '/admin'
     | '/boards'
     | '/calculator'
+    | '/demo-health'
+    | '/demo-pricelist'
     | '/directory'
     | '/draft'
     | '/feed'
     | '/health'
     | '/insurance'
     | '/nailtrade'
+    | '/plans'
     | '/pricelist'
     | '/profile'
     | '/saved'
     | '/settings'
     | '/support'
     | '/terms'
+    | '/vendor-deals'
     | '/members/$memberId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcademyRoute: typeof AcademyRoute
   AdminRoute: typeof AdminRoute
   BoardsRoute: typeof BoardsRoute
   CalculatorRoute: typeof CalculatorRoute
+  DemoHealthRoute: typeof DemoHealthRoute
+  DemoPricelistRoute: typeof DemoPricelistRoute
   DirectoryRoute: typeof DirectoryRoute
   DraftRoute: typeof DraftRoute
   FeedRoute: typeof FeedRoute
   HealthRoute: typeof HealthRoute
   InsuranceRoute: typeof InsuranceRoute
   NailtradeRoute: typeof NailtradeRoute
+  PlansRoute: typeof PlansRoute
   PricelistRoute: typeof PricelistRoute
   ProfileRoute: typeof ProfileRoute
   SavedRoute: typeof SavedRoute
   SettingsRoute: typeof SettingsRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
+  VendorDealsRoute: typeof VendorDealsRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
 }
 
@@ -258,6 +323,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/academy': {
+      id: '/academy'
+      path: '/academy'
+      fullPath: '/academy'
+      preLoaderRoute: typeof AcademyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -279,6 +351,20 @@ declare module '@tanstack/react-router' {
       path: '/calculator'
       fullPath: '/calculator'
       preLoaderRoute: typeof CalculatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-health': {
+      id: '/demo-health'
+      path: '/demo-health'
+      fullPath: '/demo-health'
+      preLoaderRoute: typeof DemoHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-pricelist': {
+      id: '/demo-pricelist'
+      path: '/demo-pricelist'
+      fullPath: '/demo-pricelist'
+      preLoaderRoute: typeof DemoPricelistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/directory': {
@@ -323,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NailtradeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plans': {
+      id: '/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof PlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricelist': {
       id: '/pricelist'
       path: '/pricelist'
@@ -365,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vendor-deals': {
+      id: '/vendor-deals'
+      path: '/vendor-deals'
+      fullPath: '/vendor-deals'
+      preLoaderRoute: typeof VendorDealsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members/$memberId': {
       id: '/members/$memberId'
       path: '/members/$memberId'
@@ -377,21 +477,26 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcademyRoute: AcademyRoute,
   AdminRoute: AdminRoute,
   BoardsRoute: BoardsRoute,
   CalculatorRoute: CalculatorRoute,
+  DemoHealthRoute: DemoHealthRoute,
+  DemoPricelistRoute: DemoPricelistRoute,
   DirectoryRoute: DirectoryRoute,
   DraftRoute: DraftRoute,
   FeedRoute: FeedRoute,
   HealthRoute: HealthRoute,
   InsuranceRoute: InsuranceRoute,
   NailtradeRoute: NailtradeRoute,
+  PlansRoute: PlansRoute,
   PricelistRoute: PricelistRoute,
   ProfileRoute: ProfileRoute,
   SavedRoute: SavedRoute,
   SettingsRoute: SettingsRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
+  VendorDealsRoute: VendorDealsRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
 }
 export const routeTree = rootRouteImport

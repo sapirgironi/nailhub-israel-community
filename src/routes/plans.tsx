@@ -1,0 +1,3 @@
+import {createFileRoute} from '@tanstack/react-router';
+import {PlansView} from '@/components/PlansView';
+export const Route=createFileRoute('/plans')({head:()=>({meta:[{title:'מסלולי חינם, Pro, מדריכות וספקים — NailHub'},{name:'description',content:'השוואת מסלולי NailHub והתנסות בכלי העסק במצב הדגמה.'},{property:'og:title',content:'המסלולים של NailHub'},{property:'og:description',content:'מסלולי קהילה, Pro, מדריכות וספקים והתנסות אינטראקטיבית.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]}),component:PlansView});

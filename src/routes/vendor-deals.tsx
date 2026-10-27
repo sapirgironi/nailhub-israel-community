@@ -1,0 +1,3 @@
+import {createFileRoute} from '@tanstack/react-router';
+import {DemoVendor} from '@/components/DemoVendor';
+export const Route=createFileRoute('/vendor-deals')({head:()=>({meta:[{title:'מבצעי ספקים — הדגמת NailHub Vendor'},{name:'description',content:'אזור מסחרי לדוגמה עם מוצרים, הנחות וקופונים, נפרד מיד שנייה.'},{property:'og:title',content:'NailHub Vendor — מבצעי ספקים'},{property:'og:description',content:'מבצעים לחברות הקהילה במצב הדגמה בלבד.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]}),component:DemoVendor});

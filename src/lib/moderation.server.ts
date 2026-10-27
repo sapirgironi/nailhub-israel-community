@@ -15,7 +15,7 @@ export interface ModerationResult {
   suggestion: string;
 }
 
-export async function moderateCommentText(body: string): Promise<ModerationResult> {
+export async function moderateCommentText(body: string, forceRephrase = false): Promise<ModerationResult> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) return { toxic: false, flagged: [], suggestion: "" };
   const provider = createOpenAI({
@@ -23,10 +23,13 @@ export async function moderateCommentText(body: string): Promise<ModerationResul
     apiKey,
     headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
   });
+  const prompt = forceRephrase
+    ? `התגובה הבאה נחסמה בגלל מילים אסורות. סמני toxic=true, וכתבי ב-suggestion נוסח חלופי מכבד ששומר על הכוונה.\nהתגובה:\n${body}`
+    : `התגובה לבדיקה:\n${body}`;
   const result = streamText({
     model: provider.responses("openai/gpt-6-astra"),
     instructions: INSTRUCTIONS,
-    messages: [{ role: "user", content: `התגובה לבדיקה:\n${body}` }],
+    messages: [{ role: "user", content: prompt }],
     maxRetries: 0,
     providerOptions: {
       openai: {

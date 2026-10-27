@@ -36,7 +36,7 @@ export const moderateComment = createServerFn({ method: "POST" })
       const { moderateCommentText } = await import("./moderation.server");
       let suggestion = "";
       try {
-        suggestion = (await moderateCommentText(data.body)).suggestion;
+        suggestion = (await moderateCommentText(data.body, true)).suggestion;
       } catch {
         suggestion = "";
       }

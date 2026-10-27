@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Sparkles,Users,ShoppingBag,ShieldCheck,Calculator,FileSignature,Palette,Bookmark,User,Home,Search,Plus,Gem,Bell,PenLine,LogOut } from 'lucide-react';
+import { Sparkles,Users,ShoppingBag,ShieldCheck,Calculator,FileSignature,Palette,Bookmark,User,Home,Search,Plus,Gem,PenLine,LogOut } from 'lucide-react';
 import {Button} from './ui/button';
+import {NotificationsBell} from './NotificationsBell';
 export type HubSection='feed'|'directory'|'boards'|'nailtrade'|'insurance'|'calculator'|'health_form'|'pricelist'|'saved'|'profile'|'draft';
 const links=[{id:'feed',path:'/feed',label:'הפיד המקצועי',icon:Sparkles},{id:'directory',path:'/directory',label:'אינדקס חברות',icon:Users},{id:'boards',path:'/boards',label:'לוחות הקהילה',icon:Users},{id:'nailtrade',path:'/nailtrade',label:'ציוד יד שנייה',icon:ShoppingBag},{id:'insurance',path:'/insurance',label:'ביטוח מקצועי לעסק',icon:ShieldCheck},{id:'calculator',path:'/calculator',label:'מחשבון תמחור ורווחיות',icon:Calculator},{id:'health_form',path:'/health',label:'הצהרת בריאות חתומה',icon:FileSignature},{id:'pricelist',path:'/pricelist',label:'מחירון דיגיטלי',icon:Palette},{id:'draft',path:'/draft',label:'כתיבת פוסט חכמה',icon:PenLine},{id:'saved',path:'/saved',label:'השמורים שלי',icon:Bookmark},{id:'profile',path:'/profile',label:'הפרופיל שלי',icon:User}] as const;
 export function HubShell({section,children,name,onSignOut}:{section:HubSection;children:ReactNode;name?:string|undefined;onSignOut?:()=>void}){

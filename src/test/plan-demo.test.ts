@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {PLAN_PRICES,demoLimits,isDemoPlan,safeStoreUrl} from '../lib/plan-demo';
+import {PLAN_PRICES,demoLimits,isDemoPlan,safeStoreUrl,AI_CREDIT_PACKS,canUpgradeProfession} from '../lib/plan-demo';
 it('Free costs 0 monthly and yearly',()=>{expect(PLAN_PRICES.free).toEqual({monthly:0,yearly:0});});
 it('Pro first year costs 29 monthly or 290 yearly',()=>{expect(PLAN_PRICES.pro).toEqual({monthly:29,yearly:290});});
 it('Academy costs 99 monthly or exactly 890 yearly',()=>{expect(PLAN_PRICES.academy).toEqual({monthly:99,yearly:890});});
@@ -10,5 +10,11 @@ it('Pro demonstration has unlimited photo AI drafts',()=>{expect(demoLimits('pro
 it('Pro demonstration has unlimited declarations',()=>{expect(demoLimits('pro').health).toBe(Infinity);});
 it('Academy includes 2 monthly boosts',()=>{expect(demoLimits('academy').boosts).toBe(2);});
 it('Vendor includes 2 monthly boosts',()=>{expect(demoLimits('vendor').boosts).toBe(2);});
+it('20 AI credits cost 15 shekels',()=>{expect(AI_CREDIT_PACKS[0]).toEqual({credits:20,price:15});});
+it('50 AI credits cost 29 shekels',()=>{expect(AI_CREDIT_PACKS[1]).toEqual({credits:50,price:29});});
+it('120 AI credits cost 49 shekels',()=>{expect(AI_CREDIT_PACKS[2]).toEqual({credits:120,price:49});});
+it('clients cannot directly upgrade',()=>{expect(canUpgradeProfession('client')).toBe(false);});
+it('modelists cannot directly upgrade',()=>{expect(canUpgradeProfession('model')).toBe(false);});
+it('only known professional profiles can use upgrade demonstrations',()=>{expect(canUpgradeProfession('nail_tech')).toBe(true);expect(canUpgradeProfession('instructor')).toBe(true);expect(canUpgradeProfession('supplier')).toBe(true);expect(canUpgradeProfession(null)).toBe(false);expect(canUpgradeProfession('admin')).toBe(false);});
 it('does not accept admin as a demo subscription',()=>{expect(isDemoPlan('admin')).toBe(false);expect(isDemoPlan('academy')).toBe(true);});
 it('rejects script store URLs',()=>{expect(safeStoreUrl('javascript:alert(1)')).toBeNull();expect(safeStoreUrl('https://user:pass@example.org')).toBeNull();expect(safeStoreUrl('https://example.org/shop')).toBe('https://example.org/shop');});

@@ -30,3 +30,4 @@
 - Admin-only email lookup verifies has_role before importing the privileged client; supplier credit set/add uses a serialized database function so concurrent updates cannot overwrite balances.
 - Story editor layers use a fixed 9:16 frame and percentage text widths; export rasterizes the same DOM layout to JPEG so browser Hebrew wrapping and fonts stay consistent. Admin stickers are private blobs to avoid cross-origin canvas taint.
 - Story mentions persist stable member IDs with normalized image hit areas; community discovery uses the authenticated narrow community_members projection, never full private profiles, so contact information stays protected.
+- Prebundle the router, query/start clients and story export dependencies with React in Vite to avoid mixed dependency generations and invalid hooks during preview updates.

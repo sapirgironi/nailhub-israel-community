@@ -34,7 +34,7 @@ function isTrash(x:number,y:number){return y>86&&Math.abs(x-50)<18;}
 function cssFont(e:El,px:number){const f=fontOf(e.font);return `${f.italic?'italic ':''}${e.bold?'700':'400'} ${px}px "${f.family}"`;}
 
 async function loadImg(src:string){const img=new Image();img.src=src;await img.decode();return img;}
-async function smallDataUrl(file:File){const url=URL.createObjectURL(file);try{const img=await loadImg(url);const s=Math.min(1,512/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext('2d')!.drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.7);}finally{URL.revokeObjectURL(url);}}
+async function smallDataUrl(file:File){const url=URL.createObjectURL(file);try{const img=await loadImg(url);const s=Math.min(1,512/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const g=c.getContext('2d');if(!g)throw new Error('עיבוד התמונה נכשל');g.drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.7);}finally{URL.revokeObjectURL(url);}}
 
 function EditableText({initial,onChange,onDone}:{initial:string;onChange:(t:string,caret:number)=>void;onDone:()=>void}){
  const ref=useRef<HTMLSpanElement>(null);
@@ -92,7 +92,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
   <div className="w-full max-w-sm flex items-center justify-between shrink-0"><Button size="icon" variant="ghost" className="text-primary-foreground" aria-label="ביטול" onClick={onCancel}><X/></Button>
    <div className="flex gap-2"><Button size="sm" variant="secondary" onClick={()=>add('text','')}><Type/>טקסט</Button><Button size="sm" variant="secondary" onClick={()=>setPanel(panel==='stickers'?null:'stickers')}><Smile/>סטיקרים</Button></div></div>
   <div ref={frame} onPointerDown={frameDown} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{touchAction:'none',backgroundImage:`url(${src})`,width:'min(100%,384px,calc(58dvh * 9 / 16))',aspectRatio:'9 / 16'}} className="relative shrink-0 overflow-hidden bg-cover bg-center select-none">
-   {els.map(e=>{const f=fontOf(e.font);const active=sel===e.id&&!exporting;
+   {els.filter(e=>!exporting||e.kind!=='text'||e.text.trim()).map(e=>{const f=fontOf(e.font);const active=sel===e.id&&!exporting;
      return <div data-layer-id={e.id} key={e.id} onPointerDown={ev=>down(ev,e)} onDoubleClick={()=>e.kind==='text'&&setEditing(e.id)} style={{left:e.x+'%',top:e.y+'%',zIndex:e.z,transform:`translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,touchAction:'none',width:e.kind==='text'?e.width+'%':'max-content',maxWidth:'90%',opacity:drag?.id===e.id&&over?0.5:1}} className={'absolute cursor-grab text-center '+(active?'outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md':'')}>
       {e.kind==='image'&&e.src&&<img src={e.src} alt={e.text||'סטיקר'} draggable={false} style={{width:IMG_BASE}} className="pointer-events-none"/>}
       {e.kind==='pill'&&<span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">{e.text}</span>}
@@ -129,7 +129,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
 
   {panel==='stickers'&&<div className="w-full max-w-sm bg-card rounded-2xl p-3 space-y-2 shrink-0">
    <div className="grid grid-cols-2 gap-2">{STORY_STICKERS.map(s=><button key={s} type="button" onClick={()=>add('pill',s)} className="rounded-full bg-accent text-[#5B0E2D] font-bold text-xs px-3 py-2">{s}</button>)}</div>
-   {(stickers.data?.length??0)>0&&<div className="grid grid-cols-4 gap-2">{stickers.data.map(s=><button key={s.id} type="button" aria-label={s.label||'סטיקר'} onClick={()=>add('image',s.label,s.url)} className="aspect-square rounded-xl bg-muted p-1"><img src={s.url} alt={s.label||'סטיקר'} className="w-full h-full object-contain"/></button>)}</div>}
+   {(stickers.data?.length??0)>0&&<div className="grid grid-cols-4 gap-2">{stickers.data?.map(s=><button key={s.id} type="button" aria-label={s.label||'סטיקר'} onClick={()=>add('image',s.label,s.url)} className="aspect-square rounded-xl bg-muted p-1"><img src={s.url} alt={s.label||'סטיקר'} className="w-full h-full object-contain"/></button>)}</div>}
    {stickers.isError&&<p className="text-xs text-muted-foreground">טעינת הסטיקרים נכשלה</p>}
   </div>}
 

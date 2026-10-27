@@ -33,17 +33,14 @@ export const moderateComment = createServerFn({ method: "POST" })
     const lower = data.body.toLowerCase();
     const localHits = (words ?? []).map((w) => w.word).filter((w) => w && lower.includes(w.toLowerCase()));
     if (localHits.length > 0) {
-      const { moderateCommentText } = await import("./moderation.server");
+      const { rephraseCommentText } = await import("./moderation.server");
       let suggestion = "";
-      let debugError: string | null = null;
       try {
-        const ai = await moderateCommentText(data.body, true);
-        suggestion = ai.suggestion;
-        debugError = `v4 toxic=${ai.toxic} raw=${ai.raw ?? "none"}`;
+        suggestion = await rephraseCommentText(data.body, localHits);
       } catch (e) {
-        debugError = "v3 threw: " + String((e as Error)?.message ?? e).slice(0, 200);
+        console.error("rephrase failed", (e as { statusCode?: number })?.statusCode);
       }
-      return { ok: false, flagged: localHits, suggestion, error: debugError };
+      return { ok: false, flagged: localHits, suggestion, error: null };
     }
 
     try {

@@ -13,6 +13,7 @@ export interface ModerationResult {
   toxic: boolean;
   flagged: string[];
   suggestion: string;
+  raw?: string;
 }
 
 export async function moderateCommentText(body: string, forceRephrase = false): Promise<ModerationResult> {
@@ -50,6 +51,6 @@ export async function moderateCommentText(body: string, forceRephrase = false): 
       suggestion: typeof parsed.suggestion === "string" ? parsed.suggestion : "",
     };
   } catch {
-    return { toxic: false, flagged: [], suggestion: "" };
+    return { toxic: false, flagged: [], suggestion: "", raw: text.slice(0, 300) };
   }
 }

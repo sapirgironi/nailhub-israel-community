@@ -37,9 +37,11 @@ export const moderateComment = createServerFn({ method: "POST" })
       let suggestion = "";
       let debugError: string | null = null;
       try {
-        suggestion = (await moderateCommentText(data.body, true)).suggestion;
+        const ai = await moderateCommentText(data.body, true);
+        suggestion = ai.suggestion;
+        debugError = `v3 toxic=${ai.toxic} flagged=${ai.flagged.length} suggLen=${ai.suggestion.length}`;
       } catch (e) {
-        debugError = String((e as Error)?.message ?? e).slice(0, 200);
+        debugError = "v3 threw: " + String((e as Error)?.message ?? e).slice(0, 200);
       }
       return { ok: false, flagged: localHits, suggestion, error: debugError };
     }

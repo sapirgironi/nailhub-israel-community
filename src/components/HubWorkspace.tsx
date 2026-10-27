@@ -72,7 +72,17 @@ function StoriesBar({user}:{user:Person}){
    {viewer!==null&&viewer<(stories.data?.length??0)-1&&<Button size="icon" variant="ghost" aria-label="סטורי הבא" className="absolute left-2" onClick={()=>{setViewer(viewer+1);setProgress(0);}}><ChevronLeft className="text-white"/></Button>}
   </div>
   {current.caption&&<p className="text-white text-sm text-center">{current.caption}</p>}
- </div>}</>;
+ </div>}
+ {viewersFor&&<StoryViewersModal storyId={viewersFor} onClose={()=>setViewersFor(null)}/>}</>;
+}
+function StoryViewersModal({storyId,onClose}:{storyId:string;onClose:()=>void}){
+ const views=useQuery({queryKey:['hub-story-views',storyId],queryFn:async()=>{const {data,error}=await supabase.from('story_views').select('*').eq('story_id',storyId).order('viewed_at',{ascending:false});if(error)throw error;return data;}});
+ return <div className="fixed inset-0 z-[60] bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="רשימת הצופות בסטורי" className="bg-card border border-border rounded-3xl p-6 max-w-sm w-full space-y-4 text-right max-h-[80vh] overflow-y-auto">
+  <div className="flex items-center justify-between"><h2 className="font-bold">מי צפתה בסטורי</h2><Button size="icon" variant="ghost" aria-label="סגירת רשימת הצופות" onClick={onClose}><X/></Button></div>
+  {views.isError&&<Notice text="טעינת רשימת הצופות נכשלה"/>}
+  {views.isPending&&<Notice text="טוענת צפיות..."/>}
+  {views.data&&(views.data.length===0?<Notice text="עדיין אף אחת לא צפתה בסטורי"/>:<ul className="space-y-3">{views.data.map(v=><li key={v.id} className="flex items-center justify-between gap-2 text-sm border-b border-border pb-2"><span className="font-bold break-words">{v.viewer_name}</span><time className="text-xs text-muted-foreground shrink-0">{new Date(v.viewed_at).toLocaleString('he-IL')}</time></li>)}</ul>)}
+ </div></div>;
 }
 function CommentsModal({post,user,onClose}:{post:Row<'posts'>;user:Person;onClose:()=>void}){
  const qc=useQueryClient();const [text,setText]=useState('');const [msg,setMsg]=useState('');
@@ -89,7 +99,7 @@ function CommentsModal({post,user,onClose}:{post:Row<'posts'>;user:Person;onClos
 }
 function CollabModal({post,user,onClose}:{post:Row<'posts'>;user:Person;onClose:()=>void}){
  const [note,setNote]=useState('');const [msg,setMsg]=useState('');const [sent,setSent]=useState(false);
- async function send(e:React.FormEvent){e.preventDefault();const parsed=plainText(500).safeParse(note);if(!parsed.success){setMsg('ההודעה חייבת להיות טקסט רגיל עד 500 תווים');return;}const {error}=await supabase.from('collab_offers').insert({post_id:post.id,sender_id:user.id,note:parsed.data});if(error){setMsg('שליחת ההצעה נכשלה');return;}setSent(true);}
+ async function send(e:React.FormEvent){e.preventDefault();const parsed=plainText(500).safeParse(note);if(!parsed.success){setMsg('ההודעה חייבת להיות טקסט רגיל עד 500 תווים');return;}const {error}=await supabase.from('collab_offers').insert({post_id:post.id,sender_id:user.id,note:parsed.data});if(error){setMsg('שליחת ההצעה נכשלה');return;}if(post.author_id!==user.id)await supabase.from('notifications').insert({user_id:post.author_id,actor_id:user.id,actor_name:user.businessName||user.fullName,type:'collab',post_id:post.id,body:parsed.data.slice(0,120)});setSent(true);}
  return <div className="fixed inset-0 z-50 bg-overlay flex items-center justify-center p-4"><div role="dialog" aria-modal="true" aria-label="הצעת שיתוף פעולה" className="bg-card border border-border rounded-3xl p-6 max-w-md w-full space-y-4 text-right">
   <div className="flex items-center justify-between"><h2 className="font-bold">הצעת שת״פ</h2><Button size="icon" variant="ghost" aria-label="סגירה" onClick={onClose}><X/></Button></div>
   {sent?<Notice text="ההצעה נשלחה ליוצרת העבודה"/>:<form onSubmit={send} className="space-y-4"><Entry label="מה מציעים?"><textarea aria-label="תוכן ההצעה" maxLength={500} required rows={4} value={note} onChange={e=>setNote(e.target.value)} className={field} placeholder="לדוגמה: שיתוף פעולה בצילומים, חילופי טיפולים..."/></Entry><Button type="submit"><Handshake/>שליחת הצעה</Button></form>}
@@ -117,8 +127,8 @@ function Feed({user,savedOnly}:{user:Person;savedOnly:boolean}){
  async function toggle(id:string){const existing=saved.data?.find(s=>s.post_id===id);const result=existing?await supabase.from('saved_posts').delete().eq('id',existing.id):await supabase.from('saved_posts').insert({user_id:user.id,post_id:id});if(result.error){setMsg('עדכון השמורים נכשל');return;}await qc.invalidateQueries({queryKey:['hub-saved',user.id]});}
  async function remove(p:Row<'posts'>){const {error}=await supabase.from('posts').delete().eq('id',p.id);if(error){setMsg('המחיקה נכשלה');return;}setDeleting(null);await qc.invalidateQueries({queryKey:['hub-posts']});}
  const liked=(id:string)=>likes.data?.some(l=>l.post_id===id&&l.user_id===user.id)??false;
- async function toggleLike(id:string){const mine=likes.data?.find(l=>l.post_id===id&&l.user_id===user.id);const result=mine?await supabase.from('post_likes').delete().eq('id',mine.id):await supabase.from('post_likes').insert({post_id:id,user_id:user.id});if(result.error){setMsg('עדכון הלייק נכשל');return;}await Promise.all([qc.invalidateQueries({queryKey:['hub-likes']}),qc.invalidateQueries({queryKey:['hub-posts']})]);}
- function doubleTap(p:Row<'posts'>){setHeartPost(p.id);setTimeout(()=>setHeartPost(null),850);if(!liked(p.id))void toggleLike(p.id);}
+ async function toggleLike(p:Row<'posts'>){const mine=likes.data?.find(l=>l.post_id===p.id&&l.user_id===user.id);const result=mine?await supabase.from('post_likes').delete().eq('id',mine.id):await supabase.from('post_likes').insert({post_id:p.id,user_id:user.id});if(result.error){setMsg('עדכון הלייק נכשל');return;}if(!mine&&p.author_id!==user.id)await supabase.from('notifications').insert({user_id:p.author_id,actor_id:user.id,actor_name:user.businessName||user.fullName,type:'like',post_id:p.id});await Promise.all([qc.invalidateQueries({queryKey:['hub-likes']}),qc.invalidateQueries({queryKey:['hub-posts']})]);}
+ function doubleTap(p:Row<'posts'>){setHeartPost(p.id);setTimeout(()=>setHeartPost(null),850);if(!liked(p.id))void toggleLike(p);}
  const list=(posts.data??[]).filter(p=>(!savedOnly||saved.data?.some(s=>s.post_id===p.id))&&(!search||(p.caption??'').includes(search)));
  return <>{!savedOnly&&<StoriesBar user={user}/>}<div className="grid grid-cols-[minmax(0,1fr)_auto] sm:flex items-start justify-between gap-3"><Heading title={savedOnly?'השמורים שלי':'הפיד המקצועי'}/>{!savedOnly&&<Button onClick={()=>setOpen(!open)}><Plus/>פרסום עבודה</Button>}</div>
  <input aria-label="חיפוש עבודות" placeholder="חיפוש עבודות וטכניקות..." value={search} onChange={e=>setSearch(e.target.value)} className={`${field} mb-6`}/>

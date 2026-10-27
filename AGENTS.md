@@ -25,3 +25,4 @@
 - Password inputs share PasswordField and password-policy so visibility controls and minimum-length validation stay consistent without client complexity scoring.
 
 - RegistrationForm owns signup presentation while NailHubApp retains real auth/profile handlers; no benefit claims or mocked supplier approval are imported from demo uploads.
+- Owner-authored policy pages are standalone public routes without auth-dependent loaders or HubShell, so legal information remains accessible before signup.

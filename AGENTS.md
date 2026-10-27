@@ -18,7 +18,7 @@
 - Free text uses shared plain-text schemas and database validation triggers; React renders it as text, never HTML, to prevent executable markup.
 - Contact links are reconstructed from validated phone numbers and exact WhatsApp hosts, never arbitrary caller URLs.
 - Hub content sections have individual routes with shared HubShell navigation; mobile uses five fixed actions and desktop uses a sidebar so links remain addressable.
-- Work photos use private owner-uploaded storage and authenticated signed URLs; health signatures remain in owner/admin-only records to protect personal information.
+- New story, feed, profile and trade images use authenticated Cloudinary uploads through active-account server functions; persisted unsigned optimized URLs are resolved to image bytes through RLS-checked server requests, never permanent delivery signatures, to preserve privacy. Legacy storage images retain signed URLs and health signatures remain owner/admin-only.
 - Signature capture uses dynamically imported signature_pad after hydration; tool saves report success only after database confirmation.
 
 - User-facing failures pass through the Hebrew error mapper; form validation is intercepted centrally to avoid browser-locale messages, while technical logs remain separate.

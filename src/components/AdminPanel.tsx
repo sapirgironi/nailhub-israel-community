@@ -7,6 +7,7 @@ import { plainText, whatsappLink } from '@/lib/input-security';
 import { useServerFn } from '@tanstack/react-start';
 import { listAdminUsers } from '@/lib/admin.functions';
 import { matchesAdminSearch } from '@/lib/admin-rules';
+import {photoUrl} from '@/lib/media';
 import { ROLE_DEFINITIONS, type AccountRole } from '@/lib/roles';
 
 const field = 'text-right w-full border border-input rounded-lg bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
@@ -377,11 +378,7 @@ function TradeQueueTab() {
       if (error) throw error;
       return Promise.all(data.map(async item => {
         const photo = item.photos?.[0] ?? '';
-        let image = '';
-        if (photo.startsWith('community-work/')) {
-          const { data: signed } = await supabase.storage.from('community-work').createSignedUrl(photo.slice(15), 3600);
-          image = signed?.signedUrl ?? '';
-        } else { try { const url = new URL(photo); if (url.protocol === 'https:') image = url.href; } catch { /* No image supplied. */ } }
+        const image = photo ? await photoUrl(photo) : '';
         return { ...item, image };
       }));
     },

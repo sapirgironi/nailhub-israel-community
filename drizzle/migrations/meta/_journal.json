@@ -134,6 +134,13 @@
       "when": 1793119056980,
       "tag": "0018_story_stickers_and_alt_text",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793121166901,
+      "tag": "0019_cloudinary_image_references",
+      "breakpoints": true
     }
   ]
 }

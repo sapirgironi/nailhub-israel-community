@@ -1,7 +1,7 @@
 # NailHub roadmap
 - [x] 24-hour stories (upload, auto-advance viewer, owner delete) and feed interactions (double-tap like with heart burst, comments, collab offers with author inbox) on real tables stories/post_likes/post_comments/collab_offers with RLS, grants, likes-count trigger and plain-text validation triggers; verified end-to-end in browser (signup, post, story, like, comment)
 - [x] Integrate uploaded registration design with live auth; auto-confirm enabled, HIBP disabled, immediate signup-to-feed and profile persistence verified with six lowercase characters and no runtime errors. Two QA signup accounts remain for verification.
-- [ ] Primary admin assignment — requested account was unconfirmed before auto-confirm and requester identity did not match; needs independent ownership verification, not auto-confirmation or a typed email.
+- [ ] Primary admin assignment — user requests their verified Lovable account instead of the walla address; auth-session --self confirms no matching app account exists. Blocked until user signs up in the app with their Lovable email, then verify --self and grant user_roles admin.
 - [x] Password visibility toggles and minimum-six-character-only client validation; both forms verified in browser and policy tests passed.
 - [x] Hosted simple-password policy — HIBP disabled; real signup accepted six lowercase characters without numbers or symbols. Length/complexity settings not edited via tool, behavior verified end-to-end.
 - [x] Replace lilac with Soft Blush/Petal Pink/Rose Gold; powder-white canvas, softer cards, natural work photos and milky mobile navigation. Verified desktop/mobile layout and compose, no horizontal overflow.
@@ -35,4 +35,4 @@
 - [x] In-app notifications — notifications table (like/comment/collab) with recipient-only RLS, bell with unread badge in header, created on like/comment/collab; verified in browser with real cross-user data
 - [x] Story editor (text, stickers, trash) wired to + sheet and feed
 - [x] Verify Google/Apple sign-in on mobile lands new users in feed
-- [ ] Admin top bar + admin role for sapiryedidia0@walla.com (needs verified ownership)
+- [ ] Admin top bar — awaits verified admin assignment to the user's Lovable-linked app account (no matching app account yet).

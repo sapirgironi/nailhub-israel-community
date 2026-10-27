@@ -1103,6 +1103,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_account_banned: { Args: { target_user: string }; Returns: boolean }
+      manage_supplier_credits: {
+        Args: {
+          credit_mode: string
+          operation_id: string
+          quantity: number
+          target_user: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

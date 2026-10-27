@@ -99,6 +99,13 @@
       "when": 1793102480398,
       "tag": "0013_trade_queue_and_supplier_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793113712912,
+      "tag": "0014_enforce_permanent_bans_and_atomic_supplier_credits",
+      "breakpoints": true
     }
   ]
 }

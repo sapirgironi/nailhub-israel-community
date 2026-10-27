@@ -8,3 +8,6 @@
 - [ ] Deferred by user: AI questionnaire generator and remaining administration features
 - [ ] Remaining: audited support-as-user view, sponsored supplier billing and posts, push notifications (external setup required)
 - [ ] Security: cross-user/admin end-to-end verification
+
+## Done 2026-10-27
+- Granted admin role to sapiryedidia0@walla.com (data change, user_roles); admin button verified for that account.

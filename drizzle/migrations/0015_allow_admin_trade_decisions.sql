@@ -1,0 +1,3 @@
+CREATE POLICY "Administrators review trade items" ON public.nail_trade_items FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin')) WITH CHECK (public.has_role(auth.uid(),'admin'));
+REVOKE EXECUTE ON FUNCTION public.adjust_community_credit(uuid,integer,text,uuid) FROM authenticated;
+COMMENT ON FUNCTION public.adjust_community_credit(uuid,integer,text,uuid) IS 'DEPRECATED: application uses manage_supplier_credits for atomic supplier set/add with active admin verification';

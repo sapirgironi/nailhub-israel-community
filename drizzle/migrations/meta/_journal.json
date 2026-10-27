@@ -106,6 +106,13 @@
       "when": 1793113712912,
       "tag": "0014_enforce_permanent_bans_and_atomic_supplier_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793113805057,
+      "tag": "0015_allow_admin_trade_decisions",
+      "breakpoints": true
     }
   ]
 }

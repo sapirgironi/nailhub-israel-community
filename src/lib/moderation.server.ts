@@ -1,5 +1,7 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { Output, streamText } from "ai";
+import { z } from 'zod';
+import { ownOpenAI } from './openai.server';
+import { plainText } from './input-security';
 
 const INSTRUCTIONS = `את מנתחת תגובות בקהילה מקצועית של בונות ציפורניים בישראל.
 בדקי את התגובה והחזירי אך ורק JSON תקין במבנה:
@@ -19,28 +21,10 @@ export interface ModerationResult {
   suggestion: string;
 }
 
-function gateway() {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("AI is not configured");
-  return createOpenAI({
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    apiKey,
-    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-  });
-}
-
-function parseJson<T>(text: string): T | null {
-  try {
-    const match = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(match?.[0] ?? "") as T;
-  } catch {
-    return null;
-  }
-}
-
 export async function moderateCommentText(body: string): Promise<ModerationResult> {
   const result = streamText({
-    model: gateway().responses("openai/gpt-6-astra"),
+    model: ownOpenAI(),
+    output: Output.object({ schema: z.object({ toxic: z.boolean(), flagged: z.array(z.string()), suggestion: z.string() }) }),
     instructions: INSTRUCTIONS,
     messages: [{ role: "user", content: `התגובה לבדיקה:\n${body}` }],
     maxRetries: 0,
@@ -53,17 +37,18 @@ export async function moderateCommentText(body: string): Promise<ModerationResul
       },
     },
   });
-  const parsed = parseJson<Partial<ModerationResult>>((await result.text).trim());
+  const parsed = await result.output;
   return {
-    toxic: parsed?.toxic === true,
-    flagged: Array.isArray(parsed?.flagged) ? parsed.flagged.filter((w): w is string => typeof w === "string") : [],
-    suggestion: typeof parsed?.suggestion === "string" ? parsed.suggestion : "",
+    toxic: parsed.toxic,
+    flagged: parsed.flagged.filter(w => body.includes(w)),
+    suggestion: plainText(500).parse(parsed.suggestion),
   };
 }
 
 export async function rephraseCommentText(body: string, blockedWords: string[]): Promise<string> {
   const result = streamText({
-    model: gateway().responses("openai/gpt-6-astra"),
+    model: ownOpenAI(),
+    output: Output.object({ schema: z.object({ suggestion: z.string() }) }),
     instructions: REPHRASE_INSTRUCTIONS,
     messages: [{ role: "user", content: `המילים האסורות שזוהו: ${blockedWords.join(", ")}\nהתגובה לשכתוב:\n${body}` }],
     maxRetries: 0,
@@ -76,6 +61,8 @@ export async function rephraseCommentText(body: string, blockedWords: string[]):
       },
     },
   });
-  const parsed = parseJson<{ suggestion?: string }>((await result.text).trim());
-  return typeof parsed?.suggestion === "string" ? parsed.suggestion : "";
+  const parsed = await result.output;
+  const suggestion = plainText(500).parse(parsed.suggestion);
+  if (!suggestion || blockedWords.some(w => suggestion.toLowerCase().includes(w.toLowerCase()))) throw new Error('לא התקבל ניסוח מתאים');
+  return suggestion;
 }

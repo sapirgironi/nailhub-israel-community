@@ -17,7 +17,7 @@ export interface ModerationResult {
 
 export async function moderateCommentText(body: string, forceRephrase = false): Promise<ModerationResult> {
   const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) return { toxic: false, flagged: [], suggestion: "" };
+  if (!apiKey) throw new Error("AI key missing in server env");
   const provider = createOpenAI({
     baseURL: "https://ai.gateway.lovable.dev/v1",
     apiKey,

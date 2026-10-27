@@ -890,6 +890,7 @@ export type Database = {
       }
       stories: {
         Row: {
+          alt_text: string | null
           caption: string | null
           created_at: string
           id: string
@@ -897,6 +898,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alt_text?: string | null
           caption?: string | null
           created_at?: string
           id?: string
@@ -904,6 +906,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alt_text?: string | null
           caption?: string | null
           created_at?: string
           id?: string
@@ -919,6 +922,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      story_stickers: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          image_path: string
+          label: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          image_path: string
+          label?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          image_path?: string
+          label?: string
+        }
+        Relationships: []
       }
       story_views: {
         Row: {

@@ -127,6 +127,13 @@
       "when": 1793114003127,
       "tag": "0017_allow_trade_review_statuses",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793119056980,
+      "tag": "0018_story_stickers_and_alt_text",
+      "breakpoints": true
     }
   ]
 }

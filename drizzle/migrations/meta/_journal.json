@@ -71,6 +71,13 @@
       "when": 1793092075443,
       "tag": "0009_story_views_and_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793099751074,
+      "tag": "0010_admin_panel_phase_a",
+      "breakpoints": true
     }
   ]
 }

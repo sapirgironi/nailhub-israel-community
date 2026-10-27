@@ -6,6 +6,7 @@ import { Link,useNavigate } from '@tanstack/react-router';
 import {RegistrationForm} from './RegistrationForm';
 import { Button } from './ui/button';
 import {PasswordField} from './PasswordField';
+import {lovable} from '@/integrations/lovable/index';
 import {isPasswordAllowed,PASSWORD_LENGTH_MESSAGE} from '@/lib/password-policy';
 import {hebrewError} from '@/lib/hebrew-errors';
 import { phoneText, plainText } from '@/lib/input-security';
@@ -233,6 +234,12 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
               {authLoading ? 'מתחברת...' : 'כניסה לאפליקציה'}
             </Button>
           </form>
+          <div className="mt-4 space-y-2">
+            <div className="text-center text-xs text-muted-foreground">או כניסה מהירה עם</div>
+            <div className="grid grid-cols-2 gap-2">
+              {(['google','apple'] as const).map(p=><Button key={p} type="button" variant="outline" className="rounded-2xl text-sm font-bold" onClick={async()=>{setAuthError('');const r=await lovable.auth.signInWithOAuth(p,{redirect_uri:window.location.origin});if(r.error){setAuthError(hebrewError(r.error,'לא ניתן להתחבר כרגע. נסי שוב.'));return;}if(r.redirected)return;await navigate({to:'/feed',search:{compose:false}});}}>{p==='google'?'Google':'Apple'}</Button>)}
+            </div>
+          </div>
 
           <div className="mt-6 text-right">
             <Button 

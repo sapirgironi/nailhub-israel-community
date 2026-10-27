@@ -102,7 +102,7 @@ interface Member {
   additionalServices: string[];
   phone: string;
   isVerified?: boolean;
-  avatar?: string;
+  avatar?: string | undefined;
 }
 
 export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
@@ -161,7 +161,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     if (!await checkAccess(userId)) return;
     const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) { setAuthError('טעינת הפרופיל נכשלה. נסי להתחבר שוב.'); return; }
-    const list = await Promise.all((data || []).map(async p=>({...toMember(p),avatar:p.avatar_url?await photoUrl(p.avatar_url):undefined}))); 
+    const list = await Promise.all((data || []).map(async p=>({...toMember(p),avatar:p.avatar_url?await photoUrl(p.avatar_url).catch(()=>undefined):undefined}))); 
     setMembers(list);
     setCurrentUser(list.find((m) => m.id === userId) ?? null);
     const { data: adminCheck } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });

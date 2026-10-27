@@ -98,7 +98,7 @@ export function StoryEditor({file,onCancel,onPublish}:{file:File;onCancel:()=>vo
    {drag&&<div className={'absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] '+(over?'bg-destructive text-destructive-foreground scale-125':'bg-card/80 text-foreground')}><Trash2/></div>}
   </div>
 
-  {selected&&<div className="w-full max-w-sm bg-card rounded-2xl p-3 space-y-2 shrink-0" onPointerDown={e=>e.preventDefault()}>
+  {selected&&<div className="w-full max-w-sm bg-card rounded-2xl p-3 space-y-2 shrink-0">
    <div className="flex items-center gap-2"><span className="text-xs font-bold">גודל</span><Button size="icon" variant="outline" aria-label="הקטנה" onClick={()=>patch(selected.id,{scale:Math.max(0.4,selected.scale-0.15)})}><Minus/></Button>
     <input aria-label="שינוי גודל" type="range" min={0.4} max={5} step={0.05} value={selected.scale} onChange={e=>patch(selected.id,{scale:Number(e.target.value)})} className="flex-1 accent-primary"/>
     <Button size="icon" variant="outline" aria-label="הגדלה" onClick={()=>patch(selected.id,{scale:Math.min(5,selected.scale+0.15)})}><Plus/></Button></div>

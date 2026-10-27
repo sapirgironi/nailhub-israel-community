@@ -1,5 +1,5 @@
 # NailHub roadmap
-- [ ] Story text: matching preview/export, manual line breaks and touch/desktop width handles; member autocomplete and persisted clickable profile mentions.
+- [x] Story text: same-DOM preview/export with manual line breaks, touch/desktop width handles, member autocomplete and persisted clickable profile mentions. Authenticated publish/reload/profile navigation verified, touch drag verified, screenshots confirm matching line breaks; 12 regression tests and build pass. Temporary stories removed.
 - [x] Connect Cloudinary for story backgrounds/final images, feed, profile and trade; authenticated uploads and RLS-checked optimized bytes preserve privacy and legacy images. Profile upload, story text/background/final save, feed/trade publication and reload verified in browser; temporary database content removed; tests and build pass.
 - [x] Smart pricing calculator: business settings, 14 treatments, length/effects, AI material estimate (live call verified), discount, VAT 18%, save to price list; pricing unit tests pass
 - [x] Admin trade photos/seller/date and approval actions, name/email search, supplier approval and atomic set/add credits, permanent application-access ban; authenticated browser verification passed: approval visible on board, 20 + 5 credits persisted as 25, blocked existing session denied UI/data.

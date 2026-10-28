@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, CalendarClock, MessageCircle, Plus, X, Sparkles, Briefcase, Phone, Users, Building } from "lucide-react";
+import { MapPin, CalendarClock, MessageCircle, Plus, X, Sparkles, Briefcase, Phone, Users, Building, ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from 'zod';
 import {HubShell} from '@/components/HubShell';
+import {Trade} from '@/components/HubWorkspace';
 import {Button} from '@/components/ui/button';
 import { contactText, phoneText, plainText, whatsappLink } from '@/lib/input-security';
 
@@ -32,18 +33,36 @@ const label = "block text-xs font-bold mb-1";
 const chip = (a: boolean) => `px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${a ? "bg-accent text-accent-foreground border-border" : "bg-card text-muted-foreground border-border hover:bg-accent"}`;
 
 function BoardsPage() {
-  const [tab, setTab] = useState<"models" | "jobs">("models");
+  const [tab, setTab] = useState<"models" | "jobs" | "trade">("models");
   return (
     <HubShell section="boards">
       <div className="mb-6"><h1 className="text-2xl font-black mb-4">לוחות הקהילה</h1>
-          <div className="flex bg-muted p-1 rounded-2xl text-xs font-bold">
+          <div className="flex bg-muted p-1 rounded-2xl text-xs font-bold overflow-x-auto">
             <Button onClick={() => setTab("models")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "models" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><Users className="w-4 h-4" />לוח מודליסטיות</span></Button>
             <Button onClick={() => setTab("jobs")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "jobs" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><Briefcase className="w-4 h-4" />דרושות והשכרת עמדות</span></Button>
+            <Button onClick={() => setTab("trade")} className={`px-3 sm:px-4 py-2 rounded-xl transition ${tab === "trade" ? "bg-card shadow-soft text-foreground" : "text-muted-foreground"}`}><span className="inline-flex items-center gap-1.5"><ShoppingBag className="w-4 h-4" />ציוד יד שנייה</span></Button>
           </div>
       </div>
-      <div>{tab === "models" ? <ModelsBoard /> : <JobsBoard />}</div>
+      <div>{tab === "models" ? <ModelsBoard /> : tab === "jobs" ? <JobsBoard /> : <TradeTab />}</div>
     </HubShell>
   );
+}
+
+function TradeTab() {
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["trade-tab-user"],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error('יש להתחבר');
+      const { data, error } = await supabase.from("profiles").select("id,display_name,business_name,phone,city,account_role").eq("id", auth.user.id).single();
+      if (error) throw error;
+      return { id: data.id, fullName: data.display_name, businessName: data.business_name || data.display_name, phone: data.phone || "", city: data.city || "", role: data.account_role || "" };
+    },
+    retry: false,
+  });
+  if (isLoading) return <Empty text="טוען..." />;
+  if (!user) return <Empty text="יש להתחבר כדי לצפות ולפרסם פריטים בלוח" />;
+  return <Trade user={user} embedded />;
 }
 
 function WhatsAppButton({ contact }: { contact: string }) {

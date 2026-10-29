@@ -1,10 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import { readCloudinaryImage, uploadCloudinaryImage } from './cloudinary.functions';
-import { validateImage } from './cloudinary';
+import { optimizeUploadImage } from './image-optimization';
 
 export async function uploadPhoto(file: File, _userId?: string) {
-  validateImage(file);
-  const body = new FormData(); body.set('file',file);
+  const optimized = await optimizeUploadImage(file);
+  const body = new FormData(); body.set('file',optimized);
   return (await uploadCloudinaryImage({ data: body })).url;
 }
 export async function photoUrl(value: string) {

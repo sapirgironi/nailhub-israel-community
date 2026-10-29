@@ -1165,15 +1165,29 @@ export type Database = {
         Returns: string
       }
       community_members: {
-        Args: { member_id?: string; search_text?: string }
+        Args: {
+          after_id?: string | null
+          after_name?: string | null
+          member_id?: string | null
+          page_size?: number
+          role_filter?: string
+          search_text?: string
+        }
         Returns: {
           account_role: string
-          avatar_url: string
+          additional_services: string[]
+          avatar_url: string | null
           business_name: string
           city: string
           display_name: string
           id: string
+          is_verified: boolean
+          specialties: string[]
         }[]
+      }
+      post_comment_counts: {
+        Args: { post_ids: string[] }
+        Returns: { comment_count: number; post_id: string }[]
       }
       has_role: {
         Args: {

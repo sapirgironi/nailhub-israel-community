@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import {useInfiniteQuery} from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type {Database} from '@/integrations/supabase/types';
 import { HubShell, type HubSection } from './HubShell';
 import { HubWorkspace } from './HubWorkspace';
+import {PhotoImage} from './PhotoImage';
 import { AdminPanel } from './AdminPanel';
 import { SupportForm } from './SupportForm';
 import { Link,useNavigate } from '@tanstack/react-router';
 import {RegistrationForm} from './RegistrationForm';
 import { Button } from './ui/button';
-import {photoUrl,uploadPhoto} from '@/lib/media';
+import {uploadPhoto} from '@/lib/media';
 import {ImageUploadStatus} from './ImageUploadStatus';
 import {HebrewPhotoInput} from './HebrewPhotoInput';
 import {PasswordField} from './PasswordField';
@@ -20,17 +23,18 @@ import {
   Search, 
   MapPin, 
   Phone, 
-  Crown, 
+  GraduationCap,
   Heart, 
   Users, 
   User, 
   ArrowRight,
   Check, 
   X,
-  Gem,
+  ShoppingBag,
   Award,
   Flame,
-  BadgeCheck
+  BadgeCheck,
+  LoaderCircle
 } from 'lucide-react';
 
 // ==========================================
@@ -47,13 +51,13 @@ const ROLES = {
     id: 'instructor', 
     label: 'מדריכה מוסמכת & אקדמיה', 
     badge: 'bg-accent text-foreground border-border shadow-soft',
-    icon: Crown
+    icon: GraduationCap
   },
   SUPPLIER: { 
     id: 'supplier', 
     label: 'ספקית & מותג מורשה', 
     badge: 'bg-accent text-primary border-border shadow-soft',
-    icon: Gem
+    icon: ShoppingBag
   },
   MODEL: { 
     id: 'model', 
@@ -70,26 +74,45 @@ const ROLES = {
 } as const;
 
 const ADDITIONAL_SERVICES_LIST = [
-  'פדיקור קוסמטי',
-  'פדיקור רפואי / טיפולי',
-  'לק ג\'ל רגליים',
-  'עיצוב ושיקום גבות',
-  'הרמת גבות',
+  'עיצוב גבות',
+  'שעוות והסרת שיער',
+  'הסרת שיער בלייזר',
+  'פדיקור',
+  'פדיקור רפואי',
   'הרמת ריסים',
-  'שזירת ריסים',
+  'הרמת גבות',
+  'הלחמת ריסים',
+  'קוסמטיקה',
   'איפור קבוע',
-  'טיפולי זוהר ופנים'
+  'הגעה לבית הלקוחה (VIP)',
+  'מקלחון שיזוף',
+  'ועוד...'
 ];
 
 const SPECIALTIES_LIST = [
-  'מבנה אנטומי מושלם',
-  'בנייה באקריל',
-  'ג\'ל ופוליג\'ל',
+  'מבנה אנטומי',
+  'מבנה אדריכלי',
   'דיפ פאוודר',
-  'פרנץ\' מדויק וחיוך מושלם',
-  'ציורי יד ונייל-ארט',
-  'השלמת ציפורניים שבורות',
-  'אפקט שיש וגליטרים'
+  'מניקור יסודי',
+  'שיקום ציפורניים טבעיות',
+  'כוססות',
+  'בנייה באקריל',
+  'בנייה בג\'ל',
+  'בנייה בפוליג\'ל',
+  'מילוי באקריל',
+  'מילוי בג\'ל',
+  'מילוי בפוליג\'ל',
+  'אקסטרים',
+  'אקווריום',
+  'ציורים וקישוטים',
+  'תוספות מיוחדות',
+  'פרנץ\'',
+  'אומברה',
+  'טיפסים הפוכים',
+  'ציפורניים ארוכות',
+  'ג\'לי טיפס',
+  'ג\'ל X',
+  'לק ג\'ל רגליים'
 ];
 
 interface Member {
@@ -104,9 +127,11 @@ interface Member {
   isVerified?: boolean;
   avatar?: string | undefined;
 }
+type DirectoryCursor={displayName:string;id:string};
+type ProfileRow=Database['public']['Tables']['profiles']['Row'];
 
 export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
-  const [currentStep, setCurrentStep] = useState<'gate' | 'login' | 'onboarding' | 'app'>('onboarding');
+  const [currentStep, setCurrentStep] = useState<'gate' | 'login' | 'onboarding' | 'app'>('login');
   const activeTab = section;
   const navigate=useNavigate();
 
@@ -119,8 +144,8 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     city: 'קריית ביאליק',
     businessName: '',
     role: 'nail_tech',
-    specialties: ['מבנה אנטומי מושלם', 'פרנץ\' מדויק וחיוך מושלם'],
-    additionalServices: ['פדיקור קוסמטי']
+    specialties: ['מבנה אנטומי', 'ציורים וקישוטים'],
+    additionalServices: ['פדיקור']
   });
 
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
@@ -128,10 +153,18 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   const [roleChangeSuccess, setRoleChangeSuccess] = useState(false);
   const [roleError,setRoleError]=useState('');
 
-  const [members, setMembers] = useState<Member[]>([]);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [recoveryMode, setRecoveryMode] = useState<'none' | 'request' | 'otp' | 'password'>('none');
+  const [recoveryChannel, setRecoveryChannel] = useState<'email' | 'sms'>('email');
+  const [recoveryOtp, setRecoveryOtp] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('');
+  const [recoveryNotice, setRecoveryNotice] = useState('');
+  const recoveryPending = useRef(false);
+  const [profileCompletion, setProfileCompletion] = useState(false);
+  const [profileCompletionUserId, setProfileCompletionUserId] = useState<string | null>(null);
 
   const [authLoading, setAuthLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -143,7 +176,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
   const checkAccess = async (userId: string) => {
     const { data, error } = await supabase.rpc('is_account_banned', { target_user: userId });
     if (error || data !== false) {
-      setBlocked(true); setCurrentUser(null); setMembers([]); setIsAdmin(false);
+      setBlocked(true); setCurrentUser(null); setIsAdmin(false);
       setAuthError(error ? 'בדיקת הגישה נכשלה. נסי שוב.' : 'החשבון נחסם לצמיתות. אין אפשרות להיכנס לאפליקציה.');
       setAccessChecked(true);
       return false;
@@ -151,7 +184,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     setBlocked(false); setAccessChecked(true); return true;
   };
 
-  const toMember = (p: any): Member => ({
+  const toMember = (p: ProfileRow): Member => ({
     id: p.id, fullName: p.display_name, businessName: p.business_name || p.display_name, role: p.account_role,
     city: p.city || '', specialties: p.specialties || [], additionalServices: p.additional_services || [],
     phone: p.hide_phone ? '' : p.phone, isVerified: !!p.is_verified,
@@ -159,21 +192,70 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
   const loadData = async (userId: string) => {
     if (!await checkAccess(userId)) return;
-    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const { data: authData, error: authUserError } = await supabase.auth.getUser();
+    if (authUserError || !authData.user) {
+      setAuthError(hebrewError(authUserError, 'לא ניתן לטעון את החשבון. התחברי שוב.'));
+      return;
+    }
+    const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
     if (error) { setAuthError('טעינת הפרופיל נכשלה. נסי להתחבר שוב.'); return; }
-    const list = await Promise.all((data || []).map(async p=>({...toMember(p),avatar:p.avatar_url?await photoUrl(p.avatar_url).catch(()=>undefined):undefined}))); 
-    setMembers(list);
-    setCurrentUser(list.find((m) => m.id === userId) ?? null);
+    const provider = authData.user.app_metadata.provider;
+    if ((provider === 'google' || provider === 'apple') && (!profile || !profile.business_name?.trim())) {
+      const metadataName = authData.user.user_metadata['full_name'] ?? authData.user.user_metadata['name'];
+      setFormData((previous) => ({
+        ...previous,
+        fullName: profile?.display_name || (typeof metadataName === 'string' ? metadataName : '') || authData.user.email?.split('@')[0] || '',
+        businessName: profile?.business_name ?? '',
+        phone: profile?.phone ?? '',
+        city: profile?.city || previous.city,
+        role: Object.values(ROLES).find((role) => role.id === profile?.account_role)?.id ?? 'nail_tech',
+        specialties: profile?.specialties ?? previous.specialties,
+        additionalServices: profile?.additional_services ?? previous.additionalServices,
+      }));
+      setProfileCompletion(true);
+      setProfileCompletionUserId(userId);
+      setCurrentUser(null);
+      setCurrentStep('onboarding');
+      return;
+    }
+    const signedInMember = profile ? {...toMember(profile),avatar:profile.avatar_url||undefined} : null;
+    if (!signedInMember) {
+      setCurrentUser(null);
+      setCurrentStep('login');
+      setAuthError('לא נמצא פרופיל לחשבון. התחברי שוב או פני לתמיכה.');
+      return;
+    }
+    setProfileCompletion(false);
+    setProfileCompletionUserId(null);
+    setCurrentUser(signedInMember);
     const { data: adminCheck } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });
     setIsAdmin(adminCheck === true);
     setCurrentStep('app');
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { if (data.session) void loadData(data.session.user.id); else setAccessChecked(true); });
+    if (window.location.hash.includes('type=recovery')) {
+      recoveryPending.current = true;
+      setRecoveryMode('password');
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && !recoveryPending.current) void loadData(data.session.user.id);
+      else setAccessChecked(true);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) loadData(session.user.id);
-      if (event === 'SIGNED_OUT') { setCurrentUser(null); setMembers([]); setIsAdmin(false); setCurrentStep('login'); }
+      if (event === 'PASSWORD_RECOVERY') {
+        recoveryPending.current = true;
+        setRecoveryMode('password');
+        setRecoveryNotice('');
+        setCurrentStep('login');
+        setAccessChecked(true);
+      }
+      if (event === 'SIGNED_IN' && session && !recoveryPending.current) void loadData(session.user.id);
+      if (event === 'SIGNED_OUT') {
+        recoveryPending.current = false;
+        setCurrentUser(null); setIsAdmin(false); setProfileCompletion(false); setProfileCompletionUserId(null);
+        setRecoveryMode('none'); setCurrentStep('login');
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -188,9 +270,61 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
   const [filterRole, setFilterRole] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [directorySearch,setDirectorySearch]=useState('');
+  useEffect(()=>{const timer=window.setTimeout(()=>setDirectorySearch(searchQuery.trim()),250);return()=>window.clearTimeout(timer);},[searchQuery]);
+  const directory=useInfiniteQuery({
+    queryKey:['community-directory',currentUser?.id,directorySearch,filterRole],
+    enabled:activeTab==='directory'&&Boolean(currentUser),
+    initialPageParam:null as DirectoryCursor|null,
+    queryFn:async({pageParam})=>{
+      const {data,error}=await supabase.rpc('community_members',{
+        search_text:directorySearch,
+        role_filter:filterRole==='all'?'':filterRole,
+        after_name:pageParam?.displayName??null,
+        after_id:pageParam?.id??null,
+        page_size:24,
+      });
+      if(error)throw error;
+      const last=data.at(-1);
+      return {rows:data,nextCursor:data.length===24&&last?{displayName:last.display_name,id:last.id}:null};
+    },
+    getNextPageParam:lastPage=>lastPage.nextCursor??undefined,
+  });
 
   const handleCompleteRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (profileCompletion) {
+      if (!profileCompletionUserId || ![formData.fullName, formData.businessName].every(value => plainText(150).safeParse(value).success) || !Object.values(ROLES).some(role => role.id === formData.role)) {
+        setAuthError('יש להזין שם ושם עסק תקינים ולבחור תפקיד.');
+        return;
+      }
+      setAuthError('');
+      setAuthLoading(true);
+      try {
+        const { data, error } = await supabase.from('profiles').update({
+          display_name: formData.fullName.trim(),
+          business_name: formData.businessName.trim(),
+          account_role: formData.role,
+        }).eq('id', profileCompletionUserId).select('id').maybeSingle();
+        if (error) {
+          setAuthError(hebrewError(error, 'שמירת הפרופיל נכשלה. נסי שוב.'));
+          return;
+        }
+        if (!data) {
+          setAuthError('לא נמצא פרופיל קיים להשלמה. נסי להתחבר שוב או פני לתמיכה.');
+          return;
+        }
+        setProfileCompletion(false);
+        setProfileCompletionUserId(null);
+        await loadData(data.id);
+        await navigate({to:'/feed',search:{compose:false}});
+      } catch (error) {
+        setAuthError(hebrewError(error, 'שמירת הפרופיל נכשלה. נסי שוב.'));
+      } finally {
+        setAuthLoading(false);
+      }
+      return;
+    }
     if (![formData.fullName, formData.businessName, formData.city].every(v => plainText(150).safeParse(v).success) || !phoneText.safeParse(formData.phone).success) {
       setAuthError('יש להזין טקסט רגיל ומספר טלפון תקין'); return;
     }
@@ -220,11 +354,94 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
     e.preventDefault();
     setAuthError(''); setAuthLoading(true);
     try {
-    const {data,error} = await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
-    setAuthLoading(false);
+    const identifier = authEmail.trim();
+    const credentials = identifier.includes('@')
+      ? { email: identifier, password: authPassword }
+      : { phone: identifier, password: authPassword };
+    const {data,error} = await supabase.auth.signInWithPassword(credentials);
     if (error) setAuthError(hebrewError(error));
     else if(data.session){await loadData(data.session.user.id);await navigate({to:'/feed',search:{compose:false}});}
     } catch(error) {setAuthError(hebrewError(error));} finally {setAuthLoading(false);}
+  };
+
+  const handleOAuthLogin = async (provider: 'google' | 'apple') => {
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin + '/feed' });
+      if (result.error) {
+        setAuthError(hebrewError(result.error, 'לא ניתן להתחבר כרגע. נסי שוב.'));
+        return;
+      }
+      if (!result.redirected) await navigate({to:'/feed',search:{compose:false}});
+    } catch (error) {
+      setAuthError(hebrewError(error, 'לא ניתן להתחבר כרגע. נסי שוב.'));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handlePasswordRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setRecoveryNotice('');
+    setAuthLoading(true);
+    try {
+      if (recoveryMode === 'request' && recoveryChannel === 'email') {
+        const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), { redirectTo: window.location.origin });
+        if (error) throw error;
+        setRecoveryNotice('אם הכתובת משויכת לחשבון, נשלח אליה קישור מאובטח לאיפוס הסיסמה.');
+      } else if (recoveryMode === 'request') {
+        const phone = authEmail.trim();
+        if (!phoneText.safeParse(phone).success) {
+          setAuthError('יש להזין מספר טלפון תקין.');
+          return;
+        }
+        const { error } = await supabase.auth.signInWithOtp({ phone, options: { shouldCreateUser: false } });
+        if (error) throw error;
+        setRecoveryMode('otp');
+        setRecoveryNotice('אם קיים חשבון עם מספר זה המאומת ב-Supabase Auth, נשלח אליו קוד חד-פעמי.');
+      } else if (recoveryMode === 'otp') {
+        recoveryPending.current = true;
+        const { data, error } = await supabase.auth.verifyOtp({ phone: authEmail.trim(), token: recoveryOtp.trim(), type: 'sms' });
+        if (error) {
+          recoveryPending.current = false;
+          throw error;
+        }
+        if (!data.session) {
+          recoveryPending.current = false;
+          throw new Error('No recovery session was created');
+        }
+        setRecoveryMode('password');
+        setRecoveryNotice('המספר אומת. בחרי סיסמה חדשה לחשבון.');
+      } else if (recoveryMode === 'password') {
+        if (!isPasswordAllowed(recoveryPassword)) {
+          setAuthError(PASSWORD_LENGTH_MESSAGE);
+          return;
+        }
+        if (recoveryPassword !== recoveryPasswordConfirm) {
+          setAuthError('הסיסמאות אינן תואמות.');
+          return;
+        }
+        const { data, error } = await supabase.auth.updateUser({ password: recoveryPassword });
+        if (error) throw error;
+        if (!data.user) throw new Error('Password update returned no user');
+        recoveryPending.current = false;
+        setRecoveryMode('none');
+        setRecoveryNotice('');
+        setRecoveryOtp('');
+        setRecoveryPassword('');
+        setRecoveryPasswordConfirm('');
+        await loadData(data.user.id);
+        await navigate({to:'/feed',search:{compose:false}});
+      }
+    } catch (error) {
+      setAuthError(hebrewError(error, recoveryMode === 'request' && recoveryChannel === 'sms'
+        ? 'לא ניתן לשלוח קוד למספר הזה. בדקי שהטלפון מאומת בחשבון או השתמשי באימייל.'
+        : 'לא ניתן להשלים את איפוס הסיסמה. נסי שוב.'));
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -252,38 +469,72 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
         <div className="max-w-md w-full bg-card backdrop-blur-xl rounded-3xl shadow-soft p-8 md:p-10 border border-border">
           <div className="text-right mb-6">
             <h1 className="text-2xl font-black text-foreground">היי, כיף שחזרת! 💖</h1>
-            <p className="text-xs text-foreground mt-1">הזיני אימייל וסיסמה לכניסה לחשבון</p>
+            <p className="text-xs text-foreground mt-1">{recoveryMode === 'none' ? 'התחברי לקהילה המקצועית שלך' : 'איפוס מאובטח של סיסמת החשבון'}</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5">אימייל *</label>
-              <input type="email" required autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
+          {recoveryMode === 'none' ? <>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button type="button" variant="outline" disabled={authLoading} className="rounded-2xl text-sm font-bold" onClick={() => void handleOAuthLogin('google')}>
+                <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.8 6.1-15Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.1c-1.8 1.2-4 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20 20 0 0 0 24 44Z"/><path fill="#FBBC05" d="M12.6 27.5a12 12 0 0 1 0-7V15H5.8a20 20 0 0 0 0 18l6.8-5.5Z"/><path fill="#EA4335" d="M24 12.1c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 6 29.5 4 24 4A20 20 0 0 0 5.8 15l6.8 5.5C14.2 15.7 18.7 12.1 24 12.1Z"/></svg>
+                התחברי באמצעות Google
+              </Button>
+              <Button type="button" variant="outline" disabled={authLoading} className="rounded-2xl text-sm font-bold" onClick={() => void handleOAuthLogin('apple')}>
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current"><path d="M16.37 12.67c.02 2.2 1.93 2.93 1.95 2.94-.02.05-.3 1.03-1 2.04-.6.87-1.23 1.74-2.22 1.76-.97.02-1.28-.57-2.38-.57-1.1 0-1.45.55-2.37.59-.95.04-1.67-.94-2.27-1.8-1.23-1.78-2.17-5.03-.9-7.22.63-1.09 1.76-1.78 2.99-1.8.93-.02 1.8.63 2.38.63.57 0 1.64-.78 2.76-.66.47.02 1.8.19 2.65 1.43-.07.04-1.58.92-1.57 2.66ZM14.55 6.8c.5-.6.84-1.44.75-2.28-.72.03-1.59.48-2.1 1.08-.46.53-.87 1.38-.76 2.2.8.06 1.61-.41 2.11-1Z"/></svg>
+                התחברי באמצעות Apple
+              </Button>
             </div>
-            <PasswordField value={authPassword} onChange={setAuthPassword} autoComplete="current-password"/>
-            {authError && <p className="text-xs text-primary bg-accent rounded-xl p-2 text-right">{authError}</p>}
-            <Button
-              type="submit"
-              className="w-full bg-rose-glam hover:opacity-90 text-primary-foreground font-bold py-3.5 rounded-2xl transition shadow-md text-sm"
-            >
-              {authLoading ? 'מתחברת...' : 'כניסה לאפליקציה'}
-            </Button>
-          </form>
-          <div className="mt-4 space-y-2">
-            <div className="text-center text-xs text-muted-foreground">או כניסה מהירה עם</div>
-            <div className="grid grid-cols-2 gap-2">
-              {(['google','apple'] as const).map(p=><Button key={p} type="button" variant="outline" className="rounded-2xl text-sm font-bold" onClick={async()=>{setAuthError('');const r=await lovable.auth.signInWithOAuth(p,{redirect_uri:window.location.origin+'/feed'});if(r.error){setAuthError(hebrewError(r.error,'לא ניתן להתחבר כרגע. נסי שוב.'));return;}if(r.redirected)return;await navigate({to:'/feed',search:{compose:false}});}}>{p==='google'?'Google':'Apple'}</Button>)}
+            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border"/>
+              <span>או באמצעות פרטי גישה</span>
+              <span className="h-px flex-1 bg-border"/>
             </div>
-          </div>
-
-          <div className="mt-6 text-right">
-            <Button 
-              onClick={() => {setAuthError('');setCurrentStep('onboarding');}}
-              className="text-xs text-foreground hover:text-foreground font-medium"
-            >
-              חדשה כאן? להרשמה מהירה
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label htmlFor="login-identifier" className="block text-xs font-bold text-foreground mb-1.5">אימייל או טלפון *</label>
+                <input id="login-identifier" type="text" required autoComplete="username" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl" />
+              </div>
+              <PasswordField value={authPassword} onChange={setAuthPassword} autoComplete="current-password"/>
+              <div className="text-left">
+                <Button type="button" variant="link" className="h-auto p-0 text-xs text-primary" onClick={() => {setAuthError('');setRecoveryNotice('');setRecoveryMode('request');}}>
+                  שכחת סיסמה?
+                </Button>
+              </div>
+              {authError && <p role="alert" className="text-xs text-destructive bg-accent rounded-xl p-2 text-right">{authError}</p>}
+              <Button type="submit" disabled={authLoading} className="w-full bg-rose-glam hover:opacity-90 text-primary-foreground font-bold py-3.5 rounded-2xl transition shadow-md text-sm">
+                {authLoading ? <><LoaderCircle className="animate-spin" aria-hidden="true"/>מתחברת...</> : 'התחברי לחשבון'}
+              </Button>
+            </form>
+            <div className="mt-6 border-t border-border pt-5 text-center text-sm text-muted-foreground">
+              עדיין אין לך חשבון?{' '}
+              <Button type="button" variant="link" className="h-auto p-0 font-bold text-primary transition-colors" onClick={() => {setAuthError('');setProfileCompletion(false);setCurrentStep('onboarding');}}>
+                להרשמה לחצי כאן
+              </Button>
+            </div>
+          </> : <form onSubmit={handlePasswordRecovery} className="space-y-4">
+            {recoveryMode === 'request' && <>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="בחירת דרך איפוס">
+                <Button type="button" variant={recoveryChannel === 'email' ? 'secondary' : 'outline'} aria-pressed={recoveryChannel === 'email'} onClick={() => {setRecoveryChannel('email');setRecoveryNotice('');}}>אימייל</Button>
+                <Button type="button" variant={recoveryChannel === 'sms' ? 'secondary' : 'outline'} aria-pressed={recoveryChannel === 'sms'} onClick={() => {setRecoveryChannel('sms');setRecoveryNotice('');}}>קוד SMS</Button>
+              </div>
+              <label htmlFor="recovery-identifier" className="block text-xs font-bold text-foreground">{recoveryChannel === 'email' ? 'כתובת אימייל' : 'מספר טלפון נייד'}</label>
+              <input id="recovery-identifier" required type={recoveryChannel === 'email' ? 'email' : 'tel'} autoComplete={recoveryChannel === 'email' ? 'email' : 'tel'} value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl"/>
+            </>}
+            {recoveryMode === 'otp' && <label className="block text-xs font-bold text-foreground">קוד חד-פעמי שנשלח ב-SMS
+              <input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{4,10}" maxLength={10} value={recoveryOtp} onChange={(e) => setRecoveryOtp(e.target.value)} className="mt-1.5 w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent"/>
+            </label>}
+            {recoveryMode === 'password' && <>
+              <PasswordField value={recoveryPassword} onChange={setRecoveryPassword} autoComplete="new-password"/>
+              <label className="block text-xs font-bold text-foreground">אימות סיסמה חדשה
+                <input type="password" required minLength={6} autoComplete="new-password" value={recoveryPasswordConfirm} onChange={(e) => setRecoveryPasswordConfirm(e.target.value)} className="mt-1.5 w-full px-4 py-3 rounded-2xl border border-border focus:ring-2 focus:ring-ring outline-none text-right text-sm bg-accent" dir="rtl"/>
+              </label>
+            </>}
+            {recoveryNotice && <p role="status" className="text-xs text-muted-foreground bg-accent rounded-xl p-2">{recoveryNotice}</p>}
+            {authError && <p role="alert" className="text-xs text-destructive bg-accent rounded-xl p-2 text-right">{authError}</p>}
+            <Button type="submit" disabled={authLoading} className="w-full bg-rose-glam hover:opacity-90 text-primary-foreground font-bold py-3.5 rounded-2xl transition shadow-md text-sm">
+              {authLoading ? <><LoaderCircle className="animate-spin" aria-hidden="true"/>בודקת...</> : recoveryMode === 'request' ? (recoveryChannel === 'email' ? 'שליחת קישור איפוס' : 'שליחת קוד חד-פעמי') : recoveryMode === 'otp' ? 'אימות קוד' : 'שמירת סיסמה חדשה'}
             </Button>
-          </div>
+            {recoveryMode !== 'password' && <Button type="button" variant="link" className="w-full" onClick={() => {setRecoveryMode('none');setRecoveryNotice('');setAuthError('');recoveryPending.current=false;}}>חזרה להתחברות</Button>}
+          </form>}
         </div>
       </div>
     );
@@ -291,21 +542,25 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
   // ==========================================
   // מסך 3: אונבורדינג והרשמה מהממת
+  if(profileCompletion&&currentStep==='onboarding'){return <RegistrationForm details={formData} onChange={setFormData} email={authEmail} onEmail={setAuthEmail} password={authPassword} onPassword={setAuthPassword} onSubmit={handleCompleteRegistration} onLogin={()=>{}} busy={authLoading} error={authError} specialties={SPECIALTIES_LIST} services={ADDITIONAL_SERVICES_LIST} profileCompletion/>;}
   // ==========================================
   if(currentStep==='onboarding'){return <RegistrationForm details={formData} onChange={setFormData} email={authEmail} onEmail={setAuthEmail} password={authPassword} onPassword={setAuthPassword} onSubmit={handleCompleteRegistration} onLogin={()=>{setAuthError('');setCurrentStep('login');}} busy={authLoading} error={authError} specialties={SPECIALTIES_LIST} services={ADDITIONAL_SERVICES_LIST}/>;}
 
   // ==========================================
   // מסך 4: אפליקציה ראשית (יוקרתית, נשית ואלגנטית)
   // ==========================================
-  const filteredMembers = members.filter((m) => {
-    const matchRole = filterRole === 'all' || m.role === filterRole;
-    const matchQuery = 
-      m.fullName.includes(searchQuery) || 
-      m.businessName.includes(searchQuery) || 
-      m.city.includes(searchQuery) ||
-      m.specialties.some(s => s.includes(searchQuery));
-    return matchRole && matchQuery;
-  });
+  const filteredMembers = (directory.data?.pages.flatMap(page=>page.rows)??[]).map(member=>({
+    id:member.id,
+    fullName:member.display_name,
+    businessName:member.business_name,
+    role:member.account_role,
+    city:member.city,
+    specialties:member.specialties,
+    additionalServices:member.additional_services,
+    phone:'',
+    isVerified:member.is_verified,
+    avatar:member.avatar_url??undefined,
+  }));
 
   return (
     <HubShell section={section} name={currentUser?.fullName} onSignOut={handleSignOut} isAdmin={isAdmin}>
@@ -354,7 +609,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                         : 'bg-accent text-foreground hover:bg-accent'
                     }`}
                   >
-                    הכול ({members.length})
+                    הכול
                   </Button>
                   {Object.values(ROLES).map(r => (
                     <Button
@@ -374,6 +629,9 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
             </div>
 
             {/* כרטיסי החברות המעוצבים */}
+            {directory.isPending&&<p role="status" className="text-center text-sm text-muted-foreground py-8">טוענת את חברות הקהילה...</p>}
+            {directory.isError&&<p role="alert" className="text-center text-sm text-destructive py-8">טעינת חברות הקהילה נכשלה. נסי שוב.</p>}
+            {directory.data&&filteredMembers.length===0&&<p className="text-center text-sm text-muted-foreground py-8">לא נמצאו חברות מתאימות.</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredMembers.map((m) => {
                 const role = getRoleDetails(m.role);
@@ -388,7 +646,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                       <div className="flex items-start justify-between mb-3.5">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <>{m.avatar&&<img src={m.avatar} alt="תמונת פרופיל" className="size-10 rounded-full object-cover shrink-0"/>}</><h3 className="font-extrabold text-foreground text-base">{m.fullName}</h3>
+                            <>{m.avatar&&<PhotoImage src={m.avatar} alt="תמונת פרופיל" className="size-10 rounded-full object-cover shrink-0"/>}</><h3 className="font-extrabold text-foreground text-base">{m.fullName}</h3>
                             {m.isVerified && (
                               <BadgeCheck className="w-4 h-4 text-primary fill-accent" />
                             )}
@@ -437,24 +695,16 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
                     </div>
 
                     {/* יצירת קשר */}
-                    {m.phone && <div className="pt-3.5 border-t border-border flex items-center justify-between text-xs">
-                      <a 
-                        href={phoneText.safeParse(m.phone).success ? `tel:${m.phone.replace(/[^+0-9]/g, '')}` : undefined}
-                        className="inline-flex items-center gap-2 text-foreground font-bold hover:text-primary transition"
-                      >
-                        <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-primary group-hover:bg-accent group-hover:text-primary-foreground transition">
-                          <Phone className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="font-mono text-xs">{m.phone}</span>
-                      </a>
-                      <Button className="text-[11px] text-primary hover:text-primary font-bold">
-                        כרטיס מלא ←
+                    <div className="pt-3.5 border-t border-border flex justify-end">
+                      <Button asChild className="text-[11px] text-primary hover:text-primary font-bold">
+                        <Link to="/members/$memberId" params={{memberId:m.id}}>כרטיס מלא ←</Link>
                       </Button>
-                    </div>}
+                    </div>
                   </div>
                 );
               })}
             </div>
+            {directory.hasNextPage&&<Button type="button" variant="outline" className="w-full" disabled={directory.isFetchingNextPage} onClick={()=>void directory.fetchNextPage()}>{directory.isFetchingNextPage?'טוענת חברות...':'טעינת חברות נוספות'}</Button>}
           </div>
         )}
 
@@ -463,7 +713,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
 
         {activeTab === 'profile' && currentUser && (
           <div className="max-w-xl mx-auto bg-card backdrop-blur-xl rounded-3xl border border-border p-6 md:p-8 shadow-soft space-y-6">
-            <div className="space-y-3">{currentUser.avatar&&<img src={currentUser.avatar} alt="תמונת הפרופיל שלי" className="size-24 rounded-full object-cover"/>}<HebrewPhotoInput label="תמונת פרופיל" onChange={f=>void saveAvatar(f)}/>{photoBusy&&<ImageUploadStatus/>}</div>
+            <div className="space-y-3">{currentUser.avatar&&<PhotoImage src={currentUser.avatar} alt="תמונת הפרופיל שלי" className="size-24 rounded-full object-cover"/>}<HebrewPhotoInput label="תמונת פרופיל" onChange={f=>void saveAvatar(f)}/>{photoBusy&&<ImageUploadStatus/>}</div>
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <div>
                 <h2 className="text-2xl font-black text-foreground">{currentUser.fullName}</h2>

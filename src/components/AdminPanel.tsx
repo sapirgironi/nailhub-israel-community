@@ -399,7 +399,7 @@ function TradeQueueTab() {
       {items.data && items.data.length === 0 && <Notice text="אין מודעות שממתינות לאישור" />}
       {(items.data ?? []).map((t) => (
         <div key={t.id} className="bg-card border border-border rounded-2xl p-4 space-y-2">
-          {t.image ? <img src={t.image} alt={t.title} className="w-full max-h-72 object-contain bg-muted rounded-lg" /> : <Notice text="אין תמונה זמינה" />}
+          {t.image ? <img src={t.image} alt={t.title} loading="lazy" decoding="async" className="w-full max-h-72 object-contain bg-muted rounded-lg" /> : <Notice text="אין תמונה זמינה" />}
           <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm break-words">{t.title}</span><span className="text-sm font-bold">₪{t.price_nis}</span></div>
           <p className="text-xs text-muted-foreground">{t.profiles?.display_name ?? 'חברת קהילה'} • <time>{new Date(t.created_at).toLocaleString('he-IL')}</time></p>
           <p className="text-xs text-muted-foreground break-words">{t.category} • {t.condition} • {t.city}</p>
@@ -527,7 +527,7 @@ function StickersTab() {
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
         {(list.data ?? []).map((s) => (
           <div key={s.id} className="bg-muted rounded-2xl p-2 space-y-1 text-center">
-            <img src={s.url} alt={s.label || 'סטיקר'} className="w-full aspect-square object-contain" />
+            <img src={s.url} alt={s.label || 'סטיקר'} loading="lazy" decoding="async" className="w-full aspect-square object-contain" />
             <p className="text-xs truncate">{s.label || 'ללא שם'}</p>
             <Button size="sm" variant="ghost" aria-label="מחיקת סטיקר" onClick={() => remove(s.id, s.image_path)}><Trash2 /></Button>
           </div>

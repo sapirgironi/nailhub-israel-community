@@ -162,6 +162,27 @@
       "when": 1793133100624,
       "tag": "0022_feed_metadata_member_validation",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793286693649,
+      "tag": "0023_oauth_profile_completion",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793308779672,
+      "tag": "0024_feed_story_notification_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793309500000,
+      "tag": "0025_paged_community_directory",
+      "breakpoints": true
     }
   ]
 }

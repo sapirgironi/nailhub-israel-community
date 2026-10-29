@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { setResponseHeader } from '@tanstack/react-start/server';
 import { requireActiveAccount } from './account-access';
-import { cloudinaryReference, IMAGE_OPTIMIZATION, validateImage } from './cloudinary';
+import { cloudinaryReference, IMAGE_OPTIMIZATION, validateOptimizedImage } from './cloudinary';
 import { fetchOptimizedImage } from './cloudinary.server';
 
 export const uploadCloudinaryImage = createServerFn({ method: 'POST' })
@@ -10,7 +10,7 @@ export const uploadCloudinaryImage = createServerFn({ method: 'POST' })
     if (!(input instanceof FormData)) throw new Error('לא נבחרה תמונה');
     const file = input.get('file');
     if (!(file instanceof File)) throw new Error('לא נבחרה תמונה');
-    validateImage(file);
+    validateOptimizedImage(file);
     return input;
   })
   .handler(async ({ data, context }) => {

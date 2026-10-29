@@ -33,20 +33,30 @@ export const uploadCloudinaryImage = createServerFn({ method: 'POST' })
     const publicId = `nailhub/${context.userId}/${crypto.randomUUID()}`;
     body.set('public_id', publicId);
     body.set('overwrite', 'false');
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloud)}/image/upload`, {
-      method: 'POST', headers: { Authorization: `Basic ${btoa(`${key}:${secret}`)}` }, body,
-    });
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloud)}/image/upload`;
+    let response: Response;
+    try {
+      response = await fetch(uploadUrl, {
+        method: 'POST', headers: { Authorization: `Basic ${btoa(`${key}:${secret}`)}` }, body,
+      });
+    } catch (error) {
+      console.error('Cloudinary upload request failed', { url: uploadUrl, error });
+      throw new Error(`לא ניתן להתחבר לשירות התמונות בכתובת ${uploadUrl}: ${error instanceof Error ? error.message : String(error)}`);
+    }
     if (!response.ok) {
-      console.error('Cloudinary upload failed', response.status);
-      throw new Error('העלאת התמונה נכשלה. בדקי את חיבור האינטרנט ונסי שוב.');
+      const details = await response.text();
+      console.error('Cloudinary upload failed', {
+        url: response.url || uploadUrl,
+        status: response.status,
+        statusText: response.statusText,
+        response: details,
+      });
+      throw new Error(`העלאת התמונה נכשלה בכתובת ${uploadUrl} (HTTP ${response.status}): ${details}`);
     }
     const result = await response.json() as { public_id: string; version: number; format: string };
     if (result.public_id !== publicId || !['jpg','png','webp'].includes(result.format) || !Number.isInteger(result.version))
       throw new Error('עיבוד התמונה נכשל');
     const url = `https://res.cloudinary.com/${cloud}/image/authenticated/${IMAGE_OPTIMIZATION}/v${result.version}/${publicId}.${result.format}`;
-    const reference = cloudinaryReference(url, cloud);
-    // Wait for the optimized rendition before reporting upload success.
-    await fetchOptimizedImage(cloud, secret, reference.path);
     return { url };
   });
 

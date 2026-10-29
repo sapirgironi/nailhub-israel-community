@@ -566,12 +566,16 @@ export function StoryEditor({
     setBusy(true);
     setErr("");
     setEditing(null);
+    let stage = "העלאת תמונת הרקע";
     try {
       if (backgroundUrl.current?.file !== file)
         backgroundUrl.current = { file, url: await uploadPhoto(file) };
+      stage = "ייצוא תמונת הסטורי";
       const result = await snapshot();
+      stage = "שמירת הסטורי";
       await onPublish(result.file, "", backgroundUrl.current.url, result.mentions);
-    } catch {
+    } catch (error) {
+      console.error("Story publish failed", { stage, error });
       setErr("פרסום הסטורי נכשל. נסי שוב.");
       setBusy(false);
     }

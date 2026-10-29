@@ -1,16 +1,22 @@
 import { IMAGE_OPTIMIZATION } from './cloudinary';
 
 export async function fetchOptimizedImage(cloud: string, secret: string, path: string) {
-  // Cloudinary signs transformations + public ID, excluding the version segment.
-  const publicId = path.replace(/^v\d+\//, '');
-  const bytes = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(`${IMAGE_OPTIMIZATION}/${publicId}${secret}`));
+  const signedPath = `${IMAGE_OPTIMIZATION}/${path}`;
+  const bytes = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(`${signedPath}${secret}`));
   const signature = btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').slice(0, 8);
-  const response = await fetch(`https://res.cloudinary.com/${cloud}/image/authenticated/s--${signature}--/${IMAGE_OPTIMIZATION}/${path}`, {
+  const url = `https://res.cloudinary.com/${cloud}/image/authenticated/s--${signature}--/${signedPath}`;
+  const response = await fetch(url, {
     headers: { Accept: 'image/webp,image/*' }, cache: 'no-store',
   });
   if (!response.ok) {
-    console.error('Cloudinary delivery failed', response.status);
-    throw new Error('טעינת התמונה נכשלה. נסי שוב.');
+    const details = await response.text();
+    console.error('Cloudinary delivery failed', {
+      url: response.url || url,
+      status: response.status,
+      statusText: response.statusText,
+      response: details,
+    });
+    throw new Error(`טעינת התמונה נכשלה בכתובת ${response.url || url} (HTTP ${response.status}): ${details}`);
   }
   const body = new Uint8Array(await response.arrayBuffer());
   let binary = '';

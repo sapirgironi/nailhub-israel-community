@@ -70,7 +70,21 @@ function StoriesBar({user}:{user:Person}){
  const nextRef=useRef(next);nextRef.current=next;
  useEffect(()=>{if(!open||paused)return;const t=setInterval(()=>{setProgress(p=>{if(p>=100){queueMicrotask(()=>nextRef.current());return 0;}return p+2;});},100);return()=>clearInterval(t);},[open?.g,open?.i,paused]);
  const [draft,setDraft]=useState<File|null>(null);
- async function addStory(f:File,alt:string,background_media_url:string,mentions:StoryMention[]){setMsg('');const media_url=await uploadPhoto(f,user.id);if(!media_url)throw new Error('העלאת תמונת הסטורי נכשלה');const payload:StoryInsert={user_id:user.id,media_url,caption:null,background_media_url:background_media_url||null,alt_text:alt?.trim()||null,mentions:Array.isArray(mentions)?mentions:[]};const {error}=await supabase.from('stories').insert(payload);if(error)throw error;setDraft(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
+ async function addStory(f:File,alt:string,background_media_url:string,mentions:StoryMention[]){
+  setMsg('');
+  const media_url=await uploadPhoto(f,user.id);
+  if(!media_url)throw new Error('שירות התמונות לא החזיר כתובת תקינה');
+  const payload:StoryInsert={user_id:user.id,media_url,caption:null,background_media_url:background_media_url||null,alt_text:alt?.trim()||null,mentions:Array.isArray(mentions)?mentions:[]};
+  const supabaseUrl=import.meta.env['VITE_SUPABASE_URL']||(typeof process!=='undefined'?process.env['SUPABASE_URL']:undefined);
+  const url=`${supabaseUrl?.replace(/\/+$/,'')??'[Supabase URL unavailable]'}/rest/v1/stories`;
+  const {error}=await supabase.from('stories').insert(payload);
+  if(error){
+   console.error('Story insert failed',{url,payload:{...payload,media_url:'[omitted]'},error:{name:error.name,message:error.message,code:error.code,details:error.details,hint:error.hint}});
+   throw new Error(`שמירת הסטורי נכשלה: ${error.message}${error.code?` (${error.code})`:''}`);
+  }
+  setDraft(null);
+  await qc.invalidateQueries({queryKey:['hub-stories']});
+ }
  async function removeStory(id:string){const {error}=await supabase.from('stories').delete().eq('id',id);if(error){setMsg('מחיקת הסטורי נכשלה');return;}setOpen(null);await qc.invalidateQueries({queryKey:['hub-stories']});}
  useEffect(()=>{if(!current?.id||!current.user_id||current.user_id===user.id)return;void supabase.from('story_views').upsert({story_id:current.id,viewer_id:user.id,viewer_name:user.businessName||user.fullName},{onConflict:'story_id,viewer_id',ignoreDuplicates:true}).then(({error})=>{if(error)setMsg('רישום הצפייה נכשל');});},[current?.id]);
  const storyInput=useRef<HTMLInputElement>(null);const downAt=useRef(0);

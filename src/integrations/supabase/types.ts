@@ -1166,9 +1166,9 @@ export type Database = {
       }
       community_members: {
         Args: {
-          after_id?: string | null
-          after_name?: string | null
-          member_id?: string | null
+          after_id?: string
+          after_name?: string
+          member_id?: string
           page_size?: number
           role_filter?: string
           search_text?: string
@@ -1176,7 +1176,7 @@ export type Database = {
         Returns: {
           account_role: string
           additional_services: string[]
-          avatar_url: string | null
+          avatar_url: string
           business_name: string
           city: string
           display_name: string
@@ -1184,10 +1184,6 @@ export type Database = {
           is_verified: boolean
           specialties: string[]
         }[]
-      }
-      post_comment_counts: {
-        Args: { post_ids: string[] }
-        Returns: { comment_count: number; post_id: string }[]
       }
       has_role: {
         Args: {
@@ -1205,6 +1201,13 @@ export type Database = {
           target_user: string
         }
         Returns: number
+      }
+      post_comment_counts: {
+        Args: { post_ids: string[] }
+        Returns: {
+          comment_count: number
+          post_id: string
+        }[]
       }
     }
     Enums: {

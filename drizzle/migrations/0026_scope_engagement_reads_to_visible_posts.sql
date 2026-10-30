@@ -1,0 +1,1 @@
+ALTER POLICY "Likes are readable" ON public.post_likes USING (EXISTS (SELECT 1 FROM public.posts p WHERE p.id = post_likes.post_id)); ALTER POLICY "Comments are readable" ON public.post_comments USING (EXISTS (SELECT 1 FROM public.posts p WHERE p.id = post_comments.post_id));

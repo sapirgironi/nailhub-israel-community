@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject, type PointerEvent as RPointerEvent } from "react";
+import { createStoryPreview } from "@/lib/story-preview";
 import {
   Trash2,
   Type,
@@ -187,6 +188,197 @@ function EditableText({
   );
 }
 
+
+function useStableEvent<T extends (...args: never[]) => unknown>(handler: T): T {
+  const ref = useRef(handler);
+  useLayoutEffect(() => { ref.current = handler; });
+  return useCallback(((...args) => ref.current(...args)) as T, []);
+}
+
+type LayerProps = {
+  e: El; active: boolean; editing: boolean; dimmed: boolean;
+  down: (ev: RPointerEvent, e: El) => void;
+  editLayer: (id: number) => void; finishEditing: () => void;
+  changeText: (id: number, text: string, caret: number) => void;
+  beginResize: (ev: RPointerEvent, e: El, side: 1 | -1) => void;
+};
+const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, editLayer, finishEditing, changeText, beginResize}: LayerProps) {
+  const f = fontOf(e.font);
+  return (
+              <div
+                data-layer-id={e.id}
+                key={e.id}
+                onPointerDown={(ev) => down(ev, e)}
+                onDoubleClick={() => e.kind === "text" && editLayer(e.id)}
+                style={{
+                  left: e.x + "%",
+                  top: e.y + "%",
+                  zIndex: e.z,
+                  transform: `translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,
+                  touchAction: "none",
+                  willChange: "transform",
+                  width: e.kind === "text" ? e.width + "%" : "max-content",
+                  maxWidth: "90%",
+                  opacity: dimmed ? 0.5 : e.opacity,
+                }}
+                className={
+                  "absolute cursor-grab text-center " +
+                  (active
+                    ? "outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md"
+                    : "")
+                }
+              >
+                {e.kind === "image" && e.src && (
+                  <img
+                    src={e.src}
+                    alt={e.text || "סטיקר"}
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                    style={{
+                      width: IMG_BASE,
+                      maxWidth: "90%",
+                      height: "auto",
+                      objectFit: "contain",
+                    }}
+                    className="pointer-events-none"
+                  />
+                )}
+                {e.kind === "pill" && (
+                  <span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">
+                    {e.text}
+                  </span>
+                )}
+                {e.kind === "text" && (
+                  <span
+                    style={{
+                      fontFamily: `"${f.family}"`,
+                      fontStyle: f.italic ? "italic" : "normal",
+                      fontWeight: e.bold ? 700 : 400,
+                      textDecoration: e.underline ? "underline" : "none",
+                      color: e.color,
+                      opacity: 1,
+                      fontSize: BASE,
+                      lineHeight: 1.25,
+                      background: e.highlight ? highlightBg(e.color) : "transparent",
+                      textShadow: e.highlight ? "none" : "0 1px 6px rgba(0,0,0,.35)",
+                      whiteSpace: "pre-wrap",
+                      maxWidth: "90%",
+                      overflowWrap: "anywhere",
+                      wordBreak: "break-word",
+                    }}
+                    className="block rounded-lg px-2"
+                  >
+                    {editing ? (
+                      <EditableText
+                        initial={e.text}
+                        onChange={(t, caret) => changeText(e.id, t, caret)}
+                        onDone={finishEditing}
+                      />
+                    ) : (
+                      e.text || <span className="opacity-60">הקלידי כאן</span>
+                    )}
+                  </span>
+                )}
+                {e.kind === "text" &&
+                  active &&
+                  ([-1, 1] as const).map((side) => (
+                    <Button
+                      key={side}
+                      data-editor-control="true"
+                      size="icon"
+                      variant="secondary"
+                      aria-label={side === -1 ? "שינוי רוחב משמאל" : "שינוי רוחב מימין"}
+                      onPointerDown={(ev) => beginResize(ev, e, side)}
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: side === -1 ? -16 : undefined,
+                        right: side === 1 ? -16 : undefined,
+                        transform: "translateY(-50%)",
+                        touchAction: "none",
+                  willChange: "transform",
+                      }}
+                      className="w-8 h-10 cursor-ew-resize border border-primary rounded-full"
+                    >
+                      <span className="w-1 h-5 bg-primary rounded-full" />
+                    </Button>
+                  ))}
+              </div>
+  );
+});
+
+type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'dimmed'> & {
+  frame: RefObject<HTMLDivElement | null>; src: string; els: El[]; sel: number | null;
+  editing: number | null; compact: boolean; exporting: boolean; over: boolean;
+  drag: {id: number; dx: number; dy: number} | null;
+  frameDown: (ev: RPointerEvent) => void; move: (ev: RPointerEvent) => void; up: (ev: RPointerEvent) => void;
+};
+const StoryCanvas = memo(function StoryCanvas({frame, src, els, sel, editing, compact, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
+  return (
+      <div
+        ref={frame}
+        onPointerDown={frameDown}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        style={{
+          touchAction: "none",
+          width: `min(100%,384px,calc(${compact ? "44" : "58"}dvh * 9 / 16))`,
+          aspectRatio: "9 / 16",
+        }}
+        className="relative shrink-0 overflow-hidden bg-foreground select-none"
+      >
+        <img
+          src={src}
+          alt=""
+          loading="eager"
+          decoding="async"
+          draggable={false}
+          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+        />
+        {els
+          .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
+          .map((e) => {
+            return <StoryLayer key={e.id} e={e} active={sel === e.id && !exporting} editing={editing === e.id} dimmed={drag?.id === e.id && over} down={down} editLayer={editLayer} finishEditing={finishEditing} changeText={changeText} beginResize={beginResize} />;
+          })}
+        {drag && !exporting && (
+          <div
+            data-editor-control="true"
+            className={
+              "absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] " +
+              (over
+                ? "bg-destructive text-destructive-foreground scale-125"
+                : "bg-card/80 text-foreground")
+            }
+          >
+            <Trash2 />
+          </div>
+        )}
+      </div>
+  );
+});
+
+export const StorySlider = memo(function StorySlider({label, value, min, max, onPreview, onCommit}: {
+  label: string; value: number; min: number; max: number;
+  onPreview: (value: number) => void; onCommit: (value: number) => void;
+}) {
+  const [local, setLocal] = useState(value);
+  const pending = useRef<number | null>(null);
+  useEffect(() => { setLocal(value); }, [value]);
+  function commit() {
+    if (pending.current === null) return;
+    const next = pending.current;
+    pending.current = null;
+    onCommit(next);
+  }
+  return <input aria-label={label} type="range" min={min} max={max} step={0.05} value={local}
+    onPointerDown={ev => ev.currentTarget.setPointerCapture(ev.pointerId)}
+    onChange={ev => { const next = Number(ev.target.value); pending.current = next; setLocal(next); onPreview(next); }}
+    onPointerUp={commit} onPointerCancel={commit} onLostPointerCapture={commit} onKeyUp={commit} onBlur={commit}
+    style={{touchAction: "none"}} className="flex-1 accent-primary" />;
+});
+
 export function StoryEditor({
   file,
   onCancel,
@@ -203,9 +395,15 @@ export function StoryEditor({
 }) {
   const [src, setSrc] = useState("");
   useEffect(() => {
-    const u = URL.createObjectURL(file);
-    setSrc(u);
-    return () => URL.revokeObjectURL(u);
+    let cancelled = false;
+    let url = "";
+    setSrc("");
+    void createStoryPreview(file).then(blob => {
+      if (cancelled) return;
+      url = URL.createObjectURL(blob);
+      setSrc(url);
+    }).catch(() => { if (!cancelled) setErr("לא ניתן לפתוח את התמונה. בחרי תמונה אחרת."); });
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
   }, [file]);
   const backgroundUrl = useRef<{ file: File; url: string } | null>(null);
   const [els, setEls] = useState<El[]>([]);
@@ -268,8 +466,35 @@ export function StoryEditor({
     rotation: number;
   } | null>(null);
   const selected = els.find((e) => e.id === sel) ?? null;
-  const patch = (id: number, p: Partial<El>) =>
-    setEls((v) => v.map((e) => (e.id === id ? { ...e, ...p } : e)));
+  const patch = useCallback((id: number, p: Partial<El>) =>
+    setEls((v) => v.map((e) => (e.id === id ? { ...e, ...p } : e))), []);
+  const transient = useRef<{id: number; values: Partial<El>} | null>(null);
+  const raf = useRef<number | null>(null);
+  useEffect(() => () => { if (raf.current !== null) cancelAnimationFrame(raf.current); }, []);
+  function paint() {
+    const pending = transient.current;
+    if (!pending) return;
+    const layer = els.find(e => e.id === pending.id);
+    const node = frame.current?.querySelector<HTMLElement>(`[data-layer-id="${pending.id}"]`);
+    if (!node || !layer) return;
+    const next = {...layer, ...pending.values};
+    node.style.transform = `translate(-50%,-50%) scale(${next.scale}) rotate(${next.rot}deg)`;
+    node.style.left = next.x + "%";
+    node.style.top = next.y + "%";
+    node.style.width = next.kind === "text" ? next.width + "%" : "max-content";
+    node.style.opacity = String(next.opacity);
+  }
+  function previewLayer(id: number, values: Partial<El>) {
+    transient.current = {id, values: {...(transient.current?.id === id ? transient.current.values : {}), ...values}};
+    if (raf.current === null) raf.current = requestAnimationFrame(() => { raf.current = null; paint(); });
+  }
+  function commitPreview() {
+    if (raf.current !== null) { cancelAnimationFrame(raf.current); raf.current = null; }
+    paint();
+    const pending = transient.current;
+    transient.current = null;
+    if (pending) patch(pending.id, pending.values);
+  }
   const last = useRef<Pick<El, "font" | "bold" | "underline" | "highlight" | "color">>({
     font: "assistant",
     bold: true,
@@ -397,7 +622,7 @@ export function StoryEditor({
       const r = resize.current;
       const width = frame.current?.getBoundingClientRect().width;
       if (width)
-        patch(r.id, {
+        previewLayer(r.id, {
           width: resizedTextWidth(
             r.width,
             ev.clientX - r.x,
@@ -419,7 +644,7 @@ export function StoryEditor({
       if (!a || !b) return;
       const d = Math.hypot(a.x - b.x, a.y - b.y);
       const ang = Math.atan2(b.y - a.y, b.x - a.x);
-      patch(sel, {
+      previewLayer(sel, {
         scale: Math.min(5, Math.max(0.4, (pinch.current.s * d) / pinch.current.d)),
         rot: pinch.current.r + ((ang - pinch.current.a) * 180) / Math.PI,
       });
@@ -428,9 +653,10 @@ export function StoryEditor({
     if (!drag) return;
     const p = pos(ev);
     setOver(isTrash(p.x, p.y));
-    patch(drag.id, clamp({ x: p.x - drag.dx, y: p.y - drag.dy }));
+    previewLayer(drag.id, clamp({ x: p.x - drag.dx, y: p.y - drag.dy }));
   }
   function up(ev: RPointerEvent) {
+    commitPreview();
     if (resize.current) {
       resize.current = null;
       return;
@@ -485,14 +711,29 @@ export function StoryEditor({
       inputRef.current?.setSelectionRange(result.caret, result.caret);
     });
   }
+  const stableDown = useStableEvent(down);
+  const stableFrameDown = useStableEvent(frameDown);
+  const stableMove = useStableEvent(move);
+  const stableUp = useStableEvent(up);
+  const stableBeginResize = useStableEvent(beginResize);
+  const stableChangeText = useStableEvent(changeText);
+  const editLayer = useCallback((id: number) => setEditing(id), []);
+  const finishEditing = useCallback(() => setEditing(null), []);
+  const previewScale = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {scale: value}); });
+  const previewOpacity = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {opacity: value}); });
+  const commitScale = useStableEvent((value: number) => { commitPreview(); if (sel !== null) patch(sel, {scale: value}); });
+  const commitOpacity = useStableEvent((value: number) => { commitPreview(); if (sel !== null) patch(sel, {opacity: value}); });
   async function snapshot() {
     const node = frame.current;
     if (!node) throw new Error("התמונה אינה מוכנה");
+    const background = node.querySelector<HTMLImageElement>("img");
+    const originalUrl = URL.createObjectURL(file);
     flushSync(() => {
       setEditing(null);
       setExporting(true);
     });
     try {
+      if (background) { background.src = originalUrl; await background.decode(); }
       await document.fonts.ready;
       await Promise.all(
         els
@@ -559,6 +800,8 @@ export function StoryEditor({
       );
       return { file: new File([jpeg], "story.jpg", { type: "image/jpeg" }), mentions: links };
     } finally {
+      if (background) background.src = src;
+      URL.revokeObjectURL(originalUrl);
       setExporting(false);
     }
   }
@@ -628,147 +871,7 @@ export function StoryEditor({
           </label>
         </div>
       </div>
-      <div
-        ref={frame}
-        onPointerDown={frameDown}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={up}
-        style={{
-          touchAction: "none",
-          width: `min(100%,384px,calc(${editing !== null || textInputFocused ? "44" : "58"}dvh * 9 / 16))`,
-          aspectRatio: "9 / 16",
-        }}
-        className="relative shrink-0 overflow-hidden bg-black select-none"
-      >
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-        />
-        {els
-          .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
-          .map((e) => {
-            const f = fontOf(e.font);
-            const active = sel === e.id && !exporting;
-            return (
-              <div
-                data-layer-id={e.id}
-                key={e.id}
-                onPointerDown={(ev) => down(ev, e)}
-                onDoubleClick={() => e.kind === "text" && setEditing(e.id)}
-                style={{
-                  left: e.x + "%",
-                  top: e.y + "%",
-                  zIndex: e.z,
-                  transform: `translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,
-                  touchAction: "none",
-                  width: e.kind === "text" ? e.width + "%" : "max-content",
-                  maxWidth: "90%",
-                  opacity: drag?.id === e.id && over ? 0.5 : e.opacity,
-                }}
-                className={
-                  "absolute cursor-grab text-center " +
-                  (active
-                    ? "outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md"
-                    : "")
-                }
-              >
-                {e.kind === "image" && e.src && (
-                  <img
-                    src={e.src}
-                    alt={e.text || "סטיקר"}
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                    style={{
-                      width: IMG_BASE,
-                      maxWidth: "90%",
-                      height: "auto",
-                      objectFit: "contain",
-                    }}
-                    className="pointer-events-none"
-                  />
-                )}
-                {e.kind === "pill" && (
-                  <span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">
-                    {e.text}
-                  </span>
-                )}
-                {e.kind === "text" && (
-                  <span
-                    style={{
-                      fontFamily: `"${f.family}"`,
-                      fontStyle: f.italic ? "italic" : "normal",
-                      fontWeight: e.bold ? 700 : 400,
-                      textDecoration: e.underline ? "underline" : "none",
-                      color: e.color,
-                      opacity: 1,
-                      fontSize: BASE,
-                      lineHeight: 1.25,
-                      background: e.highlight ? highlightBg(e.color) : "transparent",
-                      textShadow: e.highlight ? "none" : "0 1px 6px rgba(0,0,0,.35)",
-                      whiteSpace: "pre-wrap",
-                      maxWidth: "90%",
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word",
-                    }}
-                    className="block rounded-lg px-2"
-                  >
-                    {editing === e.id ? (
-                      <EditableText
-                        initial={e.text}
-                        onChange={(t, caret) => changeText(e.id, t, caret)}
-                        onDone={() => setEditing(null)}
-                      />
-                    ) : (
-                      e.text || <span className="opacity-60">הקלידי כאן</span>
-                    )}
-                  </span>
-                )}
-                {e.kind === "text" &&
-                  active &&
-                  ([-1, 1] as const).map((side) => (
-                    <Button
-                      key={side}
-                      data-editor-control="true"
-                      size="icon"
-                      variant="secondary"
-                      aria-label={side === -1 ? "שינוי רוחב משמאל" : "שינוי רוחב מימין"}
-                      onPointerDown={(ev) => beginResize(ev, e, side)}
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: side === -1 ? -16 : undefined,
-                        right: side === 1 ? -16 : undefined,
-                        transform: "translateY(-50%)",
-                        touchAction: "none",
-                      }}
-                      className="w-8 h-10 cursor-ew-resize border border-primary rounded-full"
-                    >
-                      <span className="w-1 h-5 bg-primary rounded-full" />
-                    </Button>
-                  ))}
-              </div>
-            );
-          })}
-        {drag && !exporting && (
-          <div
-            data-editor-control="true"
-            className={
-              "absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] " +
-              (over
-                ? "bg-destructive text-destructive-foreground scale-125"
-                : "bg-card/80 text-foreground")
-            }
-          >
-            <Trash2 />
-          </div>
-        )}
-      </div>
+      <StoryCanvas frame={frame} src={src} els={els} sel={sel} editing={editing} compact={editing !== null || textInputFocused} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
 
       {selected && (
         <div className="sticky bottom-0 z-10 w-full max-w-sm max-h-[40vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl rounded-b-2xl p-3 space-y-2 shrink-0 shadow-soft">
@@ -782,17 +885,7 @@ export function StoryEditor({
             >
               <Minus />
             </Button>
-            <input
-              aria-label="שינוי גודל"
-              type="range"
-              min={0.4}
-              max={5}
-              step={0.05}
-              value={selected.scale}
-              onChange={(e) => patch(selected.id, { scale: Number(e.target.value) })}
-              style={{ touchAction: "none" }}
-              className="flex-1 accent-primary"
-            />
+            <StorySlider key={`scale-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale} />
             <Button
               size="icon"
               variant="outline"
@@ -805,17 +898,7 @@ export function StoryEditor({
           {selected.kind === "image" && (
             <label className="flex items-center gap-2 text-xs font-bold">
               שקיפות
-              <input
-                aria-label="שקיפות הלוגו או הסטיקר"
-                type="range"
-                min={0.15}
-                max={1}
-                step={0.05}
-                value={selected.opacity}
-                onChange={(e) => patch(selected.id, { opacity: Number(e.target.value) })}
-                style={{ touchAction: "none" }}
-                className="flex-1 accent-primary"
-              />
+              <StorySlider key={`opacity-${selected.id}`} label="שקיפות הלוגו או הסטיקר" value={selected.opacity} min={0.15} max={1} onPreview={previewOpacity} onCommit={commitOpacity} />
             </label>
           )}
           {selected.kind === "text" && (

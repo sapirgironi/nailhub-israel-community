@@ -46,4 +46,25 @@ describe('story editing performance boundaries', () => {
     expect(file.size).toBe(8);
     expect(close).toHaveBeenCalledOnce();
   });
+  it('commits an opacity preview once when release also loses pointer capture', () => {
+    const commit = vi.fn();
+    render(<StorySlider label="opacity" value={1} min={0.15} max={1} onPreview={vi.fn()} onCommit={commit}/>);
+    const slider = screen.getByRole('slider');
+    fireEvent.change(slider, {target: {value: '0.4'}});
+    expect(commit).not.toHaveBeenCalled();
+    fireEvent.pointerUp(slider);
+    fireEvent.lostPointerCapture(slider);
+    fireEvent.blur(slider);
+    expect(commit).toHaveBeenCalledExactlyOnceWith(0.4);
+  });
+  it('bounds a portrait editing image to 384 by 768 pixels', async () => {
+    const close = vi.fn(), drawImage = vi.fn();
+    const image = {width: 2000, height: 4000, close};
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(image));
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({drawImage} as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(callback => callback(new Blob(['preview'])));
+    await createStoryPreview(new File(['original'], 'photo.jpg', {type: 'image/jpeg'}));
+    expect(drawImage).toHaveBeenCalledWith(image, 0, 0, 384, 768);
+    expect(close).toHaveBeenCalledOnce();
+  });
 });

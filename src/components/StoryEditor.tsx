@@ -314,6 +314,16 @@ type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'dimmed'> & {
   drag: {id: number; dx: number; dy: number} | null;
   frameDown: (ev: RPointerEvent) => void; move: (ev: RPointerEvent) => void; up: (ev: RPointerEvent) => void;
 };
+const StoryBackground = memo(function StoryBackground({src}: {src: string}) {
+  return <img
+    src={src}
+    alt=""
+    loading="eager"
+    decoding="async"
+    draggable={false}
+    className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+  />;
+});
 const StoryCanvas = memo(function StoryCanvas({frame, src, els, sel, editing, compact, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
   return (
       <div
@@ -329,14 +339,7 @@ const StoryCanvas = memo(function StoryCanvas({frame, src, els, sel, editing, co
         }}
         className="relative shrink-0 overflow-hidden bg-foreground select-none"
       >
-        <img
-          src={src}
-          alt=""
-          loading="eager"
-          decoding="async"
-          draggable={false}
-          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-        />
+        <StoryBackground src={src} />
         {els
           .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
           .map((e) => {
@@ -412,6 +415,7 @@ export function StoryEditor({
   const [textInputFocused, setTextInputFocused] = useState(false);
   const [drag, setDrag] = useState<{ id: number; dx: number; dy: number } | null>(null);
   const [over, setOver] = useState(false);
+  const overRef = useRef(false);
   const [panel, setPanel] = useState<"stickers" | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -494,6 +498,7 @@ export function StoryEditor({
     const pending = transient.current;
     transient.current = null;
     if (pending) patch(pending.id, pending.values);
+    return pending !== null;
   }
   const last = useRef<Pick<El, "font" | "bold" | "underline" | "highlight" | "color">>({
     font: "assistant",
@@ -652,7 +657,11 @@ export function StoryEditor({
     }
     if (!drag) return;
     const p = pos(ev);
-    setOver(isTrash(p.x, p.y));
+    const nextOver = isTrash(p.x, p.y);
+    if (overRef.current !== nextOver) {
+      overRef.current = nextOver;
+      setOver(nextOver);
+    }
     previewLayer(drag.id, clamp({ x: p.x - drag.dx, y: p.y - drag.dy }));
   }
   function up(ev: RPointerEvent) {
@@ -676,6 +685,7 @@ export function StoryEditor({
       setSel(null);
     }
     setDrag(null);
+    overRef.current = false;
     setOver(false);
   }
   function style(p: Partial<El>) {
@@ -721,8 +731,8 @@ export function StoryEditor({
   const finishEditing = useCallback(() => setEditing(null), []);
   const previewScale = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {scale: value}); });
   const previewOpacity = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {opacity: value}); });
-  const commitScale = useStableEvent((value: number) => { commitPreview(); if (sel !== null) patch(sel, {scale: value}); });
-  const commitOpacity = useStableEvent((value: number) => { commitPreview(); if (sel !== null) patch(sel, {opacity: value}); });
+  const commitScale = useStableEvent((value: number) => { if (!commitPreview() && sel !== null) patch(sel, {scale: value}); });
+  const commitOpacity = useStableEvent((value: number) => { if (!commitPreview() && sel !== null) patch(sel, {opacity: value}); });
   async function snapshot() {
     const node = frame.current;
     if (!node) throw new Error("התמונה אינה מוכנה");

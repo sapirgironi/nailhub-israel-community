@@ -1165,14 +1165,24 @@ export type Database = {
         Returns: string
       }
       community_members: {
-        Args: { member_id?: string; search_text?: string }
+        Args: {
+          after_id?: string
+          after_name?: string
+          member_id?: string
+          page_size?: number
+          role_filter?: string
+          search_text?: string
+        }
         Returns: {
           account_role: string
+          additional_services: string[]
           avatar_url: string
           business_name: string
           city: string
           display_name: string
           id: string
+          is_verified: boolean
+          specialties: string[]
         }[]
       }
       has_role: {
@@ -1191,6 +1201,13 @@ export type Database = {
           target_user: string
         }
         Returns: number
+      }
+      post_comment_counts: {
+        Args: { post_ids: string[] }
+        Returns: {
+          comment_count: number
+          post_id: string
+        }[]
       }
     }
     Enums: {

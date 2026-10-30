@@ -25,6 +25,7 @@ import {
   activeMention,
   insertMention,
   resizedTextWidth,
+  storyTextLines,
   type StoryMention,
   type MentionMember,
 } from "@/lib/story-layout";
@@ -183,7 +184,8 @@ function EditableText({
         )
       }
       onBlur={onDone}
-      className="outline-none w-full min-w-[1ch] block whitespace-pre-wrap caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"
+      style={{whiteSpace: "pre", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "auto"}}
+      className="outline-none min-w-[1ch] caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"
     />
   );
 }
@@ -218,7 +220,8 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                   touchAction: "none",
                   willChange: "transform",
                   width: e.kind === "text" ? e.width + "%" : "max-content",
-                  maxWidth: "90%",
+                  maxWidth: e.kind === "text" ? "92%" : "90%",
+                  minWidth: e.kind === "text" ? "fit-content" : undefined,
                   opacity: dimmed ? 0.5 : e.opacity,
                 }}
                 className={
@@ -262,10 +265,11 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       lineHeight: 1.25,
                       background: e.highlight ? highlightBg(e.color) : "transparent",
                       textShadow: e.highlight ? "none" : "0 1px 6px rgba(0,0,0,.35)",
-                      whiteSpace: "pre-wrap",
-                      maxWidth: "90%",
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word",
+                      whiteSpace: "nowrap",
+                      display: "inline-block",
+                      width: "auto",
+                      overflowWrap: "normal",
+                      wordBreak: "keep-all",
                     }}
                     className="block rounded-lg px-2"
                   >
@@ -276,7 +280,12 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                         onDone={finishEditing}
                       />
                     ) : (
-                      e.text || <span className="opacity-60">הקלידי כאן</span>
+                      e.text ? storyTextLines(e.text).map((line, index) => (
+                        <span key={index}>
+                          {index > 0 && <br />}
+                          <span style={{whiteSpace: "nowrap", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "auto"}}>{line || "\u200b"}</span>
+                        </span>
+                      )) : <span className="opacity-60">הקלידי כאן</span>
                     )}
                   </span>
                 )}
@@ -617,7 +626,11 @@ export function StoryEditor({
       side,
       x: ev.clientX,
       y: ev.clientY,
-      width: e.width,
+      width: (() => {
+        const node = frame.current?.querySelector<HTMLElement>(`[data-layer-id="${e.id}"]`);
+        const frameWidth = frame.current?.clientWidth;
+        return node && frameWidth ? node.offsetWidth / frameWidth * 100 : e.width;
+      })(),
       scale: e.scale,
       rotation: e.rot,
     };

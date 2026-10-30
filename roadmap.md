@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [ ] Recheck requested mobile Story Editor performance boundaries and address any remaining unnecessary rendering or gesture commits; verify with tests and the authenticated editor.
 - [x] Optimize Story Editor: memoized canvas/layers, frame-scheduled local slider/gesture previews, GPU transforms and 768px editing bitmap; authenticated mobile tab changes produce zero unchanged-layer mutations, slider release and real publish/reload verified at 1080x1920, temporary story deleted; 14 tests and build pass. Actual physical-device 60fps not measured.
 - [x] Tighten like/comment reads to RLS-visible parent posts, preserving community access; deployed predicates verified, regression SQL retained, both listed security findings resolved.
 - [x] Navigation cleanup: removed feed publish banner and duplicate drawer insurance banner, widened feed, added fourth-slot clinic hub with four existing real tools; authenticated mobile/desktop tool navigation and composer opening verified, two real feed posts loaded, widths 320/444 checked, tests and build pass.

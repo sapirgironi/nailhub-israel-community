@@ -37,7 +37,7 @@ describe('story editing performance boundaries', () => {
     const image = {width: 4000, height: 2000, close};
     vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(image));
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({drawImage} as unknown as CanvasRenderingContext2D);
-    const encoding = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback, type) => callback(new Blob(['preview'], {type})));
+    const encoding = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback, type) => callback(new Blob(['preview'], {type: type ?? 'image/webp'})));
     const file = new File(['original'], 'photo.jpg', {type: 'image/jpeg'});
     const preview = await createStoryPreview(file);
     expect(drawImage).toHaveBeenCalledWith(image, 0, 0, 768, 384);

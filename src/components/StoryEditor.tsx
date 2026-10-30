@@ -210,7 +210,7 @@ function fitTextLayer(node: HTMLElement, scale: number, rotation: number) {
   const text = node.querySelector<HTMLElement>('[data-story-text]');
   if (!canvas || !text || !canvas.clientWidth) return;
   const width = canvas.clientWidth, height = canvas.clientHeight;
-  node.style.maxWidth = `${95 / Math.max(1, scale)}%`;
+  node.style.maxWidth = "95%";
   text.style.fontSize = `${BASE}px`;
   // Measure the intrinsic lines, then shrink without inserting automatic breaks.
   const natural = text.scrollWidth;
@@ -220,6 +220,11 @@ function fitTextLayer(node: HTMLElement, scale: number, rotation: number) {
   const initial = node.getBoundingClientRect();
   const fittedScale = scale * Math.min(1, width * 0.95 / Math.max(1, initial.width), height * 0.95 / Math.max(1, initial.height));
   node.style.transform = `translate(-50%,-50%) scale(${fittedScale}) rotate(${rotation}deg)`;
+  node.querySelectorAll<HTMLElement>('[data-editor-control]').forEach(handle => {
+    handle.style.transform = `translateY(-50%) scale(${1 / fittedScale})`;
+    if (handle.style.left) handle.style.left = `${16 / fittedScale}px`;
+    if (handle.style.right) handle.style.right = `${16 / fittedScale}px`;
+  });
   const box = node.getBoundingClientRect();
   const halfWidth = box.width / 2, halfHeight = box.height / 2;
   const x = parseFloat(node.style.left) / 100 * width;

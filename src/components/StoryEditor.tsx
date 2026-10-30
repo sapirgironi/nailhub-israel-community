@@ -26,6 +26,7 @@ import {
   insertMention,
   resizedTextWidth,
   storyTextLines,
+  fittedStoryFont,
   type StoryMention,
   type MentionMember,
 } from "@/lib/story-layout";
@@ -204,10 +205,46 @@ type LayerProps = {
   changeText: (id: number, text: string, caret: number) => void;
   beginResize: (ev: RPointerEvent, e: El, side: 1 | -1) => void;
 };
+function fitTextLayer(node: HTMLElement, scale: number, rotation: number) {
+  const canvas = node.parentElement;
+  const text = node.querySelector<HTMLElement>('[data-story-text]');
+  if (!canvas || !text || !canvas.clientWidth) return;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  node.style.maxWidth = `${95 / Math.max(1, scale)}%`;
+  text.style.fontSize = `${BASE}px`;
+  // Measure the intrinsic lines, then shrink without inserting automatic breaks.
+  const natural = text.scrollWidth;
+  const available = Math.max(1, node.clientWidth - 16);
+  text.style.fontSize = `${fittedStoryFont(BASE, natural, available)}px`;
+  node.style.transform = `translate(-50%,-50%) scale(${scale}) rotate(${rotation}deg)`;
+  const initial = node.getBoundingClientRect();
+  const fittedScale = scale * Math.min(1, width * 0.95 / Math.max(1, initial.width), height * 0.95 / Math.max(1, initial.height));
+  node.style.transform = `translate(-50%,-50%) scale(${fittedScale}) rotate(${rotation}deg)`;
+  const box = node.getBoundingClientRect();
+  const halfWidth = box.width / 2, halfHeight = box.height / 2;
+  const x = parseFloat(node.style.left) / 100 * width;
+  const y = parseFloat(node.style.top) / 100 * height;
+  node.style.left = `${Math.min(width - halfWidth, Math.max(halfWidth, x)) / width * 100}%`;
+  node.style.top = `${Math.min(height - halfHeight, Math.max(halfHeight, y)) / height * 100}%`;
+}
 const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, editLayer, finishEditing, changeText, beginResize}: LayerProps) {
   const f = fontOf(e.font);
+  const layerRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (e.kind !== "text") return;
+    const node = layerRef.current;
+    if (!node) return;
+    const fit = () => fitTextLayer(node, e.scale, e.rot);
+    fit();
+    const observer = new ResizeObserver(fit);
+    if (node.parentElement) observer.observe(node.parentElement);
+    let mounted = true;
+    void document.fonts.ready.then(() => { if (mounted) fit(); });
+    return () => { mounted = false; observer.disconnect(); };
+  }, [e, editing]);
   return (
               <div
+                ref={layerRef}
                 data-layer-id={e.id}
                 key={e.id}
                 onPointerDown={(ev) => down(ev, e)}
@@ -220,8 +257,8 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                   touchAction: "none",
                   willChange: "transform",
                   width: e.kind === "text" ? e.width + "%" : "max-content",
-                  maxWidth: e.kind === "text" ? "92%" : "90%",
-                  minWidth: e.kind === "text" ? "fit-content" : undefined,
+                  maxWidth: e.kind === "text" ? "95%" : "90%",
+                  minWidth: e.kind === "text" ? 0 : undefined,
                   opacity: dimmed ? 0.5 : e.opacity,
                 }}
                 className={
@@ -254,6 +291,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                 )}
                 {e.kind === "text" && (
                   <span
+                    data-story-text="true"
                     style={{
                       fontFamily: `"${f.family}"`,
                       fontStyle: f.italic ? "italic" : "normal",
@@ -268,6 +306,8 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       whiteSpace: "nowrap",
                       display: "inline-block",
                       width: "auto",
+                      maxWidth: "100%",
+                      overflow: "hidden",
                       overflowWrap: "normal",
                       wordBreak: "keep-all",
                     }}
@@ -302,8 +342,8 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       style={{
                         position: "absolute",
                         top: "50%",
-                        left: side === -1 ? -16 : undefined,
-                        right: side === 1 ? -16 : undefined,
+                        left: side === -1 ? 0 : undefined,
+                        right: side === 1 ? 0 : undefined,
                         transform: "translateY(-50%)",
                         touchAction: "none",
                   willChange: "transform",
@@ -496,6 +536,7 @@ export function StoryEditor({
     node.style.top = next.y + "%";
     node.style.width = next.kind === "text" ? next.width + "%" : "max-content";
     node.style.opacity = String(next.opacity);
+    if (next.kind === "text") fitTextLayer(node, next.scale, next.rot);
   }
   function previewLayer(id: number, values: Partial<El>) {
     transient.current = {id, values: {...(transient.current?.id === id ? transient.current.values : {}), ...values}};

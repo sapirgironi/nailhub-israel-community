@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Image as ImageIcon,
   MoreHorizontal,
+  Pipette,
   LockKeyhole,
   LockKeyholeOpen,
   ArrowUp,
@@ -30,6 +31,8 @@ import {
   Heart,
   Star,
 } from "lucide-react";
+import {toast} from "sonner";
+import type {PointerEvent as ReactPointerEvent} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadPhoto } from "@/lib/media";
@@ -109,16 +112,59 @@ const STORY_COLOR_FAMILIES = [
 const StoryColorPalette = memo(function StoryColorPalette({value, onChange}: {value: string; onChange: (color: string) => void}) {
   const [familyIndex, setFamilyIndex] = useState(() => Math.max(0, STORY_COLOR_FAMILIES.findIndex(family => family.shades.some(shade => shade === value.toUpperCase()))));
   const family = STORY_COLOR_FAMILIES[familyIndex] ?? STORY_COLOR_FAMILIES[0];
+  const [spectrum, setSpectrum] = useState(false), [hue, setHue] = useState(330), [light, setLight] = useState(0.5), [sampling, setSampling] = useState(false);
+  const startSampling = async () => {
+    const Dropper = (window as unknown as {EyeDropper?: new () => {open: () => Promise<{sRGBHex: string}>}}).EyeDropper;
+    if (Dropper) {try {const res = await new Dropper().open(); onChange(res.sRGBHex.toUpperCase());} catch {/* cancelled */} return;}
+    setSampling(true);
+  };
+  const sampleAt = (ev: ReactPointerEvent<HTMLDivElement>) => {
+    ev.preventDefault(); ev.stopPropagation();
+    const overlay = ev.currentTarget; overlay.style.pointerEvents = "none";
+    const color = sampleImageAt(ev.clientX, ev.clientY);
+    setSampling(false);
+    if (color) onChange(color); else toast.error("לא ניתן לדגום צבע בנקודה זו, נסי נקודה אחרת בתמונה");
+  };
   return <div className="space-y-1" onPointerDown={ev => {if (ev.target instanceof Element && ev.target.closest('button')) ev.preventDefault();}}>
+    {spectrum && <div className="space-y-1.5 py-1">
+      <input type="range" aria-label="גוון" min={0} max={360} value={hue} onChange={ev => {const h = Number(ev.target.value); setHue(h); onChange(hueColor(h, light));}} className="story-spectrum h-3 w-full cursor-pointer appearance-none rounded-full" style={{background: "linear-gradient(to left, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)"}}/>
+      <input type="range" aria-label="בהירות" min={5} max={95} value={Math.round(light * 100)} onChange={ev => {const l = Number(ev.target.value) / 100; setLight(l); onChange(hueColor(hue, l));}} className="story-spectrum h-3 w-full cursor-pointer appearance-none rounded-full" style={{background: `linear-gradient(to left, #000, ${hueColor(hue, 0.5)}, #fff)`}}/>
+    </div>}
     <div role="group" aria-label="משפחות צבעים" className="flex gap-2 overflow-x-auto py-1">
       {STORY_COLOR_FAMILIES.map((item, index) => <Button key={item.label} size="icon" variant="ghost" aria-label={`צבעי ${item.label}`} title={item.label} aria-pressed={index === familyIndex} className="size-7 shrink-0 rounded-full border border-primary-foreground/40 p-0 aria-pressed:ring-2 aria-pressed:ring-primary-foreground" style={{backgroundColor: item.shades[2]}} onClick={() => setFamilyIndex(index)}/>)}
     </div>
     <div role="group" aria-label={`גווני ${family.label}`} className="flex items-center gap-2 overflow-x-auto py-1">
       {family.shades.map((shade, index) => <Button key={shade} size="icon" variant="ghost" aria-label={`${family.label} גוון ${index + 1}`} title={`${family.label} ${index + 1}`} aria-pressed={value.toUpperCase() === shade} className="size-7 shrink-0 rounded-full border border-primary-foreground/40 p-0 aria-pressed:ring-2 aria-pressed:ring-primary-foreground" style={{backgroundColor: shade}} onClick={() => onChange(shade)}/>)}
-      <input type="color" aria-label="בחירת צבע חופשי" title="צבע חופשי" value={value} onChange={ev => onChange(ev.target.value.toUpperCase())} className="size-7 shrink-0 cursor-pointer rounded-full border border-primary-foreground/30 bg-transparent p-0"/>
+      <button type="button" aria-label="גוונים נוספים" aria-pressed={spectrum} onClick={() => setSpectrum(v => !v)} className="flex shrink-0 flex-col items-center gap-0.5 text-[9px] text-primary-foreground/80">
+        <span className="size-7 rounded-full border border-primary-foreground/40 aria-pressed:ring-2" style={{background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)"}}/>
+        גוונים נוספים
+      </button>
+      <button type="button" aria-label="דגימת צבע מהתמונה" title="טפטפת" onClick={startSampling} className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary-foreground/40 text-primary-foreground"><Pipette className="size-4"/></button>
     </div>
+    {sampling && <div className="fixed inset-0 z-[80] cursor-crosshair" onPointerDown={sampleAt}><span className="pointer-events-none absolute inset-x-0 top-16 mx-auto w-fit rounded-full bg-overlay px-3 py-1 text-xs text-primary-foreground">הקישי על נקודה בתמונה</span></div>}
   </div>;
 });
+function hueColor(h: number, l: number) {
+  const a = Math.min(l, 1 - l), f = (n: number) => {const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, "0");};
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+}
+function sampleImageAt(x: number, y: number): string | null {
+  const img = document.elementsFromPoint(x, y).find((el): el is HTMLImageElement => el instanceof HTMLImageElement && el.naturalWidth > 0);
+  if (!img) return null;
+  const r = img.getBoundingClientRect(), nw = img.naturalWidth, nh = img.naturalHeight;
+  const fit = getComputedStyle(img).objectFit;
+  const scale = fit === "cover" ? Math.max(r.width / nw, r.height / nh) : fit === "contain" ? Math.min(r.width / nw, r.height / nh) : NaN;
+  const sx = Number.isNaN(scale) ? (x - r.left) * nw / r.width : (x - r.left - (r.width - nw * scale) / 2) / scale;
+  const sy = Number.isNaN(scale) ? (y - r.top) * nh / r.height : (y - r.top - (r.height - nh * scale) / 2) / scale;
+  if (sx < 0 || sy < 0 || sx >= nw || sy >= nh) return null;
+  try {
+    const c = document.createElement("canvas"); c.width = 1; c.height = 1;
+    const ctx = c.getContext("2d"); if (!ctx) return null;
+    ctx.drawImage(img, Math.floor(sx), Math.floor(sy), 1, 1, 0, 0, 1, 1);
+    const [red = 0, green = 0, blue = 0] = ctx.getImageData(0, 0, 1, 1).data;
+    return `#${[red, green, blue].map(v => v.toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+  } catch {return null;}
+}
 const BASE = 28;
 const IMG_BASE = 110;
 type El = {

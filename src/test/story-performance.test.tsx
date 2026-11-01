@@ -52,9 +52,12 @@ describe('story editing performance boundaries', () => {
     expect(storyImageScale(1)).toBe(1);
     expect(storyImageScale(3)).toBe(2);
   });
-  it('bounds panning using the contained image dimensions and scaled translation', () => {
+  it('bounds panning using the covering image dimensions and scaled translation', () => {
     expect(boundedImageView({scale: 2, x: 999, y: -999}, 300, 600, 300, 600)).toEqual({scale: 2, x: 75, y: -150});
     expect(boundedImageView({scale: 1, x: 999, y: -999}, 300, 600, 300, 600)).toEqual({scale: 1, x: 0, y: 0});
+  });
+  it('covers the 9:16 story without side gutters for a square background', () => {
+    expect(boundedImageView({scale: 1, x: 999, y: 999}, 360, 640, 900, 900)).toEqual({scale: 1, x: 140, y: 0});
   });
   it('previews size locally and commits main state only on release', () => {
     const preview = vi.fn(), commit = vi.fn();

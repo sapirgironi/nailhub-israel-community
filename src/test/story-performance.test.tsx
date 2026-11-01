@@ -23,6 +23,13 @@ describe('story editing performance boundaries', () => {
     expect(screen.getByRole('textbox').textContent).toBe('שלום @ספיר_גירוני ');
     expect(document.activeElement).toBe(screen.getByRole('textbox'));
   });
+  it('does not open the keyboard when editing starts from toolbar tools', () => {
+    const change = vi.fn();
+    render(<EditableText initial="שלום" autoFocus={false} onChange={change}/>);
+    const editor = screen.getByRole('textbox');
+    expect(document.activeElement).not.toBe(editor);
+    expect(editor.textContent).toBe('שלום');
+  });
   it('limits photo borders to 0 through 12 pixels', () => {
     expect(storyBorderWidth(-1)).toBe(0);
     expect(storyBorderWidth(6)).toBe(6);

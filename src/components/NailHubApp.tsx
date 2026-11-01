@@ -280,8 +280,7 @@ export function NailHubApp({section = 'feed'}: {section?: HubSection}) {
       const {data,error}=await supabase.rpc('community_members',{
         search_text:directorySearch,
         role_filter:filterRole==='all'?'':filterRole,
-        after_name:pageParam?.displayName??null,
-        after_id:pageParam?.id??null,
+        ...(pageParam ? {after_name:pageParam.displayName,after_id:pageParam.id} : {}),
         page_size:24,
       });
       if(error)throw error;

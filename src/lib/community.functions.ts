@@ -22,8 +22,8 @@ export const findCommunityMembers = createServerFn({ method: "POST" })
       search_text: data.query,
       ...(data.memberId ? { member_id: data.memberId } : {}),
       role_filter: data.roleFilter ?? "",
-      after_name: data.afterName ?? null,
-      after_id: data.afterId ?? null,
+      ...(data.afterName ? { after_name: data.afterName } : {}),
+      ...(data.afterId ? { after_id: data.afterId } : {}),
       page_size: data.pageSize,
     });
     if (error) throw new Error("טעינת חברות הקהילה נכשלה");

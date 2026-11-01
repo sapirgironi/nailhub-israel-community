@@ -383,7 +383,7 @@ function fitTextLayer(node: HTMLElement, size: number, rotation: number) {
   node.style.left = `${Math.min(width - halfWidth, Math.max(halfWidth, x)) / width * 100}%`;
   node.style.top = `${Math.min(height - halfHeight, Math.max(halfHeight, y)) / height * 100}%`;
 }
-const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, editLayer, finishEditing, changeText, beginResize}: LayerProps) {
+const StoryLayer = memo(function StoryLayer({e, active, editing, focusText, dimmed, down, editLayer, finishEditing, changeText, beginResize}: LayerProps) {
   const f = fontOf(e.font);
   const layerRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -473,6 +473,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                     {editing ? (
                       <EditableText
                         initial={e.text}
+                        autoFocus={focusText}
                         onChange={(t, caret) => changeText(e.id, t, caret)}
                       />
                     ) : (
@@ -511,9 +512,9 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
   );
 });
 
-type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'dimmed'> & {
+type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'focusText' | 'dimmed'> & {
   frame: RefObject<HTMLDivElement | null>; src: string; imageView: ImageView; backgroundZ: number; els: El[]; sel: number | null;
-  editing: number | null; exporting: boolean; over: boolean;
+  editing: number | null; focusRequest: number | null; exporting: boolean; over: boolean;
   drag: {id: number; dx: number; dy: number} | null;
   frameDown: (ev: RPointerEvent) => void; move: (ev: RPointerEvent) => void; up: (ev: RPointerEvent) => void;
 };
@@ -529,7 +530,7 @@ const StoryBackground = memo(function StoryBackground({src, imageView, z}: {src:
     className="pointer-events-none absolute inset-0 h-full w-full object-cover"
   />;
 });
-const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, backgroundZ, els, sel, editing, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
+const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, backgroundZ, els, sel, editing, focusRequest, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
   return (
       <div
         ref={frame}
@@ -548,7 +549,7 @@ const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, background
         {els
           .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
           .map((e) => {
-            return <StoryLayer key={e.id} e={e} active={sel === e.id && !exporting} editing={editing === e.id} dimmed={drag?.id === e.id && over} down={down} editLayer={editLayer} finishEditing={finishEditing} changeText={changeText} beginResize={beginResize} />;
+            return <StoryLayer key={e.id} e={e} active={sel === e.id && !exporting} editing={editing === e.id} focusText={focusRequest === e.id} dimmed={drag?.id === e.id && over} down={down} editLayer={editLayer} finishEditing={finishEditing} changeText={changeText} beginResize={beginResize} />;
           })}
         {drag && !exporting && (
           <div

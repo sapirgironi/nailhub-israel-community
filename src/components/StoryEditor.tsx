@@ -330,7 +330,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       e.text ? storyTextLines(e.text).map((line, index) => (
                         <span key={index}>
                           {index > 0 && <br />}
-                          <span style={{whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "max-content"}}>{line || "\u200b"}</span>
+                          <span>{line || "\u200b"}</span>
                         </span>
                       )) : <span className="opacity-60">הקלידי כאן</span>
                     )}
@@ -995,23 +995,23 @@ export function StoryEditor({
         <div className="sticky bottom-0 z-10 w-full max-w-sm max-h-[40vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl rounded-b-2xl p-3 space-y-2 shrink-0 shadow-soft">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold">גודל</span>
-            <Button
+            {selected.kind !== "text" && <Button
               size="icon"
               variant="outline"
               aria-label="הקטנה"
               onClick={() => patch(selected.id, { scale: Math.max(0.4, selected.scale - 0.15) })}
             >
               <Minus />
-            </Button>
+            </Button>}
             <StorySlider key={`scale-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale} />
-            <Button
+            {selected.kind !== "text" && <Button
               size="icon"
               variant="outline"
               aria-label="הגדלה"
               onClick={() => patch(selected.id, { scale: Math.min(5, selected.scale + 0.15) })}
             >
               <Plus />
-            </Button>
+            </Button>}
           </div>
           {selected.kind === "image" && (
             <label className="flex items-center gap-2 text-xs font-bold">

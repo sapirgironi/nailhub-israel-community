@@ -267,15 +267,18 @@ async function hasTransparentPixels(img: HTMLImageElement) {
 export function EditableText({
   initial,
   onChange,
+  autoFocus = true,
 }: {
   initial: string;
   onChange: (t: string, caret: number) => void;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const n = ref.current;
     if (!n) return;
     n.textContent = initial;
+    if (!autoFocus) return;
     n.focus();
     const r = document.createRange();
     r.selectNodeContents(n);
@@ -343,7 +346,7 @@ function useStableEvent<T extends (...args: never[]) => unknown>(handler: T): T 
 }
 
 type LayerProps = {
-  e: El; active: boolean; editing: boolean; dimmed: boolean;
+  e: El; active: boolean; editing: boolean; focusText: boolean; dimmed: boolean;
   down: (ev: RPointerEvent, e: El) => void;
   editLayer: (id: number) => void; finishEditing: () => void;
   changeText: (id: number, text: string, caret: number) => void;
@@ -380,7 +383,7 @@ function fitTextLayer(node: HTMLElement, size: number, rotation: number) {
   node.style.left = `${Math.min(width - halfWidth, Math.max(halfWidth, x)) / width * 100}%`;
   node.style.top = `${Math.min(height - halfHeight, Math.max(halfHeight, y)) / height * 100}%`;
 }
-const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, editLayer, finishEditing, changeText, beginResize}: LayerProps) {
+const StoryLayer = memo(function StoryLayer({e, active, editing, focusText, dimmed, down, editLayer, finishEditing, changeText, beginResize}: LayerProps) {
   const f = fontOf(e.font);
   const layerRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -470,6 +473,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                     {editing ? (
                       <EditableText
                         initial={e.text}
+                        autoFocus={focusText}
                         onChange={(t, caret) => changeText(e.id, t, caret)}
                       />
                     ) : (
@@ -508,9 +512,9 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
   );
 });
 
-type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'dimmed'> & {
+type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'focusText' | 'dimmed'> & {
   frame: RefObject<HTMLDivElement | null>; src: string; imageView: ImageView; backgroundZ: number; els: El[]; sel: number | null;
-  editing: number | null; exporting: boolean; over: boolean;
+  editing: number | null; focusRequest: number | null; exporting: boolean; over: boolean;
   drag: {id: number; dx: number; dy: number} | null;
   frameDown: (ev: RPointerEvent) => void; move: (ev: RPointerEvent) => void; up: (ev: RPointerEvent) => void;
 };
@@ -526,7 +530,7 @@ const StoryBackground = memo(function StoryBackground({src, imageView, z}: {src:
     className="pointer-events-none absolute inset-0 h-full w-full object-cover"
   />;
 });
-const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, backgroundZ, els, sel, editing, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
+const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, backgroundZ, els, sel, editing, focusRequest, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
   return (
       <div
         ref={frame}
@@ -545,7 +549,7 @@ const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, background
         {els
           .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
           .map((e) => {
-            return <StoryLayer key={e.id} e={e} active={sel === e.id && !exporting} editing={editing === e.id} dimmed={drag?.id === e.id && over} down={down} editLayer={editLayer} finishEditing={finishEditing} changeText={changeText} beginResize={beginResize} />;
+            return <StoryLayer key={e.id} e={e} active={sel === e.id && !exporting} editing={editing === e.id} focusText={focusRequest === e.id} dimmed={drag?.id === e.id && over} down={down} editLayer={editLayer} finishEditing={finishEditing} changeText={changeText} beginResize={beginResize} />;
           })}
         {drag && !exporting && (
           <div
@@ -626,6 +630,7 @@ export function StoryEditor({
   const [els, setEls] = useState<El[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
+  const [focusRequest, setFocusRequest] = useState<number | null>(null);
   const [drag, setDrag] = useState<{ id: number; dx: number; dy: number } | null>(null);
   const [over, setOver] = useState(false);
   const overRef = useRef(false);
@@ -812,7 +817,7 @@ export function StoryEditor({
     setEls(previous => previous.map(e => ({...e, z: ordered.find(layer => layer.id === e.id)?.z ?? e.z})));
   }
   function dismissPanels() {
-    setSel(null); setEditing(null); setPanel(null); setMention(null); setDrawerCollapsed(false); setFontPickerOpen(false); setColorPickerOpen(false);
+    setSel(null); setEditing(null); setFocusRequest(null); setPanel(null); setMention(null); setDrawerCollapsed(false); setFontPickerOpen(false); setColorPickerOpen(false);
     frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();
   }
   const pos = (ev: { clientX: number; clientY: number }) => {
@@ -863,7 +868,7 @@ export function StoryEditor({
     }
     tap.current = { id: e.id, x: ev.clientX, y: ev.clientY, was: sel === e.id, moved: false };
     setSel(e.id);
-    if (editing !== null && editing !== e.id) setEditing(null);
+    if (editing !== null && editing !== e.id) { setEditing(null); setFocusRequest(null); }
     const p = pos(ev);
     setDrag({ id: e.id, dx: p.x - e.x, dy: p.y - e.y });
   }
@@ -903,6 +908,7 @@ export function StoryEditor({
     ev.stopPropagation();
     if (busy || !storyLayerCanMove(e)) return;
     setEditing(null);
+    setFocusRequest(null);
     frame.current?.setPointerCapture(ev.pointerId);
     resize.current = {
       id: e.id,
@@ -997,7 +1003,7 @@ export function StoryEditor({
     if (pointers.current.size === 0) tap.current = null;
     if (t && !t.moved && t.was) {
       const el = els.find((x) => x.id === t.id);
-      if (el?.kind === "text") setEditing(el.id);
+      if (el?.kind === "text") { setEditing(el.id); setFocusRequest(el.id); }
     }
     if (!drag) return;
     const p = pos(ev);
@@ -1048,7 +1054,7 @@ export function StoryEditor({
   const stableUp = useStableEvent(up);
   const stableBeginResize = useStableEvent(beginResize);
   const stableChangeText = useStableEvent(changeText);
-  const editLayer = useStableEvent((id: number) => { if (els.find(e => e.id === id)?.locked) return; setSel(id); setEditing(id); });
+  const editLayer = useStableEvent((id: number) => { if (els.find(e => e.id === id)?.locked) return; setSel(id); setEditing(id); setFocusRequest(id); });
   const finishEditing = useStableEvent(() => dismissPanels());
   const previewScale = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {scale: value}); });
   const previewOpacity = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {opacity: value}); });
@@ -1146,6 +1152,7 @@ export function StoryEditor({
     setBusy(true);
     setErr("");
     setEditing(null);
+    setFocusRequest(null);
     let stage = "העלאת תמונת הרקע";
     try {
       if (backgroundUrl.current?.file !== file)
@@ -1169,7 +1176,7 @@ export function StoryEditor({
       aria-modal="true"
       className="fixed inset-0 z-[60] bg-foreground flex items-center justify-center overflow-hidden"
     >
-      <StoryCanvas frame={frame} src={src} imageView={imageView} backgroundZ={backgroundZ} els={els} sel={sel} editing={editing} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
+      <StoryCanvas frame={frame} src={src} imageView={imageView} backgroundZ={backgroundZ} els={els} sel={sel} editing={editing} focusRequest={focusRequest} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
       <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-none">
         <Button size="icon" variant="ghost" title="ביטול" aria-label="ביטול" onClick={onCancel} disabled={busy} className="pointer-events-auto rounded-full bg-foreground/40 text-primary-foreground"><X/></Button>
         <div className="flex gap-1.5 pointer-events-auto rounded-full bg-foreground/40 p-1 text-primary-foreground">
@@ -1182,7 +1189,7 @@ export function StoryEditor({
       <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="העלאת תמונה נוספת" className="sr-only" onChange={ev => {const f = ev.currentTarget.files?.[0]; ev.currentTarget.value = ""; if (f) void addPhoto(f);}}/>
       <input ref={logoInput} type="file" accept="image/png" aria-label="העלאת לוגו PNG שקוף" className="sr-only" onChange={ev => {const f = ev.currentTarget.files?.[0]; ev.currentTarget.value = ""; if (f) void addLogo(f);}}/>
       <Button size="icon" variant="ghost" aria-label="שכבות" title="שכבות" disabled={busy} aria-expanded={panel === "layers"} onClick={() => {setSel(null); setEditing(null); setPanel(panel === "layers" ? null : "layers");}} className="absolute top-20 left-3 z-20 rounded-full bg-foreground/40 text-primary-foreground"><MoreHorizontal/></Button>
-      {(sel !== null || panel !== null) && <div ref={textToolbar} data-story-drawer="true" className="absolute inset-x-0 bottom-0 z-30 mx-auto max-w-xl bg-foreground/65 text-primary-foreground backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+      {(sel !== null || panel !== null) && <div ref={textToolbar} data-story-drawer="true" className="absolute inset-x-0 bottom-0 z-30 mx-auto max-w-xl bg-foreground/55 text-primary-foreground backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex h-6 items-center justify-center" style={{touchAction: "none"}}
           onPointerDown={ev => {drawerGesture.current = ev.clientY; if (!(ev.target instanceof Element && ev.target.closest('button'))) ev.currentTarget.setPointerCapture(ev.pointerId);}}
           onPointerUp={ev => {if (drawerGesture.current !== null && ev.clientY - drawerGesture.current > 24) {setDrawerCollapsed(true); setEditing(null); setMention(null); frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();} drawerGesture.current = null;}}
@@ -1193,7 +1200,7 @@ export function StoryEditor({
             {drawerCollapsed ? <ChevronUp className="size-4"/> : <ChevronDown className="size-4"/>}
           </Button>
         </div>
-        {!drawerCollapsed && <div className="max-h-[30dvh] overflow-y-auto overscroll-contain px-3 pr-16 pb-2">
+        {!drawerCollapsed && <div className="max-h-[28dvh] overflow-y-auto overscroll-contain px-3 pr-16 pb-1">
       {sel === 0 && panel === null && <div>
         <div className="flex items-center justify-between mb-3"><span className="text-sm font-bold">תמונת רקע</span><Button size="icon" variant="ghost" aria-label="סגירת עריכת רקע" onClick={dismissPanels}><Check/></Button></div>
         <fieldset disabled={backgroundLocked || busy}><label className="flex items-center gap-3 text-xs font-bold">גודל תמונה<StorySlider label="גודל תמונה" value={imageView.scale} min={0.8} max={2} onPreview={previewImageScale} onCommit={commitImageScale}/></label></fieldset>
@@ -1229,44 +1236,46 @@ export function StoryEditor({
             changeText(selected.id, (selected.text.slice(0, caret) + " @" + selected.text.slice(caret)).slice(0, 120), Math.min(120, caret + 2));
             node?.focus();
           }}><AtSign/></Button>
-          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עריכה" title="הקלדה על התמונה" onClick={() => editLayer(selected.id)}><Type/></Button>
+          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עריכה" title="הקלדה על התמונה" onClick={() => { setSel(selected.id); setEditing(selected.id); setFocusRequest(null); }}><Type/></Button>
         </fieldset>
         <Button size="icon" variant="ghost" className="size-9 shrink-0 rounded-full bg-primary-foreground/10" aria-label="אישור טקסט" title="אישור טקסט" onClick={dismissPanels}><Check/></Button>
         {mention?.id === selected.id && <div className="absolute bottom-full inset-x-3 mb-2 text-foreground"><StoryMentionPicker query={mention.query} onSelect={chooseMember}/></div>}
       </div>}
       {selected && selected.kind !== "text" && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between"><span className="text-xs font-bold">{selected.imageRole === "photo" ? "תמונה נוספת" : selected.imageRole === "logo" ? "לוגו / סימן מים" : "סטיקר"}{selected.locked && <LockKeyhole className="inline size-3 mr-2"/>}</span><Button size="icon" variant="ghost" aria-label="סגירת עריכה" onClick={dismissPanels}><Check/></Button></div>
-          <fieldset disabled={selected.locked || busy} className="space-y-2 disabled:opacity-50">
-          <div className="flex items-center gap-2">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between"><span className="text-xs font-bold">{selected.imageRole === "photo" ? "תמונה נוספת" : selected.imageRole === "logo" ? "לוגו / סימן מים" : "סטיקר"}{selected.locked && <LockKeyhole className="inline size-3 mr-2"/>}</span><Button size="icon" variant="ghost" className="size-7" aria-label="סגירת עריכה" onClick={dismissPanels}><Check className="size-4"/></Button></div>
+          <fieldset disabled={selected.locked || busy} className="space-y-1 disabled:opacity-50">
+          <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold">גודל</span>
             {<Button
               size="icon"
               variant="outline"
+              className="size-7"
               aria-label="הקטנה"
               onClick={() => patch(selected.id, { scale: Math.max(0.4, selected.scale - 0.15) })}
             >
-              <Minus />
+              <Minus className="size-3.5" />
             </Button>}
             <StorySlider key={`scale-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale} />
             {<Button
               size="icon"
               variant="outline"
+              className="size-7"
               aria-label="הגדלה"
               onClick={() => patch(selected.id, { scale: Math.min(5, selected.scale + 0.15) })}
             >
-              <Plus />
+              <Plus className="size-3.5" />
             </Button>}
           </div>
-          {<label className="flex items-center gap-2 text-xs font-bold"><RotateCw className="size-4"/>סיבוב<StorySlider key={`rotation-${selected.id}`} label="סיבוב שכבה" value={selected.rot} min={-180} max={180} onPreview={previewRotation} onCommit={commitRotation}/></label>}
+          {<label className="flex items-center gap-1.5 text-xs font-bold"><RotateCw className="size-3.5"/>סיבוב<StorySlider key={`rotation-${selected.id}`} label="סיבוב שכבה" value={selected.rot} min={-180} max={180} onPreview={previewRotation} onCommit={commitRotation}/></label>}
           {selected.kind === "image" && (
-            <label className="flex items-center gap-2 text-xs font-bold">
+            <label className="flex items-center gap-1.5 text-xs font-bold">
               שקיפות
               <StorySlider key={`opacity-${selected.id}`} label="שקיפות הלוגו או הסטיקר" value={selected.opacity} min={0.15} max={1} onPreview={previewOpacity} onCommit={commitOpacity} />
             </label>
           )}
           {selected.imageRole === "photo" && <>
-            <div className="flex gap-1.5 justify-between">{PHOTO_SHAPES.map(shape => <Button key={shape.id} size="icon" variant={selected.shape === shape.id ? "secondary" : "ghost"} aria-label={`מסגרת ${shape.label}`} aria-pressed={selected.shape === shape.id} title={shape.label} onClick={() => patch(selected.id, {shape: shape.id})}><shape.icon className={shape.id === "rounded" ? "rounded-md" : ""}/></Button>)}</div>
+            <div className="flex gap-1 justify-between">{PHOTO_SHAPES.map(shape => <Button key={shape.id} size="icon" variant={selected.shape === shape.id ? "secondary" : "ghost"} className="size-8" aria-label={`מסגרת ${shape.label}`} aria-pressed={selected.shape === shape.id} title={shape.label} onClick={() => patch(selected.id, {shape: shape.id})}><shape.icon className={"size-4 " + (shape.id === "rounded" ? "rounded-md" : "")}/></Button>)}</div>
             <label className="flex items-center gap-2 text-xs font-bold">עובי מסגרת<StorySlider key={`border-${selected.id}`} label="עובי מסגרת" value={selected.borderWidth ?? 0} min={0} max={12} onPreview={value => {
               const node = frame.current?.querySelector<SVGPathElement>(`[data-layer-id="${selected.id}"] svg > path`);
               const border = storyBorderWidth(value);
@@ -1324,10 +1333,10 @@ export function StoryEditor({
       )}
 
         </div>}
-        {selected?.kind === "text" && fontPickerOpen && !drawerCollapsed && <div role="group" aria-label="תצוגת גופנים" className="absolute bottom-full inset-x-3 mb-2 flex max-h-40 flex-wrap gap-1 overflow-y-auto rounded-lg bg-foreground/80 p-2 backdrop-blur-md" onPointerDown={ev => ev.preventDefault()}>
+        {selected?.kind === "text" && fontPickerOpen && !drawerCollapsed && <div role="group" aria-label="תצוגת גופנים" className="absolute bottom-full inset-x-3 mb-2 flex max-h-40 flex-wrap gap-1 overflow-y-auto rounded-lg bg-foreground/60 p-2 backdrop-blur-xl" onPointerDown={ev => ev.preventDefault()}>
           {STORY_FONTS.map(font => <Button key={font.id} variant="ghost" aria-label={`גופן ${font.desc}`} aria-pressed={selected.font === font.id} disabled={selected.locked || busy} style={{fontFamily: `"${font.family}"`, fontStyle: font.italic ? "italic" : "normal"}} className="h-10 text-base" onClick={() => {style({font: font.id}); setFontPickerOpen(false);}}>{font.desc}</Button>)}
         </div>}
-        {selected && (selected.kind === "text" || selected.imageRole === "photo") && colorPickerOpen && !drawerCollapsed && <fieldset disabled={selected.locked || busy} className="absolute bottom-full inset-x-3 mb-2 rounded-lg bg-foreground/80 px-3 py-1 backdrop-blur-md">
+        {selected && (selected.kind === "text" || selected.imageRole === "photo") && colorPickerOpen && !drawerCollapsed && <fieldset disabled={selected.locked || busy} className="absolute bottom-full inset-x-3 mb-2 rounded-lg bg-foreground/60 px-3 py-1 backdrop-blur-xl">
           <StoryColorPalette key={`${selected.id}-${selected.kind}`} value={selected.kind === "text" ? selected.color : selected.borderColor ?? COLORS[0] ?? "#FFFFFF"} onChange={color => selected.kind === "text" ? style({color}) : patch(selected.id, {borderColor: color})}/>
         </fieldset>}
       </div>}

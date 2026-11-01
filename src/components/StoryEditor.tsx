@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Image as ImageIcon,
   MoreHorizontal,
+  Pipette,
   LockKeyhole,
   LockKeyholeOpen,
   ArrowUp,
@@ -30,6 +31,8 @@ import {
   Heart,
   Star,
 } from "lucide-react";
+import {toast} from "sonner";
+import type {PointerEvent as ReactPointerEvent} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadPhoto } from "@/lib/media";
@@ -115,7 +118,7 @@ const StoryColorPalette = memo(function StoryColorPalette({value, onChange}: {va
     if (Dropper) {try {const res = await new Dropper().open(); onChange(res.sRGBHex.toUpperCase());} catch {/* cancelled */} return;}
     setSampling(true);
   };
-  const sampleAt = (ev: React.PointerEvent<HTMLDivElement>) => {
+  const sampleAt = (ev: ReactPointerEvent<HTMLDivElement>) => {
     ev.preventDefault(); ev.stopPropagation();
     const overlay = ev.currentTarget; overlay.style.pointerEvents = "none";
     const color = sampleImageAt(ev.clientX, ev.clientY);

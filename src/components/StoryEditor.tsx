@@ -1189,7 +1189,7 @@ export function StoryEditor({
       <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="העלאת תמונה נוספת" className="sr-only" onChange={ev => {const f = ev.currentTarget.files?.[0]; ev.currentTarget.value = ""; if (f) void addPhoto(f);}}/>
       <input ref={logoInput} type="file" accept="image/png" aria-label="העלאת לוגו PNG שקוף" className="sr-only" onChange={ev => {const f = ev.currentTarget.files?.[0]; ev.currentTarget.value = ""; if (f) void addLogo(f);}}/>
       <Button size="icon" variant="ghost" aria-label="שכבות" title="שכבות" disabled={busy} aria-expanded={panel === "layers"} onClick={() => {setSel(null); setEditing(null); setPanel(panel === "layers" ? null : "layers");}} className="absolute top-20 left-3 z-20 rounded-full bg-foreground/40 text-primary-foreground"><MoreHorizontal/></Button>
-      {(sel !== null || panel !== null) && <div ref={textToolbar} data-story-drawer="true" className="absolute inset-x-0 bottom-0 z-30 mx-auto max-w-xl bg-foreground/65 text-primary-foreground backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+      {(sel !== null || panel !== null) && <div ref={textToolbar} data-story-drawer="true" className="absolute inset-x-0 bottom-0 z-30 mx-auto max-w-xl bg-foreground/55 text-primary-foreground backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex h-6 items-center justify-center" style={{touchAction: "none"}}
           onPointerDown={ev => {drawerGesture.current = ev.clientY; if (!(ev.target instanceof Element && ev.target.closest('button'))) ev.currentTarget.setPointerCapture(ev.pointerId);}}
           onPointerUp={ev => {if (drawerGesture.current !== null && ev.clientY - drawerGesture.current > 24) {setDrawerCollapsed(true); setEditing(null); setMention(null); frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();} drawerGesture.current = null;}}
@@ -1200,7 +1200,7 @@ export function StoryEditor({
             {drawerCollapsed ? <ChevronUp className="size-4"/> : <ChevronDown className="size-4"/>}
           </Button>
         </div>
-        {!drawerCollapsed && <div className="max-h-[30dvh] overflow-y-auto overscroll-contain px-3 pr-16 pb-2">
+        {!drawerCollapsed && <div className="max-h-[28dvh] overflow-y-auto overscroll-contain px-3 pr-16 pb-1">
       {sel === 0 && panel === null && <div>
         <div className="flex items-center justify-between mb-3"><span className="text-sm font-bold">תמונת רקע</span><Button size="icon" variant="ghost" aria-label="סגירת עריכת רקע" onClick={dismissPanels}><Check/></Button></div>
         <fieldset disabled={backgroundLocked || busy}><label className="flex items-center gap-3 text-xs font-bold">גודל תמונה<StorySlider label="גודל תמונה" value={imageView.scale} min={0.8} max={2} onPreview={previewImageScale} onCommit={commitImageScale}/></label></fieldset>
@@ -1242,38 +1242,40 @@ export function StoryEditor({
         {mention?.id === selected.id && <div className="absolute bottom-full inset-x-3 mb-2 text-foreground"><StoryMentionPicker query={mention.query} onSelect={chooseMember}/></div>}
       </div>}
       {selected && selected.kind !== "text" && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between"><span className="text-xs font-bold">{selected.imageRole === "photo" ? "תמונה נוספת" : selected.imageRole === "logo" ? "לוגו / סימן מים" : "סטיקר"}{selected.locked && <LockKeyhole className="inline size-3 mr-2"/>}</span><Button size="icon" variant="ghost" aria-label="סגירת עריכה" onClick={dismissPanels}><Check/></Button></div>
-          <fieldset disabled={selected.locked || busy} className="space-y-2 disabled:opacity-50">
-          <div className="flex items-center gap-2">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between"><span className="text-xs font-bold">{selected.imageRole === "photo" ? "תמונה נוספת" : selected.imageRole === "logo" ? "לוגו / סימן מים" : "סטיקר"}{selected.locked && <LockKeyhole className="inline size-3 mr-2"/>}</span><Button size="icon" variant="ghost" className="size-7" aria-label="סגירת עריכה" onClick={dismissPanels}><Check className="size-4"/></Button></div>
+          <fieldset disabled={selected.locked || busy} className="space-y-1 disabled:opacity-50">
+          <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold">גודל</span>
             {<Button
               size="icon"
               variant="outline"
+              className="size-7"
               aria-label="הקטנה"
               onClick={() => patch(selected.id, { scale: Math.max(0.4, selected.scale - 0.15) })}
             >
-              <Minus />
+              <Minus className="size-3.5" />
             </Button>}
             <StorySlider key={`scale-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale} />
             {<Button
               size="icon"
               variant="outline"
+              className="size-7"
               aria-label="הגדלה"
               onClick={() => patch(selected.id, { scale: Math.min(5, selected.scale + 0.15) })}
             >
-              <Plus />
+              <Plus className="size-3.5" />
             </Button>}
           </div>
-          {<label className="flex items-center gap-2 text-xs font-bold"><RotateCw className="size-4"/>סיבוב<StorySlider key={`rotation-${selected.id}`} label="סיבוב שכבה" value={selected.rot} min={-180} max={180} onPreview={previewRotation} onCommit={commitRotation}/></label>}
+          {<label className="flex items-center gap-1.5 text-xs font-bold"><RotateCw className="size-3.5"/>סיבוב<StorySlider key={`rotation-${selected.id}`} label="סיבוב שכבה" value={selected.rot} min={-180} max={180} onPreview={previewRotation} onCommit={commitRotation}/></label>}
           {selected.kind === "image" && (
-            <label className="flex items-center gap-2 text-xs font-bold">
+            <label className="flex items-center gap-1.5 text-xs font-bold">
               שקיפות
               <StorySlider key={`opacity-${selected.id}`} label="שקיפות הלוגו או הסטיקר" value={selected.opacity} min={0.15} max={1} onPreview={previewOpacity} onCommit={commitOpacity} />
             </label>
           )}
           {selected.imageRole === "photo" && <>
-            <div className="flex gap-1.5 justify-between">{PHOTO_SHAPES.map(shape => <Button key={shape.id} size="icon" variant={selected.shape === shape.id ? "secondary" : "ghost"} aria-label={`מסגרת ${shape.label}`} aria-pressed={selected.shape === shape.id} title={shape.label} onClick={() => patch(selected.id, {shape: shape.id})}><shape.icon className={shape.id === "rounded" ? "rounded-md" : ""}/></Button>)}</div>
+            <div className="flex gap-1 justify-between">{PHOTO_SHAPES.map(shape => <Button key={shape.id} size="icon" variant={selected.shape === shape.id ? "secondary" : "ghost"} className="size-8" aria-label={`מסגרת ${shape.label}`} aria-pressed={selected.shape === shape.id} title={shape.label} onClick={() => patch(selected.id, {shape: shape.id})}><shape.icon className={"size-4 " + (shape.id === "rounded" ? "rounded-md" : "")}/></Button>)}</div>
             <label className="flex items-center gap-2 text-xs font-bold">עובי מסגרת<StorySlider key={`border-${selected.id}`} label="עובי מסגרת" value={selected.borderWidth ?? 0} min={0} max={12} onPreview={value => {
               const node = frame.current?.querySelector<SVGPathElement>(`[data-layer-id="${selected.id}"] svg > path`);
               const border = storyBorderWidth(value);
@@ -1331,10 +1333,10 @@ export function StoryEditor({
       )}
 
         </div>}
-        {selected?.kind === "text" && fontPickerOpen && !drawerCollapsed && <div role="group" aria-label="תצוגת גופנים" className="absolute bottom-full inset-x-3 mb-2 flex max-h-40 flex-wrap gap-1 overflow-y-auto rounded-lg bg-foreground/80 p-2 backdrop-blur-md" onPointerDown={ev => ev.preventDefault()}>
+        {selected?.kind === "text" && fontPickerOpen && !drawerCollapsed && <div role="group" aria-label="תצוגת גופנים" className="absolute bottom-full inset-x-3 mb-2 flex max-h-40 flex-wrap gap-1 overflow-y-auto rounded-lg bg-foreground/60 p-2 backdrop-blur-xl" onPointerDown={ev => ev.preventDefault()}>
           {STORY_FONTS.map(font => <Button key={font.id} variant="ghost" aria-label={`גופן ${font.desc}`} aria-pressed={selected.font === font.id} disabled={selected.locked || busy} style={{fontFamily: `"${font.family}"`, fontStyle: font.italic ? "italic" : "normal"}} className="h-10 text-base" onClick={() => {style({font: font.id}); setFontPickerOpen(false);}}>{font.desc}</Button>)}
         </div>}
-        {selected && (selected.kind === "text" || selected.imageRole === "photo") && colorPickerOpen && !drawerCollapsed && <fieldset disabled={selected.locked || busy} className="absolute bottom-full inset-x-3 mb-2 rounded-lg bg-foreground/80 px-3 py-1 backdrop-blur-md">
+        {selected && (selected.kind === "text" || selected.imageRole === "photo") && colorPickerOpen && !drawerCollapsed && <fieldset disabled={selected.locked || busy} className="absolute bottom-full inset-x-3 mb-2 rounded-lg bg-foreground/60 px-3 py-1 backdrop-blur-xl">
           <StoryColorPalette key={`${selected.id}-${selected.kind}`} value={selected.kind === "text" ? selected.color : selected.borderColor ?? COLORS[0] ?? "#FFFFFF"} onChange={color => selected.kind === "text" ? style({color}) : patch(selected.id, {borderColor: color})}/>
         </fieldset>}
       </div>}

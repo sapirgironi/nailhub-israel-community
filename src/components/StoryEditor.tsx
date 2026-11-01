@@ -154,7 +154,7 @@ const StoryPhoto = memo(function StoryPhoto({e}: {e: El}) {
   return <svg role="img" aria-label={e.text || "תמונה נוספת"} width="120" height="120" viewBox="0 0 120 120" className="pointer-events-none block overflow-hidden">
     <defs><clipPath id={clipId}><path d={PHOTO_PATHS[shape]}/></clipPath></defs>
     <image href={e.src} width="120" height="120" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clipId})`}/>
-    {border > 0 && <path d={PHOTO_PATHS[shape]} fill="none" stroke={e.borderColor ?? COLORS[0]} strokeWidth={border} vectorEffect="non-scaling-stroke" transform={`translate(${border / 2} ${border / 2}) scale(${1 - border / 120})`}/>}
+    <path d={PHOTO_PATHS[shape]} fill="none" stroke={e.borderColor ?? COLORS[0]} strokeWidth={border} transform={`translate(${border / 2} ${border / 2}) scale(${1 - border / 120})`}/>
   </svg>;
 });
 
@@ -649,7 +649,7 @@ export function StoryEditor({
         locked: false,
         shape: "square",
         borderWidth: 0,
-        borderColor: COLORS[0],
+        borderColor: COLORS[0] ?? "#FFFFFF",
         width: Math.max(48, (frame.current?.clientWidth ?? 300) - 24),
         opacity,
         mentions: [],
@@ -1167,6 +1167,7 @@ export function StoryEditor({
                   <Button
                     key={f.id}
                     type="button"
+                    variant="ghost"
                     onClick={() => style({ font: f.id })}
                     className={
                       "shrink-0 rounded-xl border px-3 py-1.5 text-right " +
@@ -1276,6 +1277,7 @@ export function StoryEditor({
               <Button
                 key={s}
                 type="button"
+                variant="ghost"
                 onClick={() => add("pill", s)}
                 className="rounded-full bg-accent text-primary font-bold text-xs px-3 py-2"
               >
@@ -1289,6 +1291,7 @@ export function StoryEditor({
                 <Button
                   key={s.id}
                   type="button"
+                  variant="ghost"
                   aria-label={s.label || "סטיקר"}
                   onClick={() => add("image", s.label, s.url)}
                   className="aspect-square rounded-xl bg-muted p-1"

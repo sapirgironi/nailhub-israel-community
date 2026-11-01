@@ -908,6 +908,7 @@ export function StoryEditor({
     ev.stopPropagation();
     if (busy || !storyLayerCanMove(e)) return;
     setEditing(null);
+    setFocusRequest(null);
     frame.current?.setPointerCapture(ev.pointerId);
     resize.current = {
       id: e.id,
@@ -1174,7 +1175,7 @@ export function StoryEditor({
       aria-modal="true"
       className="fixed inset-0 z-[60] bg-foreground flex items-center justify-center overflow-hidden"
     >
-      <StoryCanvas frame={frame} src={src} imageView={imageView} backgroundZ={backgroundZ} els={els} sel={sel} editing={editing} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
+      <StoryCanvas frame={frame} src={src} imageView={imageView} backgroundZ={backgroundZ} els={els} sel={sel} editing={editing} focusRequest={focusRequest} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
       <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-none">
         <Button size="icon" variant="ghost" title="ביטול" aria-label="ביטול" onClick={onCancel} disabled={busy} className="pointer-events-auto rounded-full bg-foreground/40 text-primary-foreground"><X/></Button>
         <div className="flex gap-1.5 pointer-events-auto rounded-full bg-foreground/40 p-1 text-primary-foreground">
@@ -1234,7 +1235,7 @@ export function StoryEditor({
             changeText(selected.id, (selected.text.slice(0, caret) + " @" + selected.text.slice(caret)).slice(0, 120), Math.min(120, caret + 2));
             node?.focus();
           }}><AtSign/></Button>
-          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עריכה" title="הקלדה על התמונה" onClick={() => editLayer(selected.id)}><Type/></Button>
+          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עריכה" title="הקלדה על התמונה" onClick={() => { setSel(selected.id); setEditing(selected.id); setFocusRequest(null); }}><Type/></Button>
         </fieldset>
         <Button size="icon" variant="ghost" className="size-9 shrink-0 rounded-full bg-primary-foreground/10" aria-label="אישור טקסט" title="אישור טקסט" onClick={dismissPanels}><Check/></Button>
         {mention?.id === selected.id && <div className="absolute bottom-full inset-x-3 mb-2 text-foreground"><StoryMentionPicker query={mention.query} onSelect={chooseMember}/></div>}

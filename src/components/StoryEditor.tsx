@@ -267,15 +267,18 @@ async function hasTransparentPixels(img: HTMLImageElement) {
 export function EditableText({
   initial,
   onChange,
+  autoFocus = true,
 }: {
   initial: string;
   onChange: (t: string, caret: number) => void;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const n = ref.current;
     if (!n) return;
     n.textContent = initial;
+    if (!autoFocus) return;
     n.focus();
     const r = document.createRange();
     r.selectNodeContents(n);
@@ -343,7 +346,7 @@ function useStableEvent<T extends (...args: never[]) => unknown>(handler: T): T 
 }
 
 type LayerProps = {
-  e: El; active: boolean; editing: boolean; dimmed: boolean;
+  e: El; active: boolean; editing: boolean; focusText: boolean; dimmed: boolean;
   down: (ev: RPointerEvent, e: El) => void;
   editLayer: (id: number) => void; finishEditing: () => void;
   changeText: (id: number, text: string, caret: number) => void;

@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject, type PointerEvent as RPointerEvent } from "react";
 import { createStoryPreview } from "@/lib/story-preview";
+import { optimizeUploadImage } from "@/lib/image-optimization";
 import {
   Trash2,
   Type,
@@ -12,6 +13,18 @@ import {
   Plus,
   AtSign,
   ImagePlus,
+  Image as ImageIcon,
+  MoreHorizontal,
+  LockKeyhole,
+  LockKeyholeOpen,
+  ArrowUp,
+  ArrowDown,
+  Check,
+  RotateCw,
+  Square,
+  Circle,
+  Heart,
+  Star,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,7 +112,51 @@ type El = {
   opacity: number;
   mentions: { userId: string; label: string }[];
   src?: string | undefined;
+  locked?: boolean;
+  imageRole?: "logo" | "sticker" | "photo";
+  shape?: PhotoShape;
+  borderWidth?: number;
+  borderColor?: string;
 };
+
+export const PHOTO_SHAPES = [
+  {id: "square", label: "ריבוע", icon: Square},
+  {id: "rounded", label: "פינות מעוגלות", icon: Square},
+  {id: "circle", label: "עיגול", icon: Circle},
+  {id: "heart", label: "לב", icon: Heart},
+  {id: "star", label: "כוכב", icon: Star},
+] as const;
+type PhotoShape = (typeof PHOTO_SHAPES)[number]["id"];
+const PHOTO_PATHS: Record<PhotoShape, string> = {
+  square: "M0 0H120V120H0Z",
+  rounded: "M20 0H100Q120 0 120 20V100Q120 120 100 120H20Q0 120 0 100V20Q0 0 20 0Z",
+  circle: "M60 0A60 60 0 1 1 60 120A60 60 0 1 1 60 0Z",
+  heart: "M60 116C48 104 0 73 0 36C0 3 40 -9 60 20C80 -9 120 3 120 36C120 73 72 104 60 116Z",
+  star: "M60 0L74 40L118 42L84 69L96 112L60 88L24 112L36 69L2 42L46 40Z",
+};
+export function storyBorderWidth(value: number) { return Math.max(0, Math.min(12, value)); }
+export function storyLayerCanMove(layer: {locked?: boolean}) { return !layer.locked; }
+export function reorderStoryLayers<T extends {id: number; z: number}>(layers: T[], id: number, direction: 1 | -1): T[] {
+  const ordered = [...layers].sort((a, b) => a.z - b.z);
+  const index = ordered.findIndex(layer => layer.id === id);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= ordered.length) return layers;
+  const current = ordered[index], neighbor = ordered[target];
+  if (!current || !neighbor) return layers;
+  ordered[index] = neighbor;
+  ordered[target] = current;
+  return ordered.map((layer, z) => ({...layer, z}));
+}
+const StoryPhoto = memo(function StoryPhoto({e}: {e: El}) {
+  const shape = e.shape ?? "square";
+  const border = storyBorderWidth(e.borderWidth ?? 0);
+  const clipId = `story-photo-${e.id}`;
+  return <svg role="img" aria-label={e.text || "תמונה נוספת"} width="120" height="120" viewBox="0 0 120 120" className="pointer-events-none block overflow-hidden">
+    <defs><clipPath id={clipId}><path d={PHOTO_PATHS[shape]}/></clipPath></defs>
+    <image href={e.src} width="120" height="120" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clipId})`}/>
+    <path d={PHOTO_PATHS[shape]} fill="none" stroke={e.borderColor ?? COLORS[0]} strokeWidth={border} transform={`translate(${border / 2} ${border / 2}) scale(${1 - border / 120})`}/>
+  </svg>;
+});
 
 const fontOf = (id: FontId) => STORY_FONTS.find((f) => f.id === id) ?? STORY_FONTS[0];
 function isLight(hex: string) {
@@ -255,7 +312,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                 data-layer-id={e.id}
                 key={e.id}
                 onPointerDown={(ev) => down(ev, e)}
-                onDoubleClick={() => e.kind === "text" && editLayer(e.id)}
+                onDoubleClick={() => !e.locked && e.kind === "text" && editLayer(e.id)}
                 style={{
                   left: e.x + "%",
                   top: e.y + "%",
@@ -269,13 +326,14 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                   opacity: dimmed ? 0.5 : e.opacity,
                 }}
                 className={
-                  "absolute cursor-grab text-center " +
+                  "absolute text-center " + (e.locked ? "cursor-default " : "cursor-grab ") +
                   (active
                     ? "outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md"
                     : "")
                 }
               >
-                {e.kind === "image" && e.src && (
+                {e.kind === "image" && e.imageRole === "photo" && e.src && <StoryPhoto e={e}/>}
+                {e.kind === "image" && e.imageRole !== "photo" && e.src && (
                   <img
                     src={e.src}
                     alt={e.text || "סטיקר"}
@@ -292,7 +350,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                   />
                 )}
                 {e.kind === "pill" && (
-                  <span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">
+                  <span className="block bg-card text-primary font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">
                     {e.text}
                   </span>
                 )}
@@ -337,7 +395,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                   </span>
                 )}
                 {e.kind === "text" &&
-                  active &&
+                  active && !e.locked &&
                   ([-1, 1] as const).map((side) => (
                     <Button
                       key={side}
@@ -363,16 +421,16 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
 });
 
 type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'dimmed'> & {
-  frame: RefObject<HTMLDivElement | null>; src: string; imageView: ImageView; els: El[]; sel: number | null;
-  editing: number | null; compact: boolean; exporting: boolean; over: boolean;
+  frame: RefObject<HTMLDivElement | null>; src: string; imageView: ImageView; backgroundZ: number; els: El[]; sel: number | null;
+  editing: number | null; exporting: boolean; over: boolean;
   drag: {id: number; dx: number; dy: number} | null;
   frameDown: (ev: RPointerEvent) => void; move: (ev: RPointerEvent) => void; up: (ev: RPointerEvent) => void;
 };
-const StoryBackground = memo(function StoryBackground({src, imageView}: {src: string; imageView: ImageView}) {
+const StoryBackground = memo(function StoryBackground({src, imageView, z}: {src: string; imageView: ImageView; z: number}) {
   return <img
     data-story-background="true"
     src={src}
-    style={{transform: `scale(${imageView.scale}) translate(${imageView.x}px, ${imageView.y}px)`, touchAction: "none", willChange: "transform"}}
+    style={{zIndex: z, transform: `scale(${imageView.scale}) translate(${imageView.x}px, ${imageView.y}px)`, touchAction: "none", willChange: "transform"}}
     alt=""
     loading="eager"
     decoding="async"
@@ -380,7 +438,7 @@ const StoryBackground = memo(function StoryBackground({src, imageView}: {src: st
     className="pointer-events-none absolute inset-0 h-full w-full object-contain"
   />;
 });
-const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, els, sel, editing, compact, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
+const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, backgroundZ, els, sel, editing, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
   return (
       <div
         ref={frame}
@@ -390,12 +448,12 @@ const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, els, sel, 
         onPointerCancel={up}
         style={{
           touchAction: "none",
-          width: `min(100%,384px,calc(${compact ? "44" : "58"}dvh * 9 / 16))`,
+          width: "min(100vw,560px,calc(100dvh * 9 / 16))",
           aspectRatio: "9 / 16",
         }}
         className="relative shrink-0 overflow-hidden bg-foreground select-none"
       >
-        <StoryBackground src={src} imageView={imageView} />
+        <StoryBackground src={src} imageView={imageView} z={backgroundZ} />
         {els
           .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
           .map((e) => {
@@ -465,6 +523,13 @@ export function StoryEditor({
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
   }, [file]);
   const backgroundUrl = useRef<{ file: File; url: string } | null>(null);
+  const [backgroundLocked, setBackgroundLocked] = useState(false);
+  const [backgroundZ, setBackgroundZ] = useState(0);
+  const [addingPhoto, setAddingPhoto] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const logoInput = useRef<HTMLInputElement>(null);
+  const backgroundPointers = useRef(new Map<number, {x: number; y: number}>());
+  const backgroundPinch = useRef<{distance: number; x: number; y: number; view: ImageView} | null>(null);
   const [imageView, setImageView] = useState<ImageView>({scale: 1, x: 0, y: 0});
   const imagePreview = useRef<ImageView | null>(null);
   const imageDrag = useRef<{pointer: number; x: number; y: number; view: ImageView} | null>(null);
@@ -473,11 +538,10 @@ export function StoryEditor({
   const [els, setEls] = useState<El[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
-  const [textInputFocused, setTextInputFocused] = useState(false);
   const [drag, setDrag] = useState<{ id: number; dx: number; dy: number } | null>(null);
   const [over, setOver] = useState(false);
   const overRef = useRef(false);
-  const [panel, setPanel] = useState<"stickers" | null>(null);
+  const [panel, setPanel] = useState<"stickers" | "layers" | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const frame = useRef<HTMLDivElement>(null);
@@ -569,9 +633,10 @@ export function StoryEditor({
     highlight: false,
     color: "#FFFFFF",
   });
-  function add(kind: El["kind"], text: string, src?: string, opacity = 1) {
+  function add(kind: El["kind"], text: string, src?: string, opacity = 1, imageRole: El["imageRole"] = "sticker") {
     const id = nid.current++;
-    const z = ++topZ.current;
+    const z = Math.max(backgroundZ, ...els.map(e => e.z), topZ.current) + 1;
+    topZ.current = z;
     setEls((v) => [
       ...v,
       {
@@ -579,6 +644,11 @@ export function StoryEditor({
         kind,
         text,
         src,
+        imageRole,
+        locked: false,
+        shape: "square",
+        borderWidth: 0,
+        borderColor: COLORS[0] ?? "#FFFFFF",
         width: Math.max(48, (frame.current?.clientWidth ?? 300) - 24),
         opacity,
         mentions: [],
@@ -609,11 +679,36 @@ export function StoryEditor({
       }
       logoUrls.current.push(url);
       setErr("");
-      add("image", file.name, url, 0.7);
+      add("image", file.name, url, 0.7, "logo");
     } catch {
       URL.revokeObjectURL(url);
       setErr("לא ניתן לטעון את קובץ הלוגו");
     }
+  }
+  async function addPhoto(file: File) {
+    setAddingPhoto(true);
+    setErr("");
+    try {
+      const optimized = await optimizeUploadImage(file);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("לא ניתן לפתוח את התמונה"));
+        reader.onerror = () => reject(new Error("לא ניתן לפתוח את התמונה"));
+        reader.readAsDataURL(optimized);
+      });
+      add("image", "תמונה נוספת", dataUrl, 1, "photo");
+    } catch { setErr("לא ניתן לפתוח את התמונה. בחרי תמונה אחרת."); }
+    finally { setAddingPhoto(false); }
+  }
+  function reorder(id: number, direction: 1 | -1) {
+    const ordered = reorderStoryLayers([{id: 0, z: backgroundZ}, ...els.map(e => ({id: e.id, z: e.z}))], id, direction);
+    const background = ordered.find(e => e.id === 0);
+    if (background) setBackgroundZ(background.z);
+    setEls(previous => previous.map(e => ({...e, z: ordered.find(layer => layer.id === e.id)?.z ?? e.z})));
+  }
+  function dismissPanels() {
+    setSel(null); setEditing(null); setPanel(null); setMention(null);
+    inputRef.current?.blur();
   }
   const pos = (ev: { clientX: number; clientY: number }) => {
     const r = frame.current?.getBoundingClientRect();
@@ -650,7 +745,10 @@ export function StoryEditor({
   }
   function down(ev: RPointerEvent, e: El) {
     ev.stopPropagation();
-    if (editing === e.id) return;
+    if (busy) return;
+    setPanel(null);
+    setSel(e.id);
+    if (!storyLayerCanMove(e) || editing === e.id) return;
     frame.current?.setPointerCapture(ev.pointerId);
     pointers.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     if (pointers.current.size === 2) {
@@ -659,8 +757,6 @@ export function StoryEditor({
       return;
     }
     tap.current = { id: e.id, x: ev.clientX, y: ev.clientY, was: sel === e.id, moved: false };
-    const z = ++topZ.current;
-    patch(e.id, { z });
     setSel(e.id);
     if (editing !== null && editing !== e.id) setEditing(null);
     const p = pos(ev);
@@ -687,14 +783,20 @@ export function StoryEditor({
   }
   function frameDown(ev: RPointerEvent) {
     if (busy) return;
+    dismissPanels();
+    if (backgroundLocked) return;
     frame.current?.setPointerCapture(ev.pointerId);
-    setSel(null);
-    setEditing(null);
-    imageDrag.current = {pointer: ev.pointerId, x: ev.clientX, y: ev.clientY, view: imageView};
+    backgroundPointers.current.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+    const view = imagePreview.current ?? imageView;
+    if (backgroundPointers.current.size === 2) {
+      const [a, b] = [...backgroundPointers.current.values()];
+      if (a && b) backgroundPinch.current = {distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, view};
+    } else imageDrag.current = {pointer: ev.pointerId, x: ev.clientX, y: ev.clientY, view};
   }
   function beginResize(ev: RPointerEvent, e: El, side: 1 | -1) {
     ev.preventDefault();
     ev.stopPropagation();
+    if (busy || !storyLayerCanMove(e)) return;
     setEditing(null);
     frame.current?.setPointerCapture(ev.pointerId);
     resize.current = {
@@ -713,6 +815,16 @@ export function StoryEditor({
   }
   function move(ev: RPointerEvent) {
     const bgDrag = imageDrag.current;
+    if (backgroundPointers.current.has(ev.pointerId)) {
+      backgroundPointers.current.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+      const gesture = backgroundPinch.current;
+      const [a, b] = [...backgroundPointers.current.values()];
+      if (gesture && a && b) {
+        const scale = storyImageScale(gesture.view.scale * Math.hypot(a.x - b.x, a.y - b.y) / gesture.distance);
+        previewImage({scale, x: gesture.view.x + ((a.x + b.x) / 2 - gesture.x) / scale, y: gesture.view.y + ((a.y + b.y) / 2 - gesture.y) / scale});
+        return;
+      }
+    }
     if (bgDrag?.pointer === ev.pointerId) {
       previewImage({...bgDrag.view, x: bgDrag.view.x + (ev.clientX - bgDrag.x) / bgDrag.view.scale, y: bgDrag.view.y + (ev.clientY - bgDrag.y) / bgDrag.view.scale});
       return;
@@ -760,9 +872,13 @@ export function StoryEditor({
     if (draggedElement) previewLayer(drag.id, clampLayer({ x: p.x - drag.dx, y: p.y - drag.dy }, draggedElement));
   }
   function up(ev: RPointerEvent) {
-    if (imageDrag.current?.pointer === ev.pointerId) {
+    if (backgroundPointers.current.has(ev.pointerId)) {
+      const view = imagePreview.current ?? imageView;
       commitImage();
-      imageDrag.current = null;
+      backgroundPointers.current.delete(ev.pointerId);
+      backgroundPinch.current = null;
+      const remaining = [...backgroundPointers.current.entries()][0];
+      imageDrag.current = remaining ? {pointer: remaining[0], x: remaining[1].x, y: remaining[1].y, view} : null;
       return;
     }
     commitPreview();
@@ -789,7 +905,7 @@ export function StoryEditor({
     setOver(false);
   }
   function style(p: Partial<El>) {
-    if (!selected) return;
+    if (!selected || selected.locked) return;
     Object.assign(last.current, p);
     patch(selected.id, p);
   }
@@ -827,7 +943,7 @@ export function StoryEditor({
   const stableUp = useStableEvent(up);
   const stableBeginResize = useStableEvent(beginResize);
   const stableChangeText = useStableEvent(changeText);
-  const editLayer = useCallback((id: number) => setEditing(id), []);
+  const editLayer = useStableEvent((id: number) => { if (els.find(e => e.id === id)?.locked) return; setSel(id); setEditing(id); });
   const finishEditing = useCallback(() => setEditing(null), []);
   const previewScale = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {scale: value}); });
   const previewOpacity = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {opacity: value}); });
@@ -835,10 +951,12 @@ export function StoryEditor({
   const commitOpacity = useStableEvent((value: number) => { if (!commitPreview() && sel !== null) patch(sel, {opacity: value}); });
   const previewImageScale = useStableEvent((scale: number) => previewImage({...imageView, scale}));
   const commitImageScale = useStableEvent(() => commitImage());
+  const previewRotation = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {rot: value}); });
+  const commitRotation = useStableEvent((value: number) => { if (!commitPreview() && sel !== null) patch(sel, {rot: value}); });
   async function snapshot() {
     const node = frame.current;
     if (!node) throw new Error("התמונה אינה מוכנה");
-    const background = node.querySelector<HTMLImageElement>("img");
+    const background = node.querySelector<HTMLImageElement>("[data-story-background]");
     const originalUrl = URL.createObjectURL(file);
     flushSync(() => {
       setEditing(null);
@@ -943,56 +1061,39 @@ export function StoryEditor({
       dir="rtl"
       role="dialog"
       aria-label="עורך סטורי"
-      className="fixed inset-0 z-[60] bg-foreground/95 flex flex-col items-center p-3 gap-2 overflow-y-auto"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] bg-foreground flex items-center justify-center overflow-hidden"
     >
-      <div className="w-full max-w-sm flex items-center justify-between shrink-0">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="text-primary-foreground"
-          aria-label="ביטול"
-          onClick={onCancel}
-        >
-          <X />
-        </Button>
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => add("text", "")}>
-            <Type />
-            טקסט
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setPanel(panel === "stickers" ? null : "stickers")}
-          >
-            <Smile />
-            סטיקרים
-          </Button>
-          <label className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-secondary px-3 py-2 text-xs font-medium text-secondary-foreground">
-            <ImagePlus className="h-4 w-4" />
-            הוספת לוגו / סימן מים
-            <input
-              type="file"
-              accept="image/png"
-              aria-label="העלאת לוגו PNG שקוף"
-              className="sr-only"
-              onChange={(ev) => {
-                const f = ev.currentTarget.files?.[0];
-                ev.currentTarget.value = "";
-                if (f) void addLogo(f);
-              }}
-            />
-          </label>
+      <StoryCanvas frame={frame} src={src} imageView={imageView} backgroundZ={backgroundZ} els={els} sel={sel} editing={editing} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
+      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-none">
+        <Button size="icon" variant="ghost" title="ביטול" aria-label="ביטול" onClick={onCancel} disabled={busy} className="pointer-events-auto rounded-full bg-foreground/40 text-primary-foreground"><X/></Button>
+        <div className="flex gap-1.5 pointer-events-auto rounded-full bg-foreground/40 p-1 text-primary-foreground">
+          <Button size="icon" variant="ghost" title="הוספת טקסט" aria-label="הוספת טקסט" disabled={busy} onClick={() => add("text", "")}><Type/></Button>
+          <Button size="icon" variant="ghost" title="סטיקרים" aria-label="סטיקרים" disabled={busy} onClick={() => {setSel(null); setEditing(null); setPanel(panel === "stickers" ? null : "stickers");}}><Smile/></Button>
+          <Button size="icon" variant="ghost" title="הוספת תמונה" aria-label="הוספת תמונה" disabled={busy || addingPhoto} onClick={() => photoInput.current?.click()}><ImagePlus/></Button>
+          <Button size="icon" variant="ghost" title="הוספת לוגו / סימן מים" aria-label="הוספת לוגו / סימן מים" disabled={busy} onClick={() => logoInput.current?.click()}><ImageIcon/></Button>
         </div>
       </div>
-      <StoryCanvas frame={frame} src={src} imageView={imageView} els={els} sel={sel} editing={editing} compact={editing !== null || textInputFocused} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
-
-      <label className="flex items-center gap-3 w-full max-w-sm rounded-lg bg-card p-3 text-xs font-bold shrink-0">
-        גודל תמונה
-        <StorySlider label="גודל תמונה" value={imageView.scale} min={0.8} max={2} onPreview={previewImageScale} onCommit={commitImageScale} />
-      </label>
+      <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="העלאת תמונה נוספת" className="sr-only" onChange={ev => {const f = ev.currentTarget.files?.[0]; ev.currentTarget.value = ""; if (f) void addPhoto(f);}}/>
+      <input ref={logoInput} type="file" accept="image/png" aria-label="העלאת לוגו PNG שקוף" className="sr-only" onChange={ev => {const f = ev.currentTarget.files?.[0]; ev.currentTarget.value = ""; if (f) void addLogo(f);}}/>
+      <Button size="icon" variant="ghost" aria-label="שכבות" title="שכבות" disabled={busy} aria-expanded={panel === "layers"} onClick={() => {setSel(null); setEditing(null); setPanel(panel === "layers" ? null : "layers");}} className="absolute top-20 left-3 z-20 rounded-full bg-foreground/40 text-primary-foreground"><MoreHorizontal/></Button>
+      {sel === 0 && panel === null && <div className="absolute bottom-20 z-20 w-[calc(100%-24px)] max-w-md rounded-2xl bg-card/95 p-3 shadow-soft">
+        <div className="flex items-center justify-between mb-3"><span className="text-sm font-bold">תמונת רקע</span><Button size="icon" variant="ghost" aria-label="סגירת עריכת רקע" onClick={dismissPanels}><Check/></Button></div>
+        <fieldset disabled={backgroundLocked || busy}><label className="flex items-center gap-3 text-xs font-bold">גודל תמונה<StorySlider label="גודל תמונה" value={imageView.scale} min={0.8} max={2} onPreview={previewImageScale} onCommit={commitImageScale}/></label></fieldset>
+      </div>}
+      {panel === "layers" && <div className="absolute top-32 left-3 right-3 z-30 mx-auto max-w-md max-h-[calc(100dvh-220px)] overflow-y-auto overscroll-contain rounded-2xl bg-card/95 p-3 shadow-soft">
+        <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-bold">שכבות</h2><Button size="icon" variant="ghost" aria-label="סגירת שכבות" onClick={() => setPanel(null)}><X/></Button></div>
+        {[{id: 0, z: backgroundZ, text: "תמונת רקע", kind: "background", locked: backgroundLocked}, ...els].sort((a, b) => b.z - a.z).map((e, index, layers) => <div key={e.id} className="flex items-center gap-1 border-b border-border/50 py-2 last:border-0">
+          <Button variant="ghost" className="min-w-0 flex-1 justify-start overflow-hidden text-right" aria-label={`בחירת שכבה ${e.id === 0 ? "תמונת רקע" : e.text || "טקסט"}`} onClick={() => {setSel(e.id); setEditing(null); setPanel(null);}}>{e.kind === "text" ? <Type/> : e.kind === "pill" ? <Smile/> : <ImageIcon/>}<span className="truncate">{e.id === 0 ? "תמונת רקע" : e.text || "טקסט"}</span></Button>
+          <Button size="icon" variant="ghost" title="העלאה קדימה" aria-label={`העלאה קדימה ${e.id}`} disabled={index === 0 || busy} onClick={() => reorder(e.id, 1)}><ArrowUp/></Button>
+          <Button size="icon" variant="ghost" title="הורדה לאחור" aria-label={`הורדה לאחור ${e.id}`} disabled={index === layers.length - 1 || busy} onClick={() => reorder(e.id, -1)}><ArrowDown/></Button>
+          <Button size="icon" variant={e.locked ? "secondary" : "ghost"} title={e.locked ? "ביטול נעילה" : "נעילה"} aria-label={`${e.locked ? "ביטול נעילה" : "נעילה"} ${e.id}`} aria-pressed={!!e.locked} disabled={busy} onClick={() => e.id === 0 ? setBackgroundLocked(!backgroundLocked) : patch(e.id, {locked: !e.locked})}>{e.locked ? <LockKeyhole/> : <LockKeyholeOpen/>}</Button>
+        </div>)}
+      </div>}
       {selected && (
-        <div className="sticky bottom-0 z-10 w-full max-w-sm max-h-[40vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl rounded-b-2xl p-3 space-y-2 shrink-0 shadow-soft">
+        <div className="absolute bottom-20 z-20 w-[calc(100%-24px)] max-w-md max-h-[44dvh] overflow-y-auto overscroll-contain bg-card/95 rounded-2xl p-3 space-y-2 shadow-soft">
+          <div className="flex items-center justify-between"><span className="text-xs font-bold">{selected.kind === "text" ? "טקסט" : selected.imageRole === "photo" ? "תמונה נוספת" : selected.imageRole === "logo" ? "לוגו / סימן מים" : "סטיקר"}{selected.locked && <LockKeyhole className="inline size-3 mr-2"/>}</span><Button size="icon" variant="ghost" aria-label="סגירת עריכה" onClick={dismissPanels}><Check/></Button></div>
+          <fieldset disabled={selected.locked || busy} className="space-y-2 disabled:opacity-50">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold">גודל</span>
             {selected.kind !== "text" && <Button
@@ -1013,12 +1114,23 @@ export function StoryEditor({
               <Plus />
             </Button>}
           </div>
+          {selected.kind !== "text" && <label className="flex items-center gap-2 text-xs font-bold"><RotateCw className="size-4"/>סיבוב<StorySlider key={`rotation-${selected.id}`} label="סיבוב שכבה" value={selected.rot} min={-180} max={180} onPreview={previewRotation} onCommit={commitRotation}/></label>}
           {selected.kind === "image" && (
             <label className="flex items-center gap-2 text-xs font-bold">
               שקיפות
               <StorySlider key={`opacity-${selected.id}`} label="שקיפות הלוגו או הסטיקר" value={selected.opacity} min={0.15} max={1} onPreview={previewOpacity} onCommit={commitOpacity} />
             </label>
           )}
+          {selected.imageRole === "photo" && <>
+            <div className="flex gap-1.5 justify-between">{PHOTO_SHAPES.map(shape => <Button key={shape.id} size="icon" variant={selected.shape === shape.id ? "secondary" : "ghost"} aria-label={`מסגרת ${shape.label}`} aria-pressed={selected.shape === shape.id} title={shape.label} onClick={() => patch(selected.id, {shape: shape.id})}><shape.icon className={shape.id === "rounded" ? "rounded-md" : ""}/></Button>)}</div>
+            <label className="flex items-center gap-2 text-xs font-bold">עובי מסגרת<StorySlider key={`border-${selected.id}`} label="עובי מסגרת" value={selected.borderWidth ?? 0} min={0} max={12} onPreview={value => {
+              const node = frame.current?.querySelector<SVGPathElement>(`[data-layer-id="${selected.id}"] svg > path`);
+              const border = storyBorderWidth(value);
+              if (node) {node.setAttribute("stroke-width", String(border)); node.setAttribute("transform", `translate(${border / 2} ${border / 2}) scale(${1 - border / 120})`);}
+              else patch(selected.id, {borderWidth: border});
+            }} onCommit={value => patch(selected.id, {borderWidth: storyBorderWidth(value)})}/></label>
+            <label className="flex items-center justify-between text-xs font-bold">צבע מסגרת<input type="color" aria-label="צבע מסגרת" value={selected.borderColor ?? COLORS[0]} onChange={ev => patch(selected.id, {borderColor: ev.target.value})} className="size-8 cursor-pointer rounded border border-border bg-card"/></label>
+          </>}
           {selected.kind === "text" && (
             <>
               <textarea
@@ -1030,10 +1142,8 @@ export function StoryEditor({
                 value={selected.text}
                 placeholder="הקלידי כאן"
                 onFocus={() => {
-                  setTextInputFocused(true);
                   setEditing(null);
                 }}
-                onBlur={() => setTextInputFocused(false)}
                 onSelect={(ev) => {
                   const range = activeMention(
                     ev.currentTarget.value,
@@ -1051,12 +1161,13 @@ export function StoryEditor({
               )}
               <div className="flex gap-1.5 overflow-x-auto pb-1">
                 {STORY_FONTS.map((f) => (
-                  <button
+                  <Button
                     key={f.id}
                     type="button"
+                    variant="ghost"
                     onClick={() => style({ font: f.id })}
                     className={
-                      "shrink-0 rounded-xl border px-3 py-1.5 text-right " +
+                      "shrink-0 h-auto flex-col gap-0 rounded-xl border px-3 py-1.5 text-right " +
                       (selected.font === f.id ? "border-primary bg-accent" : "border-border")
                     }
                   >
@@ -1070,7 +1181,7 @@ export function StoryEditor({
                       {f.desc}
                     </span>
                     <span className="block text-[10px] text-muted-foreground">{f.label}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
               <div className="flex gap-1.5 flex-wrap">
@@ -1122,9 +1233,11 @@ export function StoryEditor({
               </div>
               <div className="flex gap-1.5 flex-wrap items-center">
                 {COLORS.map((c) => (
-                  <button
+                  <Button
                     key={c}
                     type="button"
+                    variant="ghost"
+                    size="icon"
                     aria-label={`צבע ${c}`}
                     onClick={() => style({ color: c })}
                     style={{ background: c }}
@@ -1149,29 +1262,33 @@ export function StoryEditor({
               </div>
             </>
           )}
+          </fieldset>
         </div>
       )}
 
       {panel === "stickers" && (
-        <div className="w-full max-w-sm bg-card rounded-2xl p-3 space-y-2 shrink-0">
+        <div className="absolute bottom-20 z-20 w-[calc(100%-24px)] max-w-md max-h-[44dvh] overflow-y-auto bg-card/95 rounded-2xl p-3 space-y-2">
+          <div className="flex justify-between items-center"><span className="text-sm font-bold">סטיקרים</span><Button size="icon" variant="ghost" aria-label="סגירת סטיקרים" onClick={() => setPanel(null)}><X/></Button></div>
           <div className="grid grid-cols-2 gap-2">
             {STORY_STICKERS.map((s) => (
-              <button
+              <Button
                 key={s}
                 type="button"
+                variant="ghost"
                 onClick={() => add("pill", s)}
-                className="rounded-full bg-accent text-[#5B0E2D] font-bold text-xs px-3 py-2"
+                className="h-auto min-h-9 whitespace-normal rounded-full bg-accent text-primary font-bold text-xs px-3 py-2"
               >
                 {s}
-              </button>
+              </Button>
             ))}
           </div>
           {(stickers.data?.length ?? 0) > 0 && (
             <div className="grid grid-cols-4 gap-2">
               {stickers.data?.map((s) => (
-                <button
+                <Button
                   key={s.id}
                   type="button"
+                  variant="ghost"
                   aria-label={s.label || "סטיקר"}
                   onClick={() => add("image", s.label, s.url)}
                   className="aspect-square rounded-xl bg-muted p-1"
@@ -1183,7 +1300,7 @@ export function StoryEditor({
                     decoding="async"
                     className="w-full h-full object-contain"
                   />
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -1193,15 +1310,12 @@ export function StoryEditor({
         </div>
       )}
 
-      {err && (
-        <p role="alert" className="text-xs text-primary-foreground">
-          {err}
-        </p>
-      )}
+      {addingPhoto && <div role="status" className="absolute inset-0 z-40 grid place-items-center bg-overlay text-primary-foreground"><ImageUploadStatus/></div>}
+      {err && <p role="alert" className="absolute bottom-36 z-40 max-w-sm mx-3 rounded-lg bg-destructive p-3 text-xs text-destructive-foreground">{err}</p>}
       <Button
-        disabled={busy || !src}
+        disabled={busy || addingPhoto || !src}
         onClick={() => void publish()}
-        className="mb-2 mt-2 min-h-12 w-full max-w-sm shrink-0 rounded-2xl bg-rose-glam py-3 font-black text-primary-foreground"
+        className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] z-20 min-h-11 rounded-full bg-rose-glam px-6 font-bold text-primary-foreground shadow-soft"
       >
         {busy ? <ImageUploadStatus /> : "פרסום סטורי לקהילה"}
       </Button>

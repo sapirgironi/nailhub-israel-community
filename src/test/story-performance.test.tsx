@@ -1,6 +1,6 @@
 import {cleanup, fireEvent, render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {StorySlider, storyPixelWidth, storyImageScale, boundedImageView} from '../components/StoryEditor';
+import {StorySlider, storyPixelWidth, storyImageScale, boundedImageView, storyBorderWidth, reorderStoryLayers, storyLayerCanMove} from '../components/StoryEditor';
 import {createStoryPreview} from '../lib/story-preview';
 
 vi.mock('@/integrations/supabase/client', () => ({supabase: {}}));
@@ -8,6 +8,23 @@ vi.mock('@/lib/media', () => ({uploadPhoto: vi.fn()}));
 
 afterEach(() => {cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals();});
 describe('story editing performance boundaries', () => {
+  it('limits photo borders to 0 through 12 pixels', () => {
+    expect(storyBorderWidth(-1)).toBe(0);
+    expect(storyBorderWidth(6)).toBe(6);
+    expect(storyBorderWidth(15)).toBe(12);
+  });
+  it('moves background and overlays through the same z-order without altering their content', () => {
+    const layers = [{id: 0, z: 0, text: 'background'}, {id: 1, z: 1, text: 'text'}, {id: 2, z: 2, text: 'photo'}];
+    const forward = reorderStoryLayers(layers, 0, 1);
+    expect(forward).toEqual([{id: 1, z: 0, text: 'text'}, {id: 0, z: 1, text: 'background'}, {id: 2, z: 2, text: 'photo'}]);
+    expect(reorderStoryLayers(forward, 0, -1)).toEqual(layers);
+    expect(reorderStoryLayers(layers, 2, 1)).toEqual(layers);
+  });
+  it('denies gestures on locked background or overlay layers', () => {
+    expect(storyLayerCanMove({locked: true})).toBe(false);
+    expect(storyLayerCanMove({locked: false})).toBe(true);
+    expect(storyLayerCanMove({})).toBe(true);
+  });
   it('resizes text in pixels up to canvas width minus 24 without changing font or scale', () => {
     const layer = {width: 150, fontSize: 28, scale: 1};
     const widened = {...layer, width: storyPixelWidth(layer.width, 100, 0, 0, 300, 1)};

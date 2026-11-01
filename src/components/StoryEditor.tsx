@@ -630,6 +630,7 @@ export function StoryEditor({
   const [els, setEls] = useState<El[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
+  const [focusRequest, setFocusRequest] = useState<number | null>(null);
   const [drag, setDrag] = useState<{ id: number; dx: number; dy: number } | null>(null);
   const [over, setOver] = useState(false);
   const overRef = useRef(false);
@@ -816,7 +817,7 @@ export function StoryEditor({
     setEls(previous => previous.map(e => ({...e, z: ordered.find(layer => layer.id === e.id)?.z ?? e.z})));
   }
   function dismissPanels() {
-    setSel(null); setEditing(null); setPanel(null); setMention(null); setDrawerCollapsed(false); setFontPickerOpen(false); setColorPickerOpen(false);
+    setSel(null); setEditing(null); setFocusRequest(null); setPanel(null); setMention(null); setDrawerCollapsed(false); setFontPickerOpen(false); setColorPickerOpen(false);
     frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();
   }
   const pos = (ev: { clientX: number; clientY: number }) => {
@@ -1001,7 +1002,7 @@ export function StoryEditor({
     if (pointers.current.size === 0) tap.current = null;
     if (t && !t.moved && t.was) {
       const el = els.find((x) => x.id === t.id);
-      if (el?.kind === "text") setEditing(el.id);
+      if (el?.kind === "text") { setEditing(el.id); setFocusRequest(el.id); }
     }
     if (!drag) return;
     const p = pos(ev);
@@ -1052,7 +1053,7 @@ export function StoryEditor({
   const stableUp = useStableEvent(up);
   const stableBeginResize = useStableEvent(beginResize);
   const stableChangeText = useStableEvent(changeText);
-  const editLayer = useStableEvent((id: number) => { if (els.find(e => e.id === id)?.locked) return; setSel(id); setEditing(id); });
+  const editLayer = useStableEvent((id: number) => { if (els.find(e => e.id === id)?.locked) return; setSel(id); setEditing(id); setFocusRequest(id); });
   const finishEditing = useStableEvent(() => dismissPanels());
   const previewScale = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {scale: value}); });
   const previewOpacity = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {opacity: value}); });

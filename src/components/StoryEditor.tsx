@@ -216,7 +216,7 @@ function fitTextLayer(node: HTMLElement, scale: number, rotation: number) {
   text.style.fontSize = `${BASE}px`;
   // Measure the intrinsic lines, then shrink without inserting automatic breaks.
   const natural = text.scrollWidth;
-  const available = Math.max(1, node.clientWidth);
+  const available = Math.max(1, node.clientWidth - 24);
   text.style.fontSize = `${fittedStoryFont(BASE, natural, available)}px`;
   node.style.transform = `translate(-50%,-50%) scale(${scale}) rotate(${rotation}deg)`;
   const initial = node.getBoundingClientRect();
@@ -318,7 +318,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       overflowWrap: "normal",
                       wordBreak: "keep-all",
                     }}
-                    className="block rounded-lg"
+                    className="block rounded-lg px-3"
                   >
                     {editing ? (
                       <EditableText

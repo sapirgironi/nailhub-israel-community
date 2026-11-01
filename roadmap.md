@@ -1,4 +1,5 @@
 # NailHub roadmap
+- [ ] Story editor stage 3: compact scrollable eight-family five-shade text/photo-border palette within StoryEditor only; preserve drawers, layers and export.
 - [ ] Story editor stage 2: preserve existing layers/order/locking, visual font picker, immediate centered inline text, labeled image/logo controls; verify with stage 1.
 - [ ] Story editor presentation: edge-to-edge cover, shared collapsible bottom drawer, inline typing and round corner publish; verify authenticated editing and regression tests.
 - [x] Replace story text card/duplicate input with focused inline typing and a 72px translucent keyboard-aware toolbar; authenticated typing/Enter, font/color, confirm/background dismissal, member insertion and real publish/reload verified. Mention hit area persisted; test stories removed. Widths 320/444 and desktop checked; simulated keyboard moved toolbar above viewport without changing canvas. 22 tests passed and build OK; physical keyboard/device remains untested.

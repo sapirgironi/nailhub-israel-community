@@ -1,6 +1,6 @@
 import {cleanup, fireEvent, render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {StorySlider} from '../components/StoryEditor';
+import {StorySlider, storyPixelWidth, storyImageScale, boundedImageView} from '../components/StoryEditor';
 import {createStoryPreview} from '../lib/story-preview';
 
 vi.mock('@/integrations/supabase/client', () => ({supabase: {}}));
@@ -8,6 +8,22 @@ vi.mock('@/lib/media', () => ({uploadPhoto: vi.fn()}));
 
 afterEach(() => {cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals();});
 describe('story editing performance boundaries', () => {
+  it('resizes text in pixels up to canvas width minus 24 without changing font or scale', () => {
+    const layer = {width: 150, fontSize: 28, scale: 1};
+    const widened = {...layer, width: storyPixelWidth(layer.width, 100, 0, 0, 300, 1)};
+    expect(widened).toEqual({width: 276, fontSize: 28, scale: 1});
+    expect(storyPixelWidth(150, -100, 0, 0, 300, 1)).toBe(48);
+    expect(storyPixelWidth(150, -30, 0, 0, 300, -1)).toBe(210);
+  });
+  it('clamps background scale to the requested 0.8 to 2 range', () => {
+    expect(storyImageScale(0.5)).toBe(0.8);
+    expect(storyImageScale(1)).toBe(1);
+    expect(storyImageScale(3)).toBe(2);
+  });
+  it('bounds panning using the contained image dimensions and scaled translation', () => {
+    expect(boundedImageView({scale: 2, x: 999, y: -999}, 300, 600, 300, 600)).toEqual({scale: 2, x: 75, y: -150});
+    expect(boundedImageView({scale: 1, x: 999, y: -999}, 300, 600, 300, 600)).toEqual({scale: 1, x: 0, y: 0});
+  });
   it('previews size locally and commits main state only on release', () => {
     const preview = vi.fn(), commit = vi.fn();
     render(<StorySlider label="size" value={1} min={0.4} max={5} onPreview={preview} onCommit={commit}/>);

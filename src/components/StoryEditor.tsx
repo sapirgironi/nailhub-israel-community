@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  Stamp,
   RotateCw,
   Square,
   Circle,
@@ -561,6 +562,7 @@ export function StoryEditor({
   const overRef = useRef(false);
   const [panel, setPanel] = useState<"stickers" | "layers" | null>(null);
   const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const drawerGesture = useRef<number | null>(null);
   useEffect(() => { setDrawerCollapsed(false); }, [sel, panel]);
   const [busy, setBusy] = useState(false);
@@ -687,7 +689,7 @@ export function StoryEditor({
         mentions: [],
         ...last.current,
         x: 50,
-        y: kind === "text" ? 40 : 55,
+        y: kind === "text" ? 50 : 55,
         scale: 1,
         rot: 0,
         z,
@@ -740,7 +742,7 @@ export function StoryEditor({
     setEls(previous => previous.map(e => ({...e, z: ordered.find(layer => layer.id === e.id)?.z ?? e.z})));
   }
   function dismissPanels() {
-    setSel(null); setEditing(null); setPanel(null); setMention(null); setDrawerCollapsed(false);
+    setSel(null); setEditing(null); setPanel(null); setMention(null); setDrawerCollapsed(false); setFontPickerOpen(false);
     frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();
   }
   const pos = (ev: { clientX: number; clientY: number }) => {
@@ -1103,8 +1105,8 @@ export function StoryEditor({
         <div className="flex gap-1.5 pointer-events-auto rounded-full bg-foreground/40 p-1 text-primary-foreground">
           <Button size="icon" variant="ghost" title="הוספת טקסט" aria-label="הוספת טקסט" disabled={busy} onClick={() => add("text", "")}><Type/></Button>
           <Button size="icon" variant="ghost" title="סטיקרים" aria-label="סטיקרים" disabled={busy} onClick={() => {setSel(null); setEditing(null); setPanel(panel === "stickers" ? null : "stickers");}}><Smile/></Button>
-          <Button size="icon" variant="ghost" title="הוספת תמונה" aria-label="הוספת תמונה" disabled={busy || addingPhoto} onClick={() => photoInput.current?.click()}><ImagePlus/></Button>
-          <Button size="icon" variant="ghost" title="הוספת לוגו / סימן מים" aria-label="הוספת לוגו / סימן מים" disabled={busy} onClick={() => logoInput.current?.click()}><ImageIcon/></Button>
+          <Button variant="ghost" className="h-9 gap-1 px-2 text-xs" title="הוספת תמונה" aria-label="הוספת תמונה" disabled={busy || addingPhoto} onClick={() => photoInput.current?.click()}><ImagePlus className="size-4"/><span>תמונה</span></Button>
+          <Button variant="ghost" className="h-9 gap-1 px-2 text-xs" title="הוספת לוגו / סימן מים" aria-label="הוספת לוגו / סימן מים" disabled={busy} onClick={() => logoInput.current?.click()}><Stamp className="size-4"/><span>לוגו</span></Button>
         </div>
       </div>
       <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="העלאת תמונה נוספת" className="sr-only" onChange={ev => {const f = ev.currentTarget.files?.[0]; ev.currentTarget.value = ""; if (f) void addPhoto(f);}}/>
@@ -1112,12 +1114,12 @@ export function StoryEditor({
       <Button size="icon" variant="ghost" aria-label="שכבות" title="שכבות" disabled={busy} aria-expanded={panel === "layers"} onClick={() => {setSel(null); setEditing(null); setPanel(panel === "layers" ? null : "layers");}} className="absolute top-20 left-3 z-20 rounded-full bg-foreground/40 text-primary-foreground"><MoreHorizontal/></Button>
       {(sel !== null || panel !== null) && <div ref={textToolbar} data-story-drawer="true" className="absolute inset-x-0 bottom-0 z-30 mx-auto max-w-xl bg-foreground/65 text-primary-foreground backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
         <div className="flex h-6 items-center justify-center" style={{touchAction: "none"}}
-          onPointerDown={ev => {drawerGesture.current = ev.clientY; ev.currentTarget.setPointerCapture(ev.pointerId);}}
+          onPointerDown={ev => {drawerGesture.current = ev.clientY; if (!(ev.target instanceof Element && ev.target.closest('button'))) ev.currentTarget.setPointerCapture(ev.pointerId);}}
           onPointerUp={ev => {if (drawerGesture.current !== null && ev.clientY - drawerGesture.current > 24) {setDrawerCollapsed(true); setEditing(null); setMention(null); frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();} drawerGesture.current = null;}}
           onPointerCancel={() => {drawerGesture.current = null;}}>
           <Button size="icon" variant="ghost" className="h-6 w-16 rounded-full" aria-label={drawerCollapsed ? "הרחבת כלי עריכה" : "מזעור כלי עריכה"} aria-expanded={!drawerCollapsed}
             onPointerDown={ev => ev.preventDefault()}
-            onClick={() => {setDrawerCollapsed(v => !v); setEditing(null); setMention(null); frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();}}>
+            onClick={() => {setDrawerCollapsed(v => !v); setFontPickerOpen(false); setEditing(null); setMention(null); frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();}}>
             {drawerCollapsed ? <ChevronUp className="size-4"/> : <ChevronDown className="size-4"/>}
           </Button>
         </div>
@@ -1141,9 +1143,7 @@ export function StoryEditor({
       }}>
         <fieldset disabled={selected.locked || busy} className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-2">
           <div className="flex w-24 shrink-0 items-center gap-1" title="גודל טקסט"><Type className="size-4 shrink-0"/><StorySlider key={`text-size-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale}/></div>
-          <select aria-label="בחירת פונט" title="בחירת פונט" value={selected.font} onChange={ev => {const font = STORY_FONTS.find(f => f.id === ev.target.value); if (font) style({font: font.id});}} className="h-9 w-28 shrink-0 rounded-md border border-primary-foreground/20 bg-foreground/60 px-2 text-xs text-primary-foreground">
-            {STORY_FONTS.map(f => <option key={f.id} value={f.id}>{f.desc}</option>)}
-          </select>
+          <Button variant="ghost" aria-label="בחירת פונט" title="בחירת פונט" aria-expanded={fontPickerOpen} onClick={() => setFontPickerOpen(v => !v)} style={{fontFamily: `"${fontOf(selected.font).family}"`, fontStyle: fontOf(selected.font).italic ? "italic" : "normal"}} className="h-9 w-28 shrink-0 border border-primary-foreground/20 bg-foreground/60 px-2 text-xs text-primary-foreground">{fontOf(selected.font).desc}<ChevronUp className="size-3"/></Button>
           <input type="color" aria-label="בחירת צבע חופשי" title="צבע טקסט" value={selected.color} onChange={ev => style({color: ev.target.value.toUpperCase()})} className="size-8 shrink-0 cursor-pointer rounded-full border border-primary-foreground/30 bg-transparent p-0"/>
           <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עיבוי" title="עיבוי" aria-pressed={selected.bold} onClick={() => style({bold: !selected.bold})}><Bold/></Button>
           <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="קו תחתון" title="קו תחתון" aria-pressed={selected.underline} onClick={() => style({underline: !selected.underline})}><Underline/></Button>
@@ -1253,6 +1253,9 @@ export function StoryEditor({
         </div>
       )}
 
+        </div>}
+        {selected?.kind === "text" && fontPickerOpen && !drawerCollapsed && <div role="group" aria-label="תצוגת גופנים" className="absolute bottom-full inset-x-3 mb-2 flex max-h-40 flex-wrap gap-1 overflow-y-auto rounded-lg bg-foreground/80 p-2 backdrop-blur-md" onPointerDown={ev => ev.preventDefault()}>
+          {STORY_FONTS.map(font => <Button key={font.id} variant="ghost" aria-label={`גופן ${font.desc}`} aria-pressed={selected.font === font.id} disabled={selected.locked || busy} style={{fontFamily: `"${font.family}"`, fontStyle: font.italic ? "italic" : "normal"}} className="h-10 text-base" onClick={() => {style({font: font.id}); setFontPickerOpen(false);}}>{font.desc}</Button>)}
         </div>}
       </div>}
 

@@ -355,7 +355,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                         touchAction: "none",
                   willChange: "transform",
                       }}
-                      className="!size-3 !min-w-0 !min-h-0 shrink-0 cursor-ew-resize rounded-full !border-0 !p-0 !bg-rose-start !shadow-none"
+                      className="!size-3 !min-w-0 !min-h-0 shrink-0 cursor-ew-resize rounded-full !border-0 !p-0 !bg-story-handle !shadow-none"
                     />
                   ))}
               </div>

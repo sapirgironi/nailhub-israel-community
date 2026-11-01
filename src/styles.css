@@ -43,6 +43,7 @@
   --color-rose-start: var(--rose-start);
   --color-rose-middle: var(--rose-middle);
   --color-rose-end: var(--rose-end);
+  --color-story-handle: var(--story-handle);
 }
 
 :root {
@@ -78,6 +79,7 @@
   --rose-start: oklch(0.656 0.241 354.308);
   --rose-middle: oklch(0.712 0.194 13.428);
   --rose-end: oklch(0.718 0.202 349.761);
+  --story-handle: #ec4899;
   --gradient-blush: linear-gradient(135deg, var(--background), var(--accent));
   --gradient-rose: linear-gradient(110deg, var(--rose-start), var(--rose-middle), var(--rose-end));
 }

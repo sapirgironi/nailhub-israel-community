@@ -23,12 +23,8 @@ import { flushSync } from "react-dom";
 import { StoryMentionPicker } from "./StoryMentionPicker";
 import {
   activeMention,
-  clampTextLayerX,
   insertMention,
-  maxTextLayerWidth,
-  resizedTextWidth,
   storyTextLines,
-  fittedStoryFont,
   type StoryMention,
   type MentionMember,
 } from "@/lib/story-layout";
@@ -187,7 +183,7 @@ function EditableText({
         )
       }
       onBlur={onDone}
-      style={{whiteSpace: "pre", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "max-content"}}
+      style={{whiteSpace: "pre-wrap", wordBreak: "normal", overflowWrap: "anywhere", display: "inline-block", width: "100%"}}
       className="outline-none min-w-[1ch] caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"
     />
   );
@@ -207,28 +203,32 @@ type LayerProps = {
   changeText: (id: number, text: string, caret: number) => void;
   beginResize: (ev: RPointerEvent, e: El, side: 1 | -1) => void;
 };
-function fitTextLayer(node: HTMLElement, scale: number, rotation: number) {
+export function storyPixelWidth(width: number, dx: number, dy: number, rotation: number, frameWidth: number, side: 1 | -1) {
+  const angle = rotation * Math.PI / 180;
+  const max = Math.max(0, frameWidth - 24);
+  return Math.max(Math.min(48, max), Math.min(width + side * (dx * Math.cos(angle) + dy * Math.sin(angle)) * 2, max));
+}
+export function storyImageScale(value: number) { return Math.max(0.8, Math.min(2, value)); }
+type ImageView = {scale: number; x: number; y: number};
+export function boundedImageView(view: ImageView, width: number, height: number, naturalWidth: number, naturalHeight: number): ImageView {
+  const scale = storyImageScale(view.scale);
+  if (!naturalWidth || !naturalHeight) return {...view, scale, x: 0, y: 0};
+  const fit = Math.min(width / naturalWidth, height / naturalHeight);
+  const maxX = Math.abs(width - naturalWidth * fit * scale) / (2 * scale);
+  const maxY = Math.abs(height - naturalHeight * fit * scale) / (2 * scale);
+  return {scale, x: Math.max(-maxX, Math.min(maxX, view.x)), y: Math.max(-maxY, Math.min(maxY, view.y))};
+}
+function fitTextLayer(node: HTMLElement, size: number, rotation: number) {
   const canvas = node.parentElement;
   const text = node.querySelector<HTMLElement>('[data-story-text]');
   if (!canvas || !text || !canvas.clientWidth) return;
   const width = canvas.clientWidth, height = canvas.clientHeight;
-  node.style.maxWidth = "95%";
-  text.style.fontSize = `${BASE}px`;
-  // Measure the intrinsic lines, then shrink without inserting automatic breaks.
-  const natural = text.scrollWidth;
-  const available = Math.max(1, node.clientWidth - 24);
-  text.style.fontSize = `${fittedStoryFont(BASE, natural, available)}px`;
-  node.style.transform = `translate(-50%,-50%) scale(${scale}) rotate(${rotation}deg)`;
-  const initial = node.getBoundingClientRect();
-  const fittedScale = scale * Math.min(1, width * 0.95 / Math.max(1, initial.width), height * 0.95 / Math.max(1, initial.height));
-  node.style.transform = `translate(-50%,-50%) scale(${fittedScale}) rotate(${rotation}deg)`;
-  node.querySelectorAll<HTMLElement>('[data-editor-control]').forEach(handle => {
-    handle.style.transform = `translateY(-50%) scale(${1 / fittedScale})`;
-    if (handle.style.left) handle.style.left = `${6 / fittedScale}px`;
-    if (handle.style.right) handle.style.right = `${6 / fittedScale}px`;
-  });
+  node.style.width = `${storyPixelWidth(parseFloat(node.style.width), 0, 0, rotation, width, 1)}px`;
+  node.style.maxWidth = `${Math.max(0, width - 24)}px`;
+  text.style.fontSize = `${BASE * size}px`;
+  node.style.transform = `translate(-50%,-50%) rotate(${rotation}deg)`;
   const box = node.getBoundingClientRect();
-  const halfWidth = box.width / 2, halfHeight = box.height / 2;
+  const halfWidth = Math.min(width / 2, box.width / 2 + 12), halfHeight = Math.min(height / 2, box.height / 2);
   const x = parseFloat(node.style.left) / 100 * width;
   const y = parseFloat(node.style.top) / 100 * height;
   node.style.left = `${Math.min(width - halfWidth, Math.max(halfWidth, x)) / width * 100}%`;
@@ -260,11 +260,11 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                   left: e.x + "%",
                   top: e.y + "%",
                   zIndex: e.z,
-                  transform: `translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,
+                  transform: `translate(-50%,-50%) scale(${e.kind === "text" ? 1 : e.scale}) rotate(${e.rot}deg)`,
                   touchAction: "none",
                   willChange: "transform",
-                  width: e.kind === "text" ? e.width + "%" : "max-content",
-                  maxWidth: e.kind === "text" ? "95%" : "90%",
+                  width: e.kind === "text" ? e.width + "px" : "max-content",
+                  maxWidth: e.kind === "text" ? "calc(100% - 24px)" : "90%",
                   minWidth: e.kind === "text" ? 0 : undefined,
                   opacity: dimmed ? 0.5 : e.opacity,
                 }}
@@ -306,17 +306,17 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       textDecoration: e.underline ? "underline" : "none",
                       color: e.color,
                       opacity: 1,
-                      fontSize: BASE,
+                      fontSize: BASE * e.scale,
                       lineHeight: 1.25,
                       background: e.highlight ? highlightBg(e.color) : "transparent",
                       textShadow: e.highlight ? "none" : "0 1px 6px rgba(0,0,0,.35)",
-                      whiteSpace: "nowrap",
+                      whiteSpace: "normal",
                       display: "inline-block",
-                      width: "max-content",
+                      width: "100%",
                       maxWidth: "100%",
                       overflow: "hidden",
-                      overflowWrap: "normal",
-                      wordBreak: "keep-all",
+                      overflowWrap: "anywhere",
+                      wordBreak: "normal",
                     }}
                     className="block rounded-lg px-3"
                   >
@@ -330,7 +330,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       e.text ? storyTextLines(e.text).map((line, index) => (
                         <span key={index}>
                           {index > 0 && <br />}
-                          <span style={{whiteSpace: "nowrap", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "max-content"}}>{line || "\u200b"}</span>
+                          <span style={{whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "max-content"}}>{line || "\u200b"}</span>
                         </span>
                       )) : <span className="opacity-60">הקלידי כאן</span>
                     )}
@@ -363,14 +363,16 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
 });
 
 type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'dimmed'> & {
-  frame: RefObject<HTMLDivElement | null>; src: string; els: El[]; sel: number | null;
+  frame: RefObject<HTMLDivElement | null>; src: string; imageView: ImageView; els: El[]; sel: number | null;
   editing: number | null; compact: boolean; exporting: boolean; over: boolean;
   drag: {id: number; dx: number; dy: number} | null;
   frameDown: (ev: RPointerEvent) => void; move: (ev: RPointerEvent) => void; up: (ev: RPointerEvent) => void;
 };
-const StoryBackground = memo(function StoryBackground({src}: {src: string}) {
+const StoryBackground = memo(function StoryBackground({src, imageView}: {src: string; imageView: ImageView}) {
   return <img
+    data-story-background="true"
     src={src}
+    style={{transform: `scale(${imageView.scale}) translate(${imageView.x}px, ${imageView.y}px)`, touchAction: "none", willChange: "transform"}}
     alt=""
     loading="eager"
     decoding="async"
@@ -378,7 +380,7 @@ const StoryBackground = memo(function StoryBackground({src}: {src: string}) {
     className="pointer-events-none absolute inset-0 h-full w-full object-contain"
   />;
 });
-const StoryCanvas = memo(function StoryCanvas({frame, src, els, sel, editing, compact, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
+const StoryCanvas = memo(function StoryCanvas({frame, src, imageView, els, sel, editing, compact, exporting, over, drag, frameDown, move, up, down, editLayer, finishEditing, changeText, beginResize}: CanvasProps) {
   return (
       <div
         ref={frame}
@@ -393,7 +395,7 @@ const StoryCanvas = memo(function StoryCanvas({frame, src, els, sel, editing, co
         }}
         className="relative shrink-0 overflow-hidden bg-foreground select-none"
       >
-        <StoryBackground src={src} />
+        <StoryBackground src={src} imageView={imageView} />
         {els
           .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
           .map((e) => {
@@ -463,6 +465,11 @@ export function StoryEditor({
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
   }, [file]);
   const backgroundUrl = useRef<{ file: File; url: string } | null>(null);
+  const [imageView, setImageView] = useState<ImageView>({scale: 1, x: 0, y: 0});
+  const imagePreview = useRef<ImageView | null>(null);
+  const imageDrag = useRef<{pointer: number; x: number; y: number; view: ImageView} | null>(null);
+  const imageRaf = useRef<number | null>(null);
+  useEffect(() => () => { if (imageRaf.current !== null) cancelAnimationFrame(imageRaf.current); }, []);
   const [els, setEls] = useState<El[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
@@ -536,10 +543,10 @@ export function StoryEditor({
     const node = frame.current?.querySelector<HTMLElement>(`[data-layer-id="${pending.id}"]`);
     if (!node || !layer) return;
     const next = {...layer, ...pending.values};
-    node.style.transform = `translate(-50%,-50%) scale(${next.scale}) rotate(${next.rot}deg)`;
+    node.style.transform = `translate(-50%,-50%) scale(${next.kind === "text" ? 1 : next.scale}) rotate(${next.rot}deg)`;
     node.style.left = next.x + "%";
     node.style.top = next.y + "%";
-    node.style.width = next.kind === "text" ? next.width + "%" : "max-content";
+    node.style.width = next.kind === "text" ? next.width + "px" : "max-content";
     node.style.opacity = String(next.opacity);
     if (next.kind === "text") fitTextLayer(node, next.scale, next.rot);
   }
@@ -572,7 +579,7 @@ export function StoryEditor({
         kind,
         text,
         src,
-        width: 80,
+        width: Math.max(48, (frame.current?.clientWidth ?? 300) - 24),
         opacity,
         mentions: [],
         ...last.current,
@@ -621,7 +628,7 @@ export function StoryEditor({
     return {
       x:
         e.kind === "text"
-          ? clampTextLayerX(p.x, e.scale, e.width, frameWidth)
+          ? Math.min(100 - (Math.min(e.width, frameWidth - 24) / 2 + 12) / frameWidth * 100, Math.max((Math.min(e.width, frameWidth - 24) / 2 + 12) / frameWidth * 100, p.x))
           : Math.min(97, Math.max(3, p.x)),
       y: Math.min(98, Math.max(2, p.y)),
     };
@@ -659,14 +666,31 @@ export function StoryEditor({
     const p = pos(ev);
     setDrag({ id: e.id, dx: p.x - e.x, dy: p.y - e.y });
   }
+  function boundImage(view: ImageView) {
+    const canvas = frame.current;
+    const image = canvas?.querySelector<HTMLImageElement>('[data-story-background]');
+    return canvas && image ? boundedImageView(view, canvas.clientWidth, canvas.clientHeight, image.naturalWidth, image.naturalHeight) : view;
+  }
+  function previewImage(view: ImageView) {
+    imagePreview.current = boundImage(view);
+    if (imageRaf.current === null) imageRaf.current = requestAnimationFrame(() => {
+      imageRaf.current = null;
+      const image = frame.current?.querySelector<HTMLElement>('[data-story-background]');
+      const next = imagePreview.current;
+      if (image && next) image.style.transform = `scale(${next.scale}) translate(${next.x}px, ${next.y}px)`;
+    });
+  }
+  function commitImage() {
+    if (imageRaf.current !== null) { cancelAnimationFrame(imageRaf.current); imageRaf.current = null; }
+    if (imagePreview.current) setImageView(imagePreview.current);
+    imagePreview.current = null;
+  }
   function frameDown(ev: RPointerEvent) {
-    pointers.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    if (pointers.current.size === 2 && selected) {
-      startPinch(selected);
-    } else if (pointers.current.size === 1 && !drag) {
-      setSel(null);
-      setEditing(null);
-    }
+    if (busy) return;
+    frame.current?.setPointerCapture(ev.pointerId);
+    setSel(null);
+    setEditing(null);
+    imageDrag.current = {pointer: ev.pointerId, x: ev.clientX, y: ev.clientY, view: imageView};
   }
   function beginResize(ev: RPointerEvent, e: El, side: 1 | -1) {
     ev.preventDefault();
@@ -681,24 +705,28 @@ export function StoryEditor({
       width: (() => {
         const node = frame.current?.querySelector<HTMLElement>(`[data-layer-id="${e.id}"]`);
         const frameWidth = frame.current?.clientWidth;
-        return node && frameWidth ? node.offsetWidth / frameWidth * 100 : e.width;
+        return node && frameWidth ? node.offsetWidth : e.width;
       })(),
       scale: e.scale,
       rotation: e.rot,
     };
   }
   function move(ev: RPointerEvent) {
+    const bgDrag = imageDrag.current;
+    if (bgDrag?.pointer === ev.pointerId) {
+      previewImage({...bgDrag.view, x: bgDrag.view.x + (ev.clientX - bgDrag.x) / bgDrag.view.scale, y: bgDrag.view.y + (ev.clientY - bgDrag.y) / bgDrag.view.scale});
+      return;
+    }
     if (resize.current) {
       const r = resize.current;
       const width = frame.current?.getBoundingClientRect().width;
       if (width) {
         previewLayer(r.id, {
-          width: resizedTextWidth(
+          width: storyPixelWidth(
             r.width,
             ev.clientX - r.x,
             ev.clientY - r.y,
             r.rotation,
-            r.scale,
             width,
             r.side,
           ),
@@ -716,7 +744,7 @@ export function StoryEditor({
       const d = Math.hypot(a.x - b.x, a.y - b.y);
       const ang = Math.atan2(b.y - a.y, b.x - a.x);
       previewLayer(sel, {
-        scale: Math.min(5, Math.max(0.4, (pinch.current.s * d) / pinch.current.d)),
+        scale: selected?.kind === "text" ? pinch.current.s : Math.min(5, Math.max(0.4, (pinch.current.s * d) / pinch.current.d)),
         rot: pinch.current.r + ((ang - pinch.current.a) * 180) / Math.PI,
       });
       return;
@@ -732,6 +760,11 @@ export function StoryEditor({
     if (draggedElement) previewLayer(drag.id, clampLayer({ x: p.x - drag.dx, y: p.y - drag.dy }, draggedElement));
   }
   function up(ev: RPointerEvent) {
+    if (imageDrag.current?.pointer === ev.pointerId) {
+      commitImage();
+      imageDrag.current = null;
+      return;
+    }
     commitPreview();
     if (resize.current) {
       resize.current = null;
@@ -800,6 +833,8 @@ export function StoryEditor({
   const previewOpacity = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {opacity: value}); });
   const commitScale = useStableEvent((value: number) => { if (!commitPreview() && sel !== null) patch(sel, {scale: value}); });
   const commitOpacity = useStableEvent((value: number) => { if (!commitPreview() && sel !== null) patch(sel, {opacity: value}); });
+  const previewImageScale = useStableEvent((scale: number) => previewImage({...imageView, scale}));
+  const commitImageScale = useStableEvent(() => commitImage());
   async function snapshot() {
     const node = frame.current;
     if (!node) throw new Error("התמונה אינה מוכנה");
@@ -883,6 +918,8 @@ export function StoryEditor({
     }
   }
   async function publish() {
+    commitPreview();
+    commitImage();
     setBusy(true);
     setErr("");
     setEditing(null);
@@ -948,8 +985,12 @@ export function StoryEditor({
           </label>
         </div>
       </div>
-      <StoryCanvas frame={frame} src={src} els={els} sel={sel} editing={editing} compact={editing !== null || textInputFocused} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
+      <StoryCanvas frame={frame} src={src} imageView={imageView} els={els} sel={sel} editing={editing} compact={editing !== null || textInputFocused} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
 
+      <label className="flex items-center gap-3 w-full max-w-sm rounded-lg bg-card p-3 text-xs font-bold shrink-0">
+        גודל תמונה
+        <StorySlider label="גודל תמונה" value={imageView.scale} min={0.8} max={2} onPreview={previewImageScale} onCommit={commitImageScale} />
+      </label>
       {selected && (
         <div className="sticky bottom-0 z-10 w-full max-w-sm max-h-[40vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl rounded-b-2xl p-3 space-y-2 shrink-0 shadow-soft">
           <div className="flex items-center gap-2">

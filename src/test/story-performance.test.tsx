@@ -1,6 +1,6 @@
 import {cleanup, fireEvent, render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {StorySlider, storyPixelWidth, storyImageScale, boundedImageView, storyBorderWidth, reorderStoryLayers, storyLayerCanMove} from '../components/StoryEditor';
+import {EditableText, StorySlider, storyPixelWidth, storyImageScale, boundedImageView, storyBorderWidth, reorderStoryLayers, storyLayerCanMove} from '../components/StoryEditor';
 import {createStoryPreview} from '../lib/story-preview';
 
 vi.mock('@/integrations/supabase/client', () => ({supabase: {}}));
@@ -8,6 +8,21 @@ vi.mock('@/lib/media', () => ({uploadPhoto: vi.fn()}));
 
 afterEach(() => {cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals();});
 describe('story editing performance boundaries', () => {
+  it('focuses the inline text immediately and keeps authored text when controls take focus', () => {
+    const change = vi.fn();
+    render(<EditableText initial="שלום" onChange={change}/>);
+    const editor = screen.getByRole('textbox');
+    expect(document.activeElement).toBe(editor);
+    fireEvent.blur(editor);
+    expect(editor.textContent).toBe('שלום');
+  });
+  it('updates inserted community mention text in the active inline editor', () => {
+    const change = vi.fn();
+    const view = render(<EditableText initial="שלום @ספ" onChange={change}/>);
+    view.rerender(<EditableText initial="שלום @ספיר_גירוני " onChange={change}/>);
+    expect(screen.getByRole('textbox').textContent).toBe('שלום @ספיר_גירוני ');
+    expect(document.activeElement).toBe(screen.getByRole('textbox'));
+  });
   it('limits photo borders to 0 through 12 pixels', () => {
     expect(storyBorderWidth(-1)).toBe(0);
     expect(storyBorderWidth(6)).toBe(6);

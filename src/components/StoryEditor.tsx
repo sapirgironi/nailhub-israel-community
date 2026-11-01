@@ -191,17 +191,15 @@ async function hasTransparentPixels(img: HTMLImageElement) {
   return false;
 }
 
-function EditableText({
+export function EditableText({
   initial,
   onChange,
-  onDone,
 }: {
   initial: string;
   onChange: (t: string, caret: number) => void;
-  onDone: () => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const n = ref.current;
     if (!n) return;
     n.textContent = initial;
@@ -215,7 +213,13 @@ function EditableText({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const n = ref.current;
-    if (n && document.activeElement !== n && n.innerText !== initial) n.textContent = initial;
+    if (n && (n.innerText || "") !== initial) {
+      n.textContent = initial;
+      if (document.activeElement === n) {
+        const range = document.createRange(); range.selectNodeContents(n); range.collapse(false);
+        const selection = getSelection(); selection?.removeAllRanges(); selection?.addRange(range);
+      }
+    }
   }, [initial]);
   return (
     <span
@@ -239,7 +243,19 @@ function EditableText({
           })(),
         )
       }
-      onBlur={onDone}
+      onPaste={ev => {
+        ev.preventDefault();
+        const selection = getSelection();
+        if (!selection?.rangeCount) return;
+        const range = selection.getRangeAt(0);
+        if (!ev.currentTarget.contains(range.commonAncestorContainer)) return;
+        const value = ev.clipboardData.getData("text/plain").slice(0, Math.max(0, 120 - (ev.currentTarget.innerText || "").length + range.toString().length));
+        range.deleteContents();
+        const node = document.createTextNode(value); range.insertNode(node); range.setStartAfter(node); range.collapse(true);
+        selection.removeAllRanges(); selection.addRange(range);
+        const caret = range.cloneRange(); caret.selectNodeContents(ev.currentTarget); caret.setEnd(node, node.length);
+        onChange((ev.currentTarget.innerText || "").slice(0, 120), caret.toString().length);
+      }}
       style={{whiteSpace: "pre-wrap", wordBreak: "normal", overflowWrap: "anywhere", display: "inline-block", width: "100%"}}
       className="outline-none min-w-[1ch] caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"
     />
@@ -382,7 +398,6 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       <EditableText
                         initial={e.text}
                         onChange={(t, caret) => changeText(e.id, t, caret)}
-                        onDone={finishEditing}
                       />
                     ) : (
                       e.text ? storyTextLines(e.text).map((line, index) => (
@@ -493,7 +508,7 @@ export const StorySlider = memo(function StorySlider({label, value, min, max, on
     onPointerDown={ev => ev.currentTarget.setPointerCapture(ev.pointerId)}
     onChange={ev => { const next = Number(ev.target.value); pending.current = next; setLocal(next); onPreview(next); }}
     onPointerUp={commit} onPointerCancel={commit} onLostPointerCapture={commit} onKeyUp={commit} onBlur={commit}
-    style={{touchAction: "none"}} className="flex-1 accent-primary" />;
+    style={{touchAction: "none"}} className="min-w-0 flex-1 accent-primary" />;
 });
 
 export function StoryEditor({
@@ -584,7 +599,19 @@ export function StoryEditor({
     end: number;
     query: string;
   } | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const textToolbar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected?.kind !== "text") return;
+    const viewport = window.visualViewport;
+    const position = () => {
+      const toolbar = textToolbar.current;
+      if (toolbar) toolbar.style.bottom = `${viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0}px`;
+    };
+    position();
+    viewport?.addEventListener("resize", position);
+    viewport?.addEventListener("scroll", position);
+    return () => {viewport?.removeEventListener("resize", position); viewport?.removeEventListener("scroll", position);};
+  }, [sel]);
   const resize = useRef<{
     id: number;
     side: 1 | -1;
@@ -708,7 +735,7 @@ export function StoryEditor({
   }
   function dismissPanels() {
     setSel(null); setEditing(null); setPanel(null); setMention(null);
-    inputRef.current?.blur();
+    frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();
   }
   const pos = (ev: { clientX: number; clientY: number }) => {
     const r = frame.current?.getBoundingClientRect();
@@ -931,10 +958,10 @@ export function StoryEditor({
       ],
     });
     setMention(null);
-    setEditing(null);
+    setEditing(e.id);
     requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.setSelectionRange(result.caret, result.caret);
+      const node = frame.current?.querySelector<HTMLElement>(`[data-layer-id="${e.id}"] [contenteditable="true"]`);
+      node?.focus();
     });
   }
   const stableDown = useStableEvent(down);
@@ -944,7 +971,7 @@ export function StoryEditor({
   const stableBeginResize = useStableEvent(beginResize);
   const stableChangeText = useStableEvent(changeText);
   const editLayer = useStableEvent((id: number) => { if (els.find(e => e.id === id)?.locked) return; setSel(id); setEditing(id); });
-  const finishEditing = useCallback(() => setEditing(null), []);
+  const finishEditing = useStableEvent(() => dismissPanels());
   const previewScale = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {scale: value}); });
   const previewOpacity = useStableEvent((value: number) => { if (sel !== null) previewLayer(sel, {opacity: value}); });
   const commitScale = useStableEvent((value: number) => { if (!commitPreview() && sel !== null) patch(sel, {scale: value}); });
@@ -1090,13 +1117,42 @@ export function StoryEditor({
           <Button size="icon" variant={e.locked ? "secondary" : "ghost"} title={e.locked ? "ביטול נעילה" : "נעילה"} aria-label={`${e.locked ? "ביטול נעילה" : "נעילה"} ${e.id}`} aria-pressed={!!e.locked} disabled={busy} onClick={() => e.id === 0 ? setBackgroundLocked(!backgroundLocked) : patch(e.id, {locked: !e.locked})}>{e.locked ? <LockKeyhole/> : <LockKeyholeOpen/>}</Button>
         </div>)}
       </div>}
-      {selected && (
+      {selected?.kind === "text" && <div ref={textToolbar} role="toolbar" aria-label="כלי עריכת טקסט" className="absolute inset-x-0 bottom-0 z-30 mx-auto flex h-[72px] max-w-xl items-center gap-2 bg-foreground/65 px-3 text-primary-foreground backdrop-blur-md" onPointerDown={ev => {
+        const target = ev.target;
+        if (target instanceof HTMLElement && target.closest("button")) ev.preventDefault();
+      }}>
+        <fieldset disabled={selected.locked || busy} className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-2">
+          <div className="flex w-24 shrink-0 items-center gap-1" title="גודל טקסט"><Type className="size-4 shrink-0"/><StorySlider key={`text-size-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale}/></div>
+          <select aria-label="בחירת פונט" title="בחירת פונט" value={selected.font} onChange={ev => {const font = STORY_FONTS.find(f => f.id === ev.target.value); if (font) style({font: font.id});}} className="h-9 w-28 shrink-0 rounded-md border border-primary-foreground/20 bg-foreground/60 px-2 text-xs text-primary-foreground">
+            {STORY_FONTS.map(f => <option key={f.id} value={f.id}>{f.desc}</option>)}
+          </select>
+          <input type="color" aria-label="בחירת צבע חופשי" title="צבע טקסט" value={selected.color} onChange={ev => style({color: ev.target.value.toUpperCase()})} className="size-8 shrink-0 cursor-pointer rounded-full border border-primary-foreground/30 bg-transparent p-0"/>
+          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עיבוי" title="עיבוי" aria-pressed={selected.bold} onClick={() => style({bold: !selected.bold})}><Bold/></Button>
+          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="קו תחתון" title="קו תחתון" aria-pressed={selected.underline} onClick={() => style({underline: !selected.underline})}><Underline/></Button>
+          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="רקע מרקר" title="רקע מרקר" aria-pressed={selected.highlight} onClick={() => style({highlight: !selected.highlight})}><Highlighter/></Button>
+          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="תיוג חברה" title="תיוג חברה" onClick={() => {
+            const node = frame.current?.querySelector<HTMLElement>(`[data-layer-id="${selected.id}"] [contenteditable="true"]`);
+            const selection = getSelection();
+            let caret = selected.text.length;
+            if (node && selection?.rangeCount && node.contains(selection.anchorNode)) {
+              const range = selection.getRangeAt(0).cloneRange(); range.selectNodeContents(node); range.setEnd(selection.anchorNode ?? node, selection.anchorOffset); caret = range.toString().length;
+            }
+            setEditing(selected.id);
+            changeText(selected.id, (selected.text.slice(0, caret) + " @" + selected.text.slice(caret)).slice(0, 120), Math.min(120, caret + 2));
+            node?.focus();
+          }}><AtSign/></Button>
+          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עריכה" title="הקלדה על התמונה" onClick={() => editLayer(selected.id)}><Type/></Button>
+        </fieldset>
+        <Button size="icon" variant="ghost" className="size-9 shrink-0 rounded-full bg-primary-foreground/10" aria-label="אישור טקסט" title="אישור טקסט" onClick={dismissPanels}><Check/></Button>
+        {mention?.id === selected.id && <div className="absolute bottom-full inset-x-3 mb-2 text-foreground"><StoryMentionPicker query={mention.query} onSelect={chooseMember}/></div>}
+      </div>}
+      {selected && selected.kind !== "text" && (
         <div className="absolute bottom-20 z-20 w-[calc(100%-24px)] max-w-md max-h-[44dvh] overflow-y-auto overscroll-contain bg-card/95 rounded-2xl p-3 space-y-2 shadow-soft">
-          <div className="flex items-center justify-between"><span className="text-xs font-bold">{selected.kind === "text" ? "טקסט" : selected.imageRole === "photo" ? "תמונה נוספת" : selected.imageRole === "logo" ? "לוגו / סימן מים" : "סטיקר"}{selected.locked && <LockKeyhole className="inline size-3 mr-2"/>}</span><Button size="icon" variant="ghost" aria-label="סגירת עריכה" onClick={dismissPanels}><Check/></Button></div>
+          <div className="flex items-center justify-between"><span className="text-xs font-bold">{selected.imageRole === "photo" ? "תמונה נוספת" : selected.imageRole === "logo" ? "לוגו / סימן מים" : "סטיקר"}{selected.locked && <LockKeyhole className="inline size-3 mr-2"/>}</span><Button size="icon" variant="ghost" aria-label="סגירת עריכה" onClick={dismissPanels}><Check/></Button></div>
           <fieldset disabled={selected.locked || busy} className="space-y-2 disabled:opacity-50">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold">גודל</span>
-            {selected.kind !== "text" && <Button
+            {<Button
               size="icon"
               variant="outline"
               aria-label="הקטנה"
@@ -1105,7 +1161,7 @@ export function StoryEditor({
               <Minus />
             </Button>}
             <StorySlider key={`scale-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale} />
-            {selected.kind !== "text" && <Button
+            {<Button
               size="icon"
               variant="outline"
               aria-label="הגדלה"
@@ -1114,7 +1170,7 @@ export function StoryEditor({
               <Plus />
             </Button>}
           </div>
-          {selected.kind !== "text" && <label className="flex items-center gap-2 text-xs font-bold"><RotateCw className="size-4"/>סיבוב<StorySlider key={`rotation-${selected.id}`} label="סיבוב שכבה" value={selected.rot} min={-180} max={180} onPreview={previewRotation} onCommit={commitRotation}/></label>}
+          {<label className="flex items-center gap-2 text-xs font-bold"><RotateCw className="size-4"/>סיבוב<StorySlider key={`rotation-${selected.id}`} label="סיבוב שכבה" value={selected.rot} min={-180} max={180} onPreview={previewRotation} onCommit={commitRotation}/></label>}
           {selected.kind === "image" && (
             <label className="flex items-center gap-2 text-xs font-bold">
               שקיפות
@@ -1131,137 +1187,6 @@ export function StoryEditor({
             }} onCommit={value => patch(selected.id, {borderWidth: storyBorderWidth(value)})}/></label>
             <label className="flex items-center justify-between text-xs font-bold">צבע מסגרת<input type="color" aria-label="צבע מסגרת" value={selected.borderColor ?? COLORS[0]} onChange={ev => patch(selected.id, {borderColor: ev.target.value})} className="size-8 cursor-pointer rounded border border-border bg-card"/></label>
           </>}
-          {selected.kind === "text" && (
-            <>
-              <textarea
-                ref={inputRef}
-                aria-label="הקלדת טקסט לסטורי"
-                dir="rtl"
-                rows={2}
-                maxLength={120}
-                value={selected.text}
-                placeholder="הקלידי כאן"
-                onFocus={() => {
-                  setEditing(null);
-                }}
-                onSelect={(ev) => {
-                  const range = activeMention(
-                    ev.currentTarget.value,
-                    ev.currentTarget.selectionStart,
-                  );
-                  setMention(range ? { id: selected.id, ...range } : null);
-                }}
-                onChange={(ev) =>
-                  changeText(selected.id, ev.target.value.slice(0, 120), ev.target.selectionStart)
-                }
-                className="w-full rounded-xl border border-border bg-accent px-3 py-2 text-sm text-right"
-              />
-              {mention?.id === selected.id && (
-                <StoryMentionPicker query={mention.query} onSelect={chooseMember} />
-              )}
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
-                {STORY_FONTS.map((f) => (
-                  <Button
-                    key={f.id}
-                    type="button"
-                    variant="ghost"
-                    onClick={() => style({ font: f.id })}
-                    className={
-                      "shrink-0 h-auto flex-col gap-0 rounded-xl border px-3 py-1.5 text-right " +
-                      (selected.font === f.id ? "border-primary bg-accent" : "border-border")
-                    }
-                  >
-                    <span
-                      style={{
-                        fontFamily: `"${f.family}"`,
-                        fontStyle: f.italic ? "italic" : "normal",
-                      }}
-                      className="block text-base leading-tight"
-                    >
-                      {f.desc}
-                    </span>
-                    <span className="block text-[10px] text-muted-foreground">{f.label}</span>
-                  </Button>
-                ))}
-              </div>
-              <div className="flex gap-1.5 flex-wrap">
-                <Button
-                  size="icon"
-                  variant={selected.bold ? "default" : "outline"}
-                  aria-label="עיבוי"
-                  aria-pressed={selected.bold}
-                  onClick={() => style({ bold: !selected.bold })}
-                >
-                  <Bold />
-                </Button>
-                <Button
-                  size="icon"
-                  variant={selected.underline ? "default" : "outline"}
-                  aria-label="קו תחתון"
-                  aria-pressed={selected.underline}
-                  onClick={() => style({ underline: !selected.underline })}
-                >
-                  <Underline />
-                </Button>
-                <Button
-                  size="icon"
-                  variant={selected.highlight ? "default" : "outline"}
-                  aria-label="רקע מרקר"
-                  aria-pressed={selected.highlight}
-                  onClick={() => style({ highlight: !selected.highlight })}
-                >
-                  <Highlighter />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  aria-label="תיוג חברה"
-                  title="תיוג חברה"
-                  onClick={() => {
-                    const caret = inputRef.current?.selectionStart ?? selected.text.length;
-                    const text = selected.text.slice(0, caret) + " @" + selected.text.slice(caret);
-                    changeText(selected.id, text, caret + 2);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  <AtSign />
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setEditing(selected.id)}>
-                  <Type />
-                  עריכה
-                </Button>
-              </div>
-              <div className="flex gap-1.5 flex-wrap items-center">
-                {COLORS.map((c) => (
-                  <Button
-                    key={c}
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`צבע ${c}`}
-                    onClick={() => style({ color: c })}
-                    style={{ background: c }}
-                    className={
-                      "w-7 h-7 rounded-full border-2 " +
-                      (selected.color === c ? "border-primary scale-110" : "border-border")
-                    }
-                  />
-                ))}
-                <label
-                  className="w-7 h-7 rounded-full overflow-hidden border-2 border-border relative bg-rose-glam"
-                  title="צבע חופשי"
-                >
-                  <input
-                    type="color"
-                    aria-label="בחירת צבע חופשי"
-                    value={selected.color}
-                    onChange={(e) => style({ color: e.target.value.toUpperCase() })}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
-              </div>
-            </>
-          )}
           </fieldset>
         </div>
       )}
@@ -1312,13 +1237,13 @@ export function StoryEditor({
 
       {addingPhoto && <div role="status" className="absolute inset-0 z-40 grid place-items-center bg-overlay text-primary-foreground"><ImageUploadStatus/></div>}
       {err && <p role="alert" className="absolute bottom-36 z-40 max-w-sm mx-3 rounded-lg bg-destructive p-3 text-xs text-destructive-foreground">{err}</p>}
-      <Button
+      {selected?.kind !== "text" && <Button
         disabled={busy || addingPhoto || !src}
         onClick={() => void publish()}
         className="absolute bottom-[max(12px,env(safe-area-inset-bottom))] z-20 min-h-11 rounded-full bg-rose-glam px-6 font-bold text-primary-foreground shadow-soft"
       >
         {busy ? <ImageUploadStatus /> : "פרסום סטורי לקהילה"}
-      </Button>
+      </Button>}
     </div>
   );
 }

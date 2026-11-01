@@ -96,6 +96,29 @@ const COLORS = [
   "#E2F0CB",
   "#FF6F61",
 ];
+const STORY_COLOR_FAMILIES = [
+  {label: "ניוד ובז׳", shades: ["#FFF8E7", "#F3E5AB", "#E5D0B1", "#C8AA88", "#896B52"]},
+  {label: "ורודים", shades: ["#FCE4EC", "#F8BBD0", "#F48FB1", "#E91E63", "#AD486D"]},
+  {label: "אדומים", shades: ["#FFD8D5", "#F58B83", "#E53935", "#B71C1C", "#5B0E2D"]},
+  {label: "סגולים", shades: ["#F0E5FA", "#DCC6F0", "#B78CD6", "#8751AF", "#4A216B"]},
+  {label: "כחולים", shades: ["#E0F2FE", "#B3DDF2", "#62BCD5", "#258AA7", "#163A61"]},
+  {label: "ירוקים", shades: ["#E4F3DE", "#B5EAD7", "#BCD39A", "#91AD91", "#205B46"]},
+  {label: "כתום וצהוב", shades: ["#FFF3C4", "#FFDAC1", "#FFBA80", "#ED9142", "#B68A20"]},
+  {label: "שחור לבן ואפור", shades: ["#FFFFFF", "#E4E4E4", "#A3A3A3", "#525252", "#000000"]},
+] as const;
+const StoryColorPalette = memo(function StoryColorPalette({value, onChange}: {value: string; onChange: (color: string) => void}) {
+  const [familyIndex, setFamilyIndex] = useState(() => Math.max(0, STORY_COLOR_FAMILIES.findIndex(family => family.shades.some(shade => shade === value.toUpperCase()))));
+  const family = STORY_COLOR_FAMILIES[familyIndex] ?? STORY_COLOR_FAMILIES[0];
+  return <div className="space-y-1" onPointerDown={ev => {if (ev.target instanceof Element && ev.target.closest('button')) ev.preventDefault();}}>
+    <div role="group" aria-label="משפחות צבעים" className="flex gap-2 overflow-x-auto py-1">
+      {STORY_COLOR_FAMILIES.map((item, index) => <Button key={item.label} size="icon" variant="ghost" aria-label={`צבעי ${item.label}`} title={item.label} aria-pressed={index === familyIndex} className="size-7 shrink-0 rounded-full border border-primary-foreground/40 p-0 aria-pressed:ring-2 aria-pressed:ring-primary-foreground" style={{backgroundColor: item.shades[2]}} onClick={() => setFamilyIndex(index)}/>)}
+    </div>
+    <div role="group" aria-label={`גווני ${family.label}`} className="flex items-center gap-2 overflow-x-auto py-1">
+      {family.shades.map((shade, index) => <Button key={shade} size="icon" variant="ghost" aria-label={`${family.label} גוון ${index + 1}`} title={`${family.label} ${index + 1}`} aria-pressed={value.toUpperCase() === shade} className="size-7 shrink-0 rounded-full border border-primary-foreground/40 p-0 aria-pressed:ring-2 aria-pressed:ring-primary-foreground" style={{backgroundColor: shade}} onClick={() => onChange(shade)}/>)}
+      <input type="color" aria-label="בחירת צבע חופשי" title="צבע חופשי" value={value} onChange={ev => onChange(ev.target.value.toUpperCase())} className="size-7 shrink-0 cursor-pointer rounded-full border border-primary-foreground/30 bg-transparent p-0"/>
+    </div>
+  </div>;
+});
 const BASE = 28;
 const IMG_BASE = 110;
 type El = {
@@ -563,6 +586,7 @@ export function StoryEditor({
   const [panel, setPanel] = useState<"stickers" | "layers" | null>(null);
   const [drawerCollapsed, setDrawerCollapsed] = useState(false);
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const drawerGesture = useRef<number | null>(null);
   useEffect(() => { setDrawerCollapsed(false); }, [sel, panel]);
   const [busy, setBusy] = useState(false);
@@ -742,7 +766,7 @@ export function StoryEditor({
     setEls(previous => previous.map(e => ({...e, z: ordered.find(layer => layer.id === e.id)?.z ?? e.z})));
   }
   function dismissPanels() {
-    setSel(null); setEditing(null); setPanel(null); setMention(null); setDrawerCollapsed(false); setFontPickerOpen(false);
+    setSel(null); setEditing(null); setPanel(null); setMention(null); setDrawerCollapsed(false); setFontPickerOpen(false); setColorPickerOpen(false);
     frame.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.blur();
   }
   const pos = (ev: { clientX: number; clientY: number }) => {
@@ -1143,8 +1167,8 @@ export function StoryEditor({
       }}>
         <fieldset disabled={selected.locked || busy} className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-2">
           <div className="flex w-24 shrink-0 items-center gap-1" title="גודל טקסט"><Type className="size-4 shrink-0"/><StorySlider key={`text-size-${selected.id}`} label="שינוי גודל" value={selected.scale} min={0.4} max={5} onPreview={previewScale} onCommit={commitScale}/></div>
-          <Button variant="ghost" aria-label="בחירת פונט" title="בחירת פונט" aria-expanded={fontPickerOpen} onClick={() => setFontPickerOpen(v => !v)} style={{fontFamily: `"${fontOf(selected.font).family}"`, fontStyle: fontOf(selected.font).italic ? "italic" : "normal"}} className="h-9 w-28 shrink-0 border border-primary-foreground/20 bg-foreground/60 px-2 text-xs text-primary-foreground">{fontOf(selected.font).desc}<ChevronUp className="size-3"/></Button>
-          <input type="color" aria-label="בחירת צבע חופשי" title="צבע טקסט" value={selected.color} onChange={ev => style({color: ev.target.value.toUpperCase()})} className="size-8 shrink-0 cursor-pointer rounded-full border border-primary-foreground/30 bg-transparent p-0"/>
+          <Button variant="ghost" aria-label="בחירת פונט" title="בחירת פונט" aria-expanded={fontPickerOpen} onClick={() => {setFontPickerOpen(v => !v); setColorPickerOpen(false);}} style={{fontFamily: `"${fontOf(selected.font).family}"`, fontStyle: fontOf(selected.font).italic ? "italic" : "normal"}} className="h-9 w-28 shrink-0 border border-primary-foreground/20 bg-foreground/60 px-2 text-xs text-primary-foreground">{fontOf(selected.font).desc}<ChevronUp className="size-3"/></Button>
+          <Button size="icon" variant="ghost" aria-label="צבע טקסט" title="צבע טקסט" aria-expanded={colorPickerOpen} onClick={() => {setColorPickerOpen(v => !v); setFontPickerOpen(false);}} style={{backgroundColor: selected.color}} className="size-8 shrink-0 rounded-full border border-primary-foreground/40 p-0"/>
           <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="עיבוי" title="עיבוי" aria-pressed={selected.bold} onClick={() => style({bold: !selected.bold})}><Bold/></Button>
           <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="קו תחתון" title="קו תחתון" aria-pressed={selected.underline} onClick={() => style({underline: !selected.underline})}><Underline/></Button>
           <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="רקע מרקר" title="רקע מרקר" aria-pressed={selected.highlight} onClick={() => style({highlight: !selected.highlight})}><Highlighter/></Button>
@@ -1203,7 +1227,7 @@ export function StoryEditor({
               if (node) {node.setAttribute("stroke-width", String(border)); node.setAttribute("transform", `translate(${border / 2} ${border / 2}) scale(${1 - border / 120})`);}
               else patch(selected.id, {borderWidth: border});
             }} onCommit={value => patch(selected.id, {borderWidth: storyBorderWidth(value)})}/></label>
-            <label className="flex items-center justify-between text-xs font-bold">צבע מסגרת<input type="color" aria-label="צבע מסגרת" value={selected.borderColor ?? COLORS[0]} onChange={ev => patch(selected.id, {borderColor: ev.target.value})} className="size-8 cursor-pointer rounded border border-border bg-card"/></label>
+            <div className="flex items-center justify-between text-xs font-bold"><span>צבע מסגרת</span><Button size="icon" variant="ghost" aria-label="צבע מסגרת" title="צבע מסגרת" aria-expanded={colorPickerOpen} onClick={() => {setColorPickerOpen(v => !v); setFontPickerOpen(false);}} style={{backgroundColor: selected.borderColor ?? COLORS[0]}} className="size-8 rounded-full border border-primary-foreground/40 p-0"/></div>
           </>}
           </fieldset>
         </div>
@@ -1257,6 +1281,9 @@ export function StoryEditor({
         {selected?.kind === "text" && fontPickerOpen && !drawerCollapsed && <div role="group" aria-label="תצוגת גופנים" className="absolute bottom-full inset-x-3 mb-2 flex max-h-40 flex-wrap gap-1 overflow-y-auto rounded-lg bg-foreground/80 p-2 backdrop-blur-md" onPointerDown={ev => ev.preventDefault()}>
           {STORY_FONTS.map(font => <Button key={font.id} variant="ghost" aria-label={`גופן ${font.desc}`} aria-pressed={selected.font === font.id} disabled={selected.locked || busy} style={{fontFamily: `"${font.family}"`, fontStyle: font.italic ? "italic" : "normal"}} className="h-10 text-base" onClick={() => {style({font: font.id}); setFontPickerOpen(false);}}>{font.desc}</Button>)}
         </div>}
+        {selected && (selected.kind === "text" || selected.imageRole === "photo") && colorPickerOpen && !drawerCollapsed && <fieldset disabled={selected.locked || busy} className="absolute bottom-full inset-x-3 mb-2 rounded-lg bg-foreground/80 px-3 py-1 backdrop-blur-md">
+          <StoryColorPalette key={`${selected.id}-${selected.kind}`} value={selected.kind === "text" ? selected.color : selected.borderColor ?? COLORS[0] ?? "#FFFFFF"} onChange={color => selected.kind === "text" ? style({color}) : patch(selected.id, {borderColor: color})}/>
+        </fieldset>}
       </div>}
 
       {addingPhoto && <div role="status" className="absolute inset-0 z-40 grid place-items-center bg-overlay text-primary-foreground"><ImageUploadStatus/></div>}

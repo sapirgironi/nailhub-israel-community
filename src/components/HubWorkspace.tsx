@@ -98,7 +98,7 @@ function StoriesBar({user}:{user:Person}){
    <span className="text-[11px] font-bold leading-tight text-foreground">הסטורי שלי</span>
   </button>
   {groups.map((gr,gi)=><FeedItemBoundary key={gr.userId}><button type="button" aria-label={`פתיחת הסטוריז של ${nameOf(gr.userId)} (${gr.items?.length??0})`} onClick={()=>{setOpen({g:gi,i:0});setProgress(0);}} className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center">
-   <span className="w-[4.5rem] h-[4.5rem] rounded-full p-[3px] bg-gradient-to-tr from-primary via-ring to-accent"><span className="block w-full h-full rounded-full overflow-hidden border-2 border-card bg-muted">{gr.items?.at(-1)?.media_url&&<PhotoImage src={gr.items.at(-1)?.media_url??''} alt={gr.items.at(-1)?.alt_text||'סטורי מהקהילה'} className="w-full h-full object-cover"/>}</span></span>
+   <span className="w-[4.5rem] h-[4.5rem] rounded-full p-[3px] bg-gradient-to-tr from-primary via-ring to-accent"><span className="block w-full h-full rounded-full overflow-hidden border-2 border-card bg-muted">{gr.items?.at(-1)?.media_url&&<PhotoImage src={gr.items.at(-1)?.media_url??''} alt={gr.items.at(-1)?.alt_text||'סטורי מהקהילה'} loading="lazy" className="w-full h-full rounded-full object-cover"/>}</span></span>
    <span className="w-full truncate text-[11px] font-bold leading-tight text-primary">{nameOf(gr?.userId??'')}</span>
   </button></FeedItemBoundary>)}
   {stories.hasNextPage&&<Button type="button" variant="ghost" className="shrink-0 self-center text-xs" disabled={stories.isFetchingNextPage} onClick={()=>void stories.fetchNextPage()}>{stories.isFetchingNextPage?'טוענת...':'עוד סטוריז'}</Button>}

@@ -22,7 +22,9 @@ import { flushSync } from "react-dom";
 import { StoryMentionPicker } from "./StoryMentionPicker";
 import {
   activeMention,
+  clampTextLayerX,
   insertMention,
+  maxTextLayerWidth,
   resizedTextWidth,
   type StoryMention,
   type MentionMember,
@@ -331,10 +333,16 @@ export function StoryEditor({
       y: ((ev.clientY - r.top) / r.height) * 100,
     };
   };
-  const clamp = (p: { x: number; y: number }) => ({
-    x: Math.min(97, Math.max(3, p.x)),
-    y: Math.min(98, Math.max(2, p.y)),
-  });
+  const clampLayer = (p: { x: number; y: number }, e: El) => {
+    const frameWidth = frame.current?.getBoundingClientRect().width ?? 0;
+    return {
+      x:
+        e.kind === "text"
+          ? clampTextLayerX(p.x, e.scale, e.width, frameWidth)
+          : Math.min(97, Math.max(3, p.x)),
+      y: Math.min(98, Math.max(2, p.y)),
+    };
+  };
   const tap = useRef<{ id: number; x: number; y: number; was: boolean; moved: boolean } | null>(
     null,
   );
@@ -382,12 +390,13 @@ export function StoryEditor({
     ev.stopPropagation();
     setEditing(null);
     frame.current?.setPointerCapture(ev.pointerId);
+    const frameWidth = frame.current?.getBoundingClientRect().width ?? 0;
     resize.current = {
       id: e.id,
       side,
       x: ev.clientX,
       y: ev.clientY,
-      width: e.width,
+      width: Math.min(e.width, maxTextLayerWidth(e.x, e.scale, frameWidth)),
       scale: e.scale,
       rotation: e.rot,
     };
@@ -395,19 +404,25 @@ export function StoryEditor({
   function move(ev: RPointerEvent) {
     if (resize.current) {
       const r = resize.current;
-      const width = frame.current?.getBoundingClientRect().width;
-      if (width)
+      const frameWidth = frame.current?.getBoundingClientRect().width;
+      if (frameWidth) {
+        const element = els.find((item) => item.id === r.id);
+        const maxWidth = element ? maxTextLayerWidth(element.x, r.scale, frameWidth) : 90;
         patch(r.id, {
-          width: resizedTextWidth(
-            r.width,
-            ev.clientX - r.x,
-            ev.clientY - r.y,
-            r.rotation,
-            r.scale,
-            width,
-            r.side,
+          width: Math.min(
+            maxWidth,
+            resizedTextWidth(
+              r.width,
+              ev.clientX - r.x,
+              ev.clientY - r.y,
+              r.rotation,
+              r.scale,
+              frameWidth,
+              r.side,
+            ),
           ),
         });
+      }
       return;
     }
     if (!pointers.current.has(ev.pointerId)) return;
@@ -428,7 +443,9 @@ export function StoryEditor({
     if (!drag) return;
     const p = pos(ev);
     setOver(isTrash(p.x, p.y));
-    patch(drag.id, clamp({ x: p.x - drag.dx, y: p.y - drag.dy }));
+    const draggedElement = els.find((element) => element.id === drag.id);
+    if (draggedElement)
+      patch(drag.id, clampLayer({ x: p.x - drag.dx, y: p.y - drag.dy }, draggedElement));
   }
   function up(ev: RPointerEvent) {
     if (resize.current) {
@@ -654,6 +671,11 @@ export function StoryEditor({
           .map((e) => {
             const f = fontOf(e.font);
             const active = sel === e.id && !exporting;
+            const frameWidth = frame.current?.getBoundingClientRect().width ?? 0;
+            const textWidth =
+              e.kind === "text"
+                ? Math.min(e.width, maxTextLayerWidth(e.x, e.scale, frameWidth))
+                : e.width;
             return (
               <div
                 data-layer-id={e.id}
@@ -666,8 +688,8 @@ export function StoryEditor({
                   zIndex: e.z,
                   transform: `translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,
                   touchAction: "none",
-                  width: e.kind === "text" ? e.width + "%" : "max-content",
-                  maxWidth: "90%",
+                  width: e.kind === "text" ? textWidth + "%" : "max-content",
+                  maxWidth: e.kind === "text" ? textWidth + "%" : "90%",
                   opacity: drag?.id === e.id && over ? 0.5 : e.opacity,
                 }}
                 className={
@@ -712,9 +734,9 @@ export function StoryEditor({
                       background: e.highlight ? highlightBg(e.color) : "transparent",
                       textShadow: e.highlight ? "none" : "0 1px 6px rgba(0,0,0,.35)",
                       whiteSpace: "pre-wrap",
-                      maxWidth: "90%",
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word",
+                      maxWidth: "100%",
+                      overflowWrap: "break-word",
+                      wordBreak: "normal",
                     }}
                     className="block rounded-lg px-2"
                   >
@@ -732,25 +754,36 @@ export function StoryEditor({
                 {e.kind === "text" &&
                   active &&
                   ([-1, 1] as const).map((side) => (
-                    <Button
+                    <button
+                      type="button"
                       key={side}
                       data-editor-control="true"
-                      size="icon"
-                      variant="secondary"
                       aria-label={side === -1 ? "שינוי רוחב משמאל" : "שינוי רוחב מימין"}
                       onPointerDown={(ev) => beginResize(ev, e, side)}
                       style={{
                         position: "absolute",
                         top: "50%",
-                        left: side === -1 ? -16 : undefined,
-                        right: side === 1 ? -16 : undefined,
-                        transform: "translateY(-50%)",
+                        left: side === -1 ? -14 / e.scale : undefined,
+                        right: side === 1 ? -14 / e.scale : undefined,
+                        marginTop: -14 / e.scale,
+                        width: 28 / e.scale,
+                        height: 28 / e.scale,
+                        padding: 0,
+                        background: "transparent",
+                        border: 0,
                         touchAction: "none",
                       }}
-                      className="w-8 h-10 cursor-ew-resize border border-primary rounded-full"
+                      className="absolute cursor-ew-resize rounded-full"
                     >
-                      <span className="w-1 h-5 bg-primary rounded-full" />
-                    </Button>
+                      <span
+                        style={{
+                          width: 13 / e.scale,
+                          height: 13 / e.scale,
+                          backgroundColor: "#ec4899",
+                        }}
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow"
+                      />
+                    </button>
                   ))}
               </div>
             );

@@ -422,7 +422,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
 
 type CanvasProps = Omit<LayerProps, 'e' | 'active' | 'editing' | 'dimmed'> & {
   frame: RefObject<HTMLDivElement | null>; src: string; imageView: ImageView; backgroundZ: number; els: El[]; sel: number | null;
-  editing: number | null; compact: boolean; exporting: boolean; over: boolean;
+  editing: number | null; exporting: boolean; over: boolean;
   drag: {id: number; dx: number; dy: number} | null;
   frameDown: (ev: RPointerEvent) => void; move: (ev: RPointerEvent) => void; up: (ev: RPointerEvent) => void;
 };
@@ -538,7 +538,6 @@ export function StoryEditor({
   const [els, setEls] = useState<El[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
-  const [textInputFocused, setTextInputFocused] = useState(false);
   const [drag, setDrag] = useState<{ id: number; dx: number; dy: number } | null>(null);
   const [over, setOver] = useState(false);
   const overRef = useRef(false);
@@ -1065,7 +1064,7 @@ export function StoryEditor({
       aria-modal="true"
       className="fixed inset-0 z-[60] bg-foreground flex items-center justify-center overflow-hidden"
     >
-      <StoryCanvas frame={frame} src={src} imageView={imageView} backgroundZ={backgroundZ} els={els} sel={sel} editing={editing} compact={false} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
+      <StoryCanvas frame={frame} src={src} imageView={imageView} backgroundZ={backgroundZ} els={els} sel={sel} editing={editing} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
       <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-3 pb-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-none">
         <Button size="icon" variant="ghost" title="ביטול" aria-label="ביטול" onClick={onCancel} disabled={busy} className="pointer-events-auto rounded-full bg-foreground/40 text-primary-foreground"><X/></Button>
         <div className="flex gap-1.5 pointer-events-auto rounded-full bg-foreground/40 p-1 text-primary-foreground">
@@ -1143,10 +1142,8 @@ export function StoryEditor({
                 value={selected.text}
                 placeholder="הקלידי כאן"
                 onFocus={() => {
-                  setTextInputFocused(true);
                   setEditing(null);
                 }}
-                onBlur={() => setTextInputFocused(false)}
                 onSelect={(ev) => {
                   const range = activeMention(
                     ev.currentTarget.value,
@@ -1170,7 +1167,7 @@ export function StoryEditor({
                     variant="ghost"
                     onClick={() => style({ font: f.id })}
                     className={
-                      "shrink-0 rounded-xl border px-3 py-1.5 text-right " +
+                      "shrink-0 h-auto flex-col gap-0 rounded-xl border px-3 py-1.5 text-right " +
                       (selected.font === f.id ? "border-primary bg-accent" : "border-border")
                     }
                   >
@@ -1279,7 +1276,7 @@ export function StoryEditor({
                 type="button"
                 variant="ghost"
                 onClick={() => add("pill", s)}
-                className="rounded-full bg-accent text-primary font-bold text-xs px-3 py-2"
+                className="h-auto min-h-9 whitespace-normal rounded-full bg-accent text-primary font-bold text-xs px-3 py-2"
               >
                 {s}
               </Button>

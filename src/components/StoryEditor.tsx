@@ -187,7 +187,7 @@ function EditableText({
         )
       }
       onBlur={onDone}
-      style={{whiteSpace: "pre", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "auto"}}
+      style={{whiteSpace: "pre", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "max-content"}}
       className="outline-none min-w-[1ch] caret-current empty:before:content-[attr(data-placeholder)] empty:before:opacity-60"
     />
   );
@@ -216,7 +216,7 @@ function fitTextLayer(node: HTMLElement, scale: number, rotation: number) {
   text.style.fontSize = `${BASE}px`;
   // Measure the intrinsic lines, then shrink without inserting automatic breaks.
   const natural = text.scrollWidth;
-  const available = Math.max(1, node.clientWidth - 16);
+  const available = Math.max(1, node.clientWidth - 24);
   text.style.fontSize = `${fittedStoryFont(BASE, natural, available)}px`;
   node.style.transform = `translate(-50%,-50%) scale(${scale}) rotate(${rotation}deg)`;
   const initial = node.getBoundingClientRect();
@@ -224,8 +224,8 @@ function fitTextLayer(node: HTMLElement, scale: number, rotation: number) {
   node.style.transform = `translate(-50%,-50%) scale(${fittedScale}) rotate(${rotation}deg)`;
   node.querySelectorAll<HTMLElement>('[data-editor-control]').forEach(handle => {
     handle.style.transform = `translateY(-50%) scale(${1 / fittedScale})`;
-    if (handle.style.left) handle.style.left = `${16 / fittedScale}px`;
-    if (handle.style.right) handle.style.right = `${16 / fittedScale}px`;
+    if (handle.style.left) handle.style.left = `${6 / fittedScale}px`;
+    if (handle.style.right) handle.style.right = `${6 / fittedScale}px`;
   });
   const box = node.getBoundingClientRect();
   const halfWidth = box.width / 2, halfHeight = box.height / 2;
@@ -312,13 +312,13 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       textShadow: e.highlight ? "none" : "0 1px 6px rgba(0,0,0,.35)",
                       whiteSpace: "nowrap",
                       display: "inline-block",
-                      width: "auto",
+                      width: "max-content",
                       maxWidth: "100%",
                       overflow: "hidden",
                       overflowWrap: "normal",
                       wordBreak: "keep-all",
                     }}
-                    className="block rounded-lg px-2"
+                    className="block rounded-lg px-3"
                   >
                     {editing ? (
                       <EditableText
@@ -330,7 +330,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       e.text ? storyTextLines(e.text).map((line, index) => (
                         <span key={index}>
                           {index > 0 && <br />}
-                          <span style={{whiteSpace: "nowrap", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "auto"}}>{line || "\u200b"}</span>
+                          <span style={{whiteSpace: "nowrap", wordBreak: "keep-all", overflowWrap: "normal", display: "inline-block", width: "max-content"}}>{line || "\u200b"}</span>
                         </span>
                       )) : <span className="opacity-60">הקלידי כאן</span>
                     )}
@@ -343,7 +343,7 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                       key={side}
                       data-editor-control="true"
                       size="icon"
-                      variant="secondary"
+                      variant="ghost"
                       aria-label={side === -1 ? "שינוי רוחב משמאל" : "שינוי רוחב מימין"}
                       onPointerDown={(ev) => beginResize(ev, e, side)}
                       style={{
@@ -355,10 +355,8 @@ const StoryLayer = memo(function StoryLayer({e, active, editing, dimmed, down, e
                         touchAction: "none",
                   willChange: "transform",
                       }}
-                      className="w-8 h-10 cursor-ew-resize border border-primary rounded-full"
-                    >
-                      <span className="w-1 h-5 bg-primary rounded-full" />
-                    </Button>
+                      className="!size-3 !min-w-0 !min-h-0 shrink-0 cursor-ew-resize rounded-full !border-0 !p-0 !bg-story-handle !shadow-none"
+                    />
                   ))}
               </div>
   );
@@ -675,21 +673,16 @@ export function StoryEditor({
     ev.stopPropagation();
     setEditing(null);
     frame.current?.setPointerCapture(ev.pointerId);
-    const frameWidth = frame.current?.getBoundingClientRect().width ?? 0;
     resize.current = {
       id: e.id,
       side,
       x: ev.clientX,
       y: ev.clientY,
-<<<<<<< HEAD
-      width: Math.min(e.width, maxTextLayerWidth(e.x, e.scale, frameWidth)),
-=======
       width: (() => {
         const node = frame.current?.querySelector<HTMLElement>(`[data-layer-id="${e.id}"]`);
         const frameWidth = frame.current?.clientWidth;
         return node && frameWidth ? node.offsetWidth / frameWidth * 100 : e.width;
       })(),
->>>>>>> 2a4dada9553e879ce071105c0051eb621f45180a
       scale: e.scale,
       rotation: e.rot,
     };
@@ -697,26 +690,8 @@ export function StoryEditor({
   function move(ev: RPointerEvent) {
     if (resize.current) {
       const r = resize.current;
-<<<<<<< HEAD
-      const frameWidth = frame.current?.getBoundingClientRect().width;
-      if (frameWidth) {
-        const element = els.find((item) => item.id === r.id);
-        const maxWidth = element ? maxTextLayerWidth(element.x, r.scale, frameWidth) : 90;
-        patch(r.id, {
-          width: Math.min(
-            maxWidth,
-            resizedTextWidth(
-              r.width,
-              ev.clientX - r.x,
-              ev.clientY - r.y,
-              r.rotation,
-              r.scale,
-              frameWidth,
-              r.side,
-            ),
-=======
       const width = frame.current?.getBoundingClientRect().width;
-      if (width)
+      if (width) {
         previewLayer(r.id, {
           width: resizedTextWidth(
             r.width,
@@ -726,7 +701,6 @@ export function StoryEditor({
             r.scale,
             width,
             r.side,
->>>>>>> 2a4dada9553e879ce071105c0051eb621f45180a
           ),
         });
       }
@@ -749,19 +723,13 @@ export function StoryEditor({
     }
     if (!drag) return;
     const p = pos(ev);
-<<<<<<< HEAD
-    setOver(isTrash(p.x, p.y));
-    const draggedElement = els.find((element) => element.id === drag.id);
-    if (draggedElement)
-      patch(drag.id, clampLayer({ x: p.x - drag.dx, y: p.y - drag.dy }, draggedElement));
-=======
     const nextOver = isTrash(p.x, p.y);
     if (overRef.current !== nextOver) {
       overRef.current = nextOver;
       setOver(nextOver);
     }
-    previewLayer(drag.id, clamp({ x: p.x - drag.dx, y: p.y - drag.dy }));
->>>>>>> 2a4dada9553e879ce071105c0051eb621f45180a
+    const draggedElement = els.find(element => element.id === drag.id);
+    if (draggedElement) previewLayer(drag.id, clampLayer({ x: p.x - drag.dx, y: p.y - drag.dy }, draggedElement));
   }
   function up(ev: RPointerEvent) {
     commitPreview();
@@ -980,167 +948,7 @@ export function StoryEditor({
           </label>
         </div>
       </div>
-<<<<<<< HEAD
-      <div
-        ref={frame}
-        onPointerDown={frameDown}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={up}
-        style={{
-          touchAction: "none",
-          width: `min(100%,384px,calc(${editing !== null || textInputFocused ? "44" : "58"}dvh * 9 / 16))`,
-          aspectRatio: "9 / 16",
-        }}
-        className="relative shrink-0 overflow-hidden bg-black select-none"
-      >
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-        />
-        {els
-          .filter((e) => !exporting || e.kind !== "text" || e.text.trim())
-          .map((e) => {
-            const f = fontOf(e.font);
-            const active = sel === e.id && !exporting;
-            const frameWidth = frame.current?.getBoundingClientRect().width ?? 0;
-            const textWidth =
-              e.kind === "text"
-                ? Math.min(e.width, maxTextLayerWidth(e.x, e.scale, frameWidth))
-                : e.width;
-            return (
-              <div
-                data-layer-id={e.id}
-                key={e.id}
-                onPointerDown={(ev) => down(ev, e)}
-                onDoubleClick={() => e.kind === "text" && setEditing(e.id)}
-                style={{
-                  left: e.x + "%",
-                  top: e.y + "%",
-                  zIndex: e.z,
-                  transform: `translate(-50%,-50%) scale(${e.scale}) rotate(${e.rot}deg)`,
-                  touchAction: "none",
-                  width: e.kind === "text" ? textWidth + "%" : "max-content",
-                  maxWidth: e.kind === "text" ? textWidth + "%" : "90%",
-                  opacity: drag?.id === e.id && over ? 0.5 : e.opacity,
-                }}
-                className={
-                  "absolute cursor-grab text-center " +
-                  (active
-                    ? "outline outline-1 outline-dashed outline-primary-foreground/70 rounded-md"
-                    : "")
-                }
-              >
-                {e.kind === "image" && e.src && (
-                  <img
-                    src={e.src}
-                    alt={e.text || "סטיקר"}
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                    style={{
-                      width: IMG_BASE,
-                      maxWidth: "90%",
-                      height: "auto",
-                      objectFit: "contain",
-                    }}
-                    className="pointer-events-none"
-                  />
-                )}
-                {e.kind === "pill" && (
-                  <span className="block bg-card text-[#5B0E2D] font-extrabold rounded-full px-4 py-2 text-[15px] whitespace-nowrap shadow-soft">
-                    {e.text}
-                  </span>
-                )}
-                {e.kind === "text" && (
-                  <span
-                    style={{
-                      fontFamily: `"${f.family}"`,
-                      fontStyle: f.italic ? "italic" : "normal",
-                      fontWeight: e.bold ? 700 : 400,
-                      textDecoration: e.underline ? "underline" : "none",
-                      color: e.color,
-                      opacity: 1,
-                      fontSize: BASE,
-                      lineHeight: 1.25,
-                      background: e.highlight ? highlightBg(e.color) : "transparent",
-                      textShadow: e.highlight ? "none" : "0 1px 6px rgba(0,0,0,.35)",
-                      whiteSpace: "pre-wrap",
-                      maxWidth: "100%",
-                      overflowWrap: "break-word",
-                      wordBreak: "normal",
-                    }}
-                    className="block rounded-lg px-2"
-                  >
-                    {editing === e.id ? (
-                      <EditableText
-                        initial={e.text}
-                        onChange={(t, caret) => changeText(e.id, t, caret)}
-                        onDone={() => setEditing(null)}
-                      />
-                    ) : (
-                      e.text || <span className="opacity-60">הקלידי כאן</span>
-                    )}
-                  </span>
-                )}
-                {e.kind === "text" &&
-                  active &&
-                  ([-1, 1] as const).map((side) => (
-                    <button
-                      type="button"
-                      key={side}
-                      data-editor-control="true"
-                      aria-label={side === -1 ? "שינוי רוחב משמאל" : "שינוי רוחב מימין"}
-                      onPointerDown={(ev) => beginResize(ev, e, side)}
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: side === -1 ? -14 / e.scale : undefined,
-                        right: side === 1 ? -14 / e.scale : undefined,
-                        marginTop: -14 / e.scale,
-                        width: 28 / e.scale,
-                        height: 28 / e.scale,
-                        padding: 0,
-                        background: "transparent",
-                        border: 0,
-                        touchAction: "none",
-                      }}
-                      className="absolute cursor-ew-resize rounded-full"
-                    >
-                      <span
-                        style={{
-                          width: 13 / e.scale,
-                          height: 13 / e.scale,
-                          backgroundColor: "#ec4899",
-                        }}
-                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow"
-                      />
-                    </button>
-                  ))}
-              </div>
-            );
-          })}
-        {drag && !exporting && (
-          <div
-            data-editor-control="true"
-            className={
-              "absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full grid place-items-center transition z-[999] " +
-              (over
-                ? "bg-destructive text-destructive-foreground scale-125"
-                : "bg-card/80 text-foreground")
-            }
-          >
-            <Trash2 />
-          </div>
-        )}
-      </div>
-=======
       <StoryCanvas frame={frame} src={src} els={els} sel={sel} editing={editing} compact={editing !== null || textInputFocused} exporting={exporting} over={over} drag={drag} frameDown={stableFrameDown} move={stableMove} up={stableUp} down={stableDown} editLayer={editLayer} finishEditing={finishEditing} changeText={stableChangeText} beginResize={stableBeginResize} />
->>>>>>> 2a4dada9553e879ce071105c0051eb621f45180a
 
       {selected && (
         <div className="sticky bottom-0 z-10 w-full max-w-sm max-h-[40vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl rounded-b-2xl p-3 space-y-2 shrink-0 shadow-soft">

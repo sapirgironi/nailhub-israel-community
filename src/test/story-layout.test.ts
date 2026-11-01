@@ -1,9 +1,5 @@
 import {describe,it,expect} from 'vitest';
-<<<<<<< HEAD
-import {activeMention,clampTextLayerX,insertMention,maxTextLayerWidth,resizedTextWidth,readMentions} from '../lib/story-layout';
-=======
-import {activeMention,insertMention,resizedTextWidth,readMentions,storyTextLines,fittedStoryFont} from '../lib/story-layout';
->>>>>>> 2a4dada9553e879ce071105c0051eb621f45180a
+import {clampTextLayerX,maxTextLayerWidth,activeMention,insertMention,resizedTextWidth,readMentions,storyTextLines,fittedStoryFont} from '../lib/story-layout';
 describe('story text width and mentions',()=>{
  it('preserves manual Enter line breaks when tagging',()=>{expect(insertMention('שלום\n@ספ\nתודה',{start:5,end:8},'ספיר גירוני').text).toBe('שלום\n@ספיר_גירוני \nתודה');});
  it('finds the mention at the caret rather than at the end of the text',()=>{expect(activeMention('שלום @ספ\nתודה',8)).toEqual({start:5,end:8,query:'ספ'});});

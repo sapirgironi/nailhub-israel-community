@@ -868,7 +868,7 @@ export function StoryEditor({
     }
     tap.current = { id: e.id, x: ev.clientX, y: ev.clientY, was: sel === e.id, moved: false };
     setSel(e.id);
-    if (editing !== null && editing !== e.id) setEditing(null);
+    if (editing !== null && editing !== e.id) { setEditing(null); setFocusRequest(null); }
     const p = pos(ev);
     setDrag({ id: e.id, dx: p.x - e.x, dy: p.y - e.y });
   }
@@ -1152,6 +1152,7 @@ export function StoryEditor({
     setBusy(true);
     setErr("");
     setEditing(null);
+    setFocusRequest(null);
     let stage = "העלאת תמונת הרקע";
     try {
       if (backgroundUrl.current?.file !== file)

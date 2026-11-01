@@ -216,7 +216,7 @@ export function boundedImageView(view: ImageView, width: number, height: number,
   const fit = Math.min(width / naturalWidth, height / naturalHeight);
   const maxX = Math.abs(width - naturalWidth * fit * scale) / (2 * scale);
   const maxY = Math.abs(height - naturalHeight * fit * scale) / (2 * scale);
-  return {scale, x: Math.max(-maxX, Math.min(maxX, view.x)), y: Math.max(-maxY, Math.min(maxY, view.y))};
+  return {scale, x: Math.max(-maxX, Math.min(maxX, view.x)) || 0, y: Math.max(-maxY, Math.min(maxY, view.y)) || 0};
 }
 function fitTextLayer(node: HTMLElement, size: number, rotation: number) {
   const canvas = node.parentElement;

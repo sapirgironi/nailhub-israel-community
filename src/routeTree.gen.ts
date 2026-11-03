@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AcademyRouteImport } from './routes/academy'
+import { Route as AcademyPricingRouteImport } from './routes/academy-pricing'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BoardsRouteImport } from './routes/boards'
 import { Route as CalculatorRouteImport } from './routes/calculator'
@@ -25,12 +26,18 @@ import { Route as InsuranceRouteImport } from './routes/insurance'
 import { Route as NailtradeRouteImport } from './routes/nailtrade'
 import { Route as PlansRouteImport } from './routes/plans'
 import { Route as PricelistRouteImport } from './routes/pricelist'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VendorDealsRouteImport } from './routes/vendor-deals'
+import { Route as AcademyIndexRouteImport } from './routes/academy.index'
+import { Route as AcademyCalculatorRouteImport } from './routes/academy.calculator'
+import { Route as AcademyCoursesRouteImport } from './routes/academy.courses'
+import { Route as AcademySyllabusRouteImport } from './routes/academy.syllabus'
+import { Route as CCourseIdRouteImport } from './routes/c.$courseId'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +48,11 @@ const IndexRoute = IndexRouteImport.update({
 const AcademyRoute = AcademyRouteImport.update({
   id: '/academy',
   path: '/academy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcademyPricingRoute = AcademyPricingRouteImport.update({
+  id: '/academy-pricing',
+  path: '/academy-pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -113,6 +125,11 @@ const PricelistRoute = PricelistRouteImport.update({
   path: '/pricelist',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -143,6 +160,31 @@ const VendorDealsRoute = VendorDealsRouteImport.update({
   path: '/vendor-deals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcademyIndexRoute = AcademyIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AcademyRoute,
+} as any)
+const AcademyCalculatorRoute = AcademyCalculatorRouteImport.update({
+  id: '/calculator',
+  path: '/calculator',
+  getParentRoute: () => AcademyRoute,
+} as any)
+const AcademyCoursesRoute = AcademyCoursesRouteImport.update({
+  id: '/courses',
+  path: '/courses',
+  getParentRoute: () => AcademyRoute,
+} as any)
+const AcademySyllabusRoute = AcademySyllabusRouteImport.update({
+  id: '/syllabus',
+  path: '/syllabus',
+  getParentRoute: () => AcademyRoute,
+} as any)
+const CCourseIdRoute = CCourseIdRouteImport.update({
+  id: '/c/$courseId',
+  path: '/c/$courseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
   id: '/members/$memberId',
   path: '/members/$memberId',
@@ -151,7 +193,8 @@ const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/academy': typeof AcademyRoute
+  '/academy': typeof AcademyRouteWithChildren
+  '/academy-pricing': typeof AcademyPricingRoute
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
@@ -166,17 +209,23 @@ export interface FileRoutesByFullPath {
   '/nailtrade': typeof NailtradeRoute
   '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
+  '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/vendor-deals': typeof VendorDealsRoute
+  '/academy/calculator': typeof AcademyCalculatorRoute
+  '/academy/courses': typeof AcademyCoursesRoute
+  '/academy/syllabus': typeof AcademySyllabusRoute
+  '/c/$courseId': typeof CCourseIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/academy/': typeof AcademyIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/academy': typeof AcademyRoute
+  '/academy-pricing': typeof AcademyPricingRoute
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
@@ -191,18 +240,25 @@ export interface FileRoutesByTo {
   '/nailtrade': typeof NailtradeRoute
   '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
+  '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/vendor-deals': typeof VendorDealsRoute
+  '/academy/calculator': typeof AcademyCalculatorRoute
+  '/academy/courses': typeof AcademyCoursesRoute
+  '/academy/syllabus': typeof AcademySyllabusRoute
+  '/c/$courseId': typeof CCourseIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/academy': typeof AcademyIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/academy': typeof AcademyRoute
+  '/academy': typeof AcademyRouteWithChildren
+  '/academy-pricing': typeof AcademyPricingRoute
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
@@ -217,19 +273,26 @@ export interface FileRoutesById {
   '/nailtrade': typeof NailtradeRoute
   '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
+  '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/vendor-deals': typeof VendorDealsRoute
+  '/academy/calculator': typeof AcademyCalculatorRoute
+  '/academy/courses': typeof AcademyCoursesRoute
+  '/academy/syllabus': typeof AcademySyllabusRoute
+  '/c/$courseId': typeof CCourseIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/academy/': typeof AcademyIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/academy'
+    | '/academy-pricing'
     | '/admin'
     | '/boards'
     | '/calculator'
@@ -244,17 +307,23 @@ export interface FileRouteTypes {
     | '/nailtrade'
     | '/plans'
     | '/pricelist'
+    | '/pricing'
     | '/profile'
     | '/saved'
     | '/settings'
     | '/support'
     | '/terms'
     | '/vendor-deals'
+    | '/academy/calculator'
+    | '/academy/courses'
+    | '/academy/syllabus'
+    | '/c/$courseId'
     | '/members/$memberId'
+    | '/academy/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/academy'
+    | '/academy-pricing'
     | '/admin'
     | '/boards'
     | '/calculator'
@@ -269,17 +338,24 @@ export interface FileRouteTypes {
     | '/nailtrade'
     | '/plans'
     | '/pricelist'
+    | '/pricing'
     | '/profile'
     | '/saved'
     | '/settings'
     | '/support'
     | '/terms'
     | '/vendor-deals'
+    | '/academy/calculator'
+    | '/academy/courses'
+    | '/academy/syllabus'
+    | '/c/$courseId'
     | '/members/$memberId'
+    | '/academy'
   id:
     | '__root__'
     | '/'
     | '/academy'
+    | '/academy-pricing'
     | '/admin'
     | '/boards'
     | '/calculator'
@@ -294,18 +370,25 @@ export interface FileRouteTypes {
     | '/nailtrade'
     | '/plans'
     | '/pricelist'
+    | '/pricing'
     | '/profile'
     | '/saved'
     | '/settings'
     | '/support'
     | '/terms'
     | '/vendor-deals'
+    | '/academy/calculator'
+    | '/academy/courses'
+    | '/academy/syllabus'
+    | '/c/$courseId'
     | '/members/$memberId'
+    | '/academy/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AcademyRoute: typeof AcademyRoute
+  AcademyRoute: typeof AcademyRouteWithChildren
+  AcademyPricingRoute: typeof AcademyPricingRoute
   AdminRoute: typeof AdminRoute
   BoardsRoute: typeof BoardsRoute
   CalculatorRoute: typeof CalculatorRoute
@@ -320,12 +403,14 @@ export interface RootRouteChildren {
   NailtradeRoute: typeof NailtradeRoute
   PlansRoute: typeof PlansRoute
   PricelistRoute: typeof PricelistRoute
+  PricingRoute: typeof PricingRoute
   ProfileRoute: typeof ProfileRoute
   SavedRoute: typeof SavedRoute
   SettingsRoute: typeof SettingsRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   VendorDealsRoute: typeof VendorDealsRoute
+  CCourseIdRoute: typeof CCourseIdRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
 }
 
@@ -343,6 +428,13 @@ declare module '@tanstack/react-router' {
       path: '/academy'
       fullPath: '/academy'
       preLoaderRoute: typeof AcademyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/academy-pricing': {
+      id: '/academy-pricing'
+      path: '/academy-pricing'
+      fullPath: '/academy-pricing'
+      preLoaderRoute: typeof AcademyPricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -443,6 +535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricelistRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -485,6 +584,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorDealsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/academy/': {
+      id: '/academy/'
+      path: '/'
+      fullPath: '/academy/'
+      preLoaderRoute: typeof AcademyIndexRouteImport
+      parentRoute: typeof AcademyRoute
+    }
+    '/academy/calculator': {
+      id: '/academy/calculator'
+      path: '/calculator'
+      fullPath: '/academy/calculator'
+      preLoaderRoute: typeof AcademyCalculatorRouteImport
+      parentRoute: typeof AcademyRoute
+    }
+    '/academy/courses': {
+      id: '/academy/courses'
+      path: '/courses'
+      fullPath: '/academy/courses'
+      preLoaderRoute: typeof AcademyCoursesRouteImport
+      parentRoute: typeof AcademyRoute
+    }
+    '/academy/syllabus': {
+      id: '/academy/syllabus'
+      path: '/syllabus'
+      fullPath: '/academy/syllabus'
+      preLoaderRoute: typeof AcademySyllabusRouteImport
+      parentRoute: typeof AcademyRoute
+    }
+    '/c/$courseId': {
+      id: '/c/$courseId'
+      path: '/c/$courseId'
+      fullPath: '/c/$courseId'
+      preLoaderRoute: typeof CCourseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members/$memberId': {
       id: '/members/$memberId'
       path: '/members/$memberId'
@@ -495,9 +629,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AcademyRouteChildren {
+  AcademyCalculatorRoute: typeof AcademyCalculatorRoute
+  AcademyCoursesRoute: typeof AcademyCoursesRoute
+  AcademySyllabusRoute: typeof AcademySyllabusRoute
+  AcademyIndexRoute: typeof AcademyIndexRoute
+}
+
+const AcademyRouteChildren: AcademyRouteChildren = {
+  AcademyCalculatorRoute: AcademyCalculatorRoute,
+  AcademyCoursesRoute: AcademyCoursesRoute,
+  AcademySyllabusRoute: AcademySyllabusRoute,
+  AcademyIndexRoute: AcademyIndexRoute,
+}
+
+const AcademyRouteWithChildren =
+  AcademyRoute._addFileChildren(AcademyRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AcademyRoute: AcademyRoute,
+  AcademyRoute: AcademyRouteWithChildren,
+  AcademyPricingRoute: AcademyPricingRoute,
   AdminRoute: AdminRoute,
   BoardsRoute: BoardsRoute,
   CalculatorRoute: CalculatorRoute,
@@ -512,12 +664,14 @@ const rootRouteChildren: RootRouteChildren = {
   NailtradeRoute: NailtradeRoute,
   PlansRoute: PlansRoute,
   PricelistRoute: PricelistRoute,
+  PricingRoute: PricingRoute,
   ProfileRoute: ProfileRoute,
   SavedRoute: SavedRoute,
   SettingsRoute: SettingsRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   VendorDealsRoute: VendorDealsRoute,
+  CCourseIdRoute: CCourseIdRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -9,6 +9,7 @@ import { listAdminUsers } from '@/lib/admin.functions';
 import { matchesAdminSearch } from '@/lib/admin-rules';
 import {photoUrl} from '@/lib/media';
 import { ROLE_DEFINITIONS, type AccountRole } from '@/lib/roles';
+import { PREVIEW_ROLES, type PreviewRole } from '@/lib/role-preview';
 
 const field = 'text-right w-full border border-input rounded-lg bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 const TABS = [
@@ -537,26 +538,69 @@ function StickersTab() {
   );
 }
 
-export function AdminPanel() {
+export function AdminPanel({
+  previewRole,
+  onPreviewRoleChange,
+}: {
+  previewRole: PreviewRole;
+  onPreviewRoleChange: (role: PreviewRole) => void;
+}) {
   const [tab, setTab] = useState<Tab>('users');
+  const activePreview = PREVIEW_ROLES.find((role) => role.id === previewRole);
   return (
     <div className="space-y-5">
       <h1 className="font-black text-2xl flex items-center gap-2"><ShieldCheck className="text-primary" />פאנל ניהול</h1>
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <Button key={id} size="sm" variant={tab === id ? 'secondary' : 'ghost'} className="whitespace-nowrap" onClick={() => setTab(id)}><Icon />{label}</Button>
-        ))}
-      </div>
-      {tab === 'users' && <UsersTab />}
-      {tab === 'trade' && <TradeQueueTab />}
-      {tab === 'suppliers' && <SuppliersTab />}
-      {tab === 'words' && <WordsTab />}
-      {tab === 'reports' && <ReportsTab />}
-      {tab === 'tickets' && <TicketsTab />}
-      {tab === 'leads' && <LeadsTab />}
-      {tab === 'announce' && <AnnounceTab />}
-      {tab === 'pins' && <PinsTab />}
-      {tab === 'stickers' && <StickersTab />}
+      <section aria-label="תצוגת תפקיד לבדיקה" className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+        <div>
+          <h2 className="text-sm font-bold flex items-center gap-1.5">👁️ סימולטור תצוגת תפקידים</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            בחירת תפקיד להצגת היקף הגישה המתאים. הבחירה אינה משנה את התפקיד, ההרשאות או פעולות הניהול בפועל.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {PREVIEW_ROLES.map(({ id, label }) => (
+            <Button
+              key={id}
+              type="button"
+              size="sm"
+              variant={previewRole === id ? 'secondary' : 'outline'}
+              aria-pressed={previewRole === id}
+              onClick={() => onPreviewRoleChange(id)}
+              className="h-auto min-h-9 whitespace-normal text-xs"
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+        {activePreview && (
+          <p role="status" className="text-xs text-muted-foreground">
+            תפקיד נבחר לבדיקה: <strong>{activePreview.label}</strong> — {activePreview.scope}.
+          </p>
+        )}
+      </section>
+      {previewRole === 'SUPER_ADMIN' ? (
+        <>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <Button key={id} size="sm" variant={tab === id ? 'secondary' : 'ghost'} className="whitespace-nowrap" onClick={() => setTab(id)}><Icon />{label}</Button>
+            ))}
+          </div>
+          {tab === 'users' && <UsersTab />}
+          {tab === 'trade' && <TradeQueueTab />}
+          {tab === 'suppliers' && <SuppliersTab />}
+          {tab === 'words' && <WordsTab />}
+          {tab === 'reports' && <ReportsTab />}
+          {tab === 'tickets' && <TicketsTab />}
+          {tab === 'leads' && <LeadsTab />}
+          {tab === 'announce' && <AnnounceTab />}
+          {tab === 'pins' && <PinsTab />}
+          {tab === 'stickers' && <StickersTab />}
+        </>
+      ) : (
+        <div className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+          במצב התצוגה של {activePreview?.label}, כלי הניהול מוסתרים. לא השתנו התפקיד או ההרשאות האמיתיים.
+        </div>
+      )}
     </div>
   );
 }

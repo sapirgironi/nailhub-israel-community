@@ -121,6 +121,57 @@ export type Database = {
           },
         ];
       };
+      client_requests: {
+        Row: {
+          claim_token: string | null;
+          created_at: string;
+          customer_id: string | null;
+          description: string;
+          full_name: string;
+          id: string;
+          phone: string;
+          request_type: "urgent_repair" | "reschedule" | "new_appointment" | "other";
+          tech_id: string;
+        };
+        Insert: {
+          claim_token?: string | null;
+          created_at?: string;
+          customer_id?: string | null;
+          description: string;
+          full_name: string;
+          id?: string;
+          phone: string;
+          request_type: "urgent_repair" | "reschedule" | "new_appointment" | "other";
+          tech_id: string;
+        };
+        Update: {
+          claim_token?: string | null;
+          created_at?: string;
+          customer_id?: string | null;
+          description?: string;
+          full_name?: string;
+          id?: string;
+          phone?: string;
+          request_type?: "urgent_repair" | "reschedule" | "new_appointment" | "other";
+          tech_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "client_requests_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "client_requests_tech_id_fkey";
+            columns: ["tech_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       comment_moderation_events: {
         Row: {
           created_at: string;
@@ -630,6 +681,7 @@ export type Database = {
           is_pinned: boolean;
           likes_count: number | null;
           mentions: Json;
+          post_type: string;
           price_nis: number | null;
           service_tags: string[] | null;
           status: string;
@@ -646,6 +698,7 @@ export type Database = {
           is_pinned?: boolean;
           likes_count?: number | null;
           mentions?: Json;
+          post_type?: string;
           price_nis?: number | null;
           service_tags?: string[] | null;
           status?: string;
@@ -662,6 +715,7 @@ export type Database = {
           is_pinned?: boolean;
           likes_count?: number | null;
           mentions?: Json;
+          post_type?: string;
           price_nis?: number | null;
           service_tags?: string[] | null;
           status?: string;
@@ -1197,6 +1251,10 @@ export type Database = {
         };
         Returns: string;
       };
+      claim_client_request: {
+        Args: { p_claim_token: string; p_request_id: string };
+        Returns: boolean;
+      };
       community_members: {
         Args: {
           after_id?: string;
@@ -1234,6 +1292,10 @@ export type Database = {
         Returns: boolean;
       };
       is_account_banned: { Args: { target_user: string }; Returns: boolean };
+      is_public_request_tech: {
+        Args: { target_user: string };
+        Returns: boolean;
+      };
       member_follow_counts: {
         Args: { member_id: string };
         Returns: {

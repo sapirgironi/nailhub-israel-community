@@ -8,6 +8,10 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   vite: {
+    build: {
+      // The default OXC minifier crashes on Windows while rendering production chunks.
+      minify: "esbuild",
+    },
     optimizeDeps: {
       // Prebundle router hooks and story export together with React before the
       // first page loads, avoiding a second React graph during lazy discovery.

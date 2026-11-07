@@ -31,6 +31,7 @@ import {
   type CaptionStyle,
   type TextPostBackgroundId,
   type PostMention,
+  type FeedPostType,
 } from "@/lib/feed-post";
 import { getFeedPremiumAccess, upgradeFeedCaption } from "@/lib/feed-post.functions";
 import { hebrewError } from "@/lib/hebrew-errors";
@@ -53,7 +54,11 @@ export function FeedPostComposer({
   const [preview, setPreview] = useState("");
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>({ ...DEFAULT_CAPTION_STYLE });
   const [postMode, setPostMode] = useState<"image" | "text">("image");
-  const [textBackground, setTextBackground] = useState<TextPostBackgroundId>("baby-pink");
+  const [postType, setPostType] = useState<FeedPostType>("post");
+  const [textBackground, setTextBackground] = useState<TextPostBackgroundId>("powder-pink");
+  const customBackgroundColor = textBackground.startsWith("custom:")
+    ? textBackground.slice("custom:".length)
+    : "#EBC4CC";
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [custom, setCustom] = useState("");
@@ -85,6 +90,7 @@ export function FeedPostComposer({
     try {
       validateImage(f);
       setFile(f);
+      setPostMode("image");
       setSuggestions([]);
       setMsg("");
     } catch (e) {
@@ -189,6 +195,7 @@ export function FeedPostComposer({
           author_id: userId,
           image_url,
           caption: parsed.data.caption,
+          post_type: postType,
           service_tags: parsed.data.tags,
           mentions: parsed.data.mentions,
           text_background: postMode === "text" ? textBackground : null,
@@ -254,14 +261,40 @@ export function FeedPostComposer({
           </Button>
           <Button
             type="button"
-            disabled={locked}
+            disabled={locked || Boolean(file)}
             variant={postMode === "text" ? "default" : "outline"}
             aria-pressed={postMode === "text"}
-            onClick={() => setPostMode("text")}
+            onClick={() => {
+              if (!file) setPostMode("text");
+            }}
           >
             פוסט טקסט מעוצב
           </Button>
         </div>
+        <fieldset
+          className="flex flex-wrap items-center gap-2 border-b border-border p-4"
+          disabled={locked}
+        >
+          <legend className="font-bold text-sm">סוג הפרסום</legend>
+          {(
+            [
+              ["post", "פוסט"],
+              ["course", "קורס והשתלמות"],
+              ["deal", "מבצע והטבה"],
+            ] as const
+          ).map(([type, label]) => (
+            <Button
+              key={type}
+              type="button"
+              size="sm"
+              variant={postType === type ? "default" : "secondary"}
+              aria-pressed={postType === type}
+              onClick={() => setPostType(type)}
+            >
+              {label}
+            </Button>
+          ))}
+        </fieldset>
         <div className="grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
           <div className="p-4 lg:border-l border-border bg-muted/40">
             <StoryTextEditor
@@ -274,6 +307,7 @@ export function FeedPostComposer({
               style={captionStyle}
               onStyleChange={setCaptionStyle}
               disabled={locked}
+              textOnly={postMode === "text" && !file}
               imageSrc={postMode === "image" ? preview : undefined}
               backgroundStyle={
                 postMode === "text" ? getTextPostBackground(textBackground).style : undefined
@@ -308,6 +342,20 @@ export function FeedPostComposer({
                   <ImagePlus />
                   {file ? "החלפת תמונה" : "בחירת תמונת עבודה"}
                 </Button>
+                {file && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    disabled={locked}
+                    onClick={() => {
+                      setFile(null);
+                      setMsg("");
+                    }}
+                  >
+                    הסרת התמונה כדי ליצור פוסט טקסט
+                  </Button>
+                )}
               </>
             )}
             <div className="flex items-center justify-between">
@@ -333,6 +381,19 @@ export function FeedPostComposer({
                       {background.label}
                     </button>
                   ))}
+                  <label
+                    className={`flex min-h-16 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 px-2 text-xs font-bold ${textBackground.startsWith("custom:") ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+                    style={{ backgroundColor: customBackgroundColor }}
+                  >
+                    <input
+                      type="color"
+                      aria-label="בחירת צבע רקע מותאם אישית"
+                      value={customBackgroundColor}
+                      onChange={(event) => setTextBackground(`custom:${event.target.value}`)}
+                      className="size-7 cursor-pointer rounded border-0 bg-transparent p-0"
+                    />
+                    צבע מותאם אישית
+                  </label>
                 </div>
               </fieldset>
             )}

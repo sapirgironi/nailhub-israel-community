@@ -11,11 +11,15 @@ describe("App routing", () => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
     for (const [path, routeId] of [
       ["/clinic", "/clinic"],
+      ["/clinic/profit", "/clinic/profit"],
       ["/calculator", "/calculator"],
       ["/academy", "/academy/"],
+      ["/academy/courses", "/academy/courses"],
+      ["/academy/syllabus", "/academy/syllabus"],
       ["/academy/calculator", "/academy/calculator"],
       ["/academy-pricing", "/academy-pricing"],
       ["/c/9ba7b810-9dad-41f0-8b2a-0b2f6d5f5e54", "/c/$courseId"],
+      ["/request/9ba7b810-9dad-41f0-8b2a-0b2f6d5f5e54", "/request/$techId"],
       ["/health", "/health"],
       ["/pricelist", "/pricelist"],
       ["/draft", "/draft"],
@@ -27,6 +31,16 @@ describe("App routing", () => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
     const matches = router.matchRoutes("/terms");
     expect(matches.at(-1)?.routeId).toBe("/terms");
+    for (const match of matches) {
+      const route = router.routesById[match.routeId];
+      expect(route?.options.beforeLoad).toBeUndefined();
+      expect(route?.options.loader).toBeUndefined();
+    }
+  });
+  it("exposes the client request page publicly without an auth guard or loader", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+    const matches = router.matchRoutes("/request/9ba7b810-9dad-41f0-8b2a-0b2f6d5f5e54");
+    expect(matches.at(-1)?.routeId).toBe("/request/$techId");
     for (const match of matches) {
       const route = router.routesById[match.routeId];
       expect(route?.options.beforeLoad).toBeUndefined();

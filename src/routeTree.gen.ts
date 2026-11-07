@@ -38,7 +38,9 @@ import { Route as AcademyCalculatorRouteImport } from './routes/academy.calculat
 import { Route as AcademyCoursesRouteImport } from './routes/academy.courses'
 import { Route as AcademySyllabusRouteImport } from './routes/academy.syllabus'
 import { Route as CCourseIdRouteImport } from './routes/c.$courseId'
+import { Route as ClinicProfitRouteImport } from './routes/clinic.profit'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
+import { Route as RequestTechIdRouteImport } from './routes/request.$techId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -185,9 +187,19 @@ const CCourseIdRoute = CCourseIdRouteImport.update({
   path: '/c/$courseId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClinicProfitRoute = ClinicProfitRouteImport.update({
+  id: '/profit',
+  path: '/profit',
+  getParentRoute: () => ClinicRoute,
+} as any)
 const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
   id: '/members/$memberId',
   path: '/members/$memberId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestTechIdRoute = RequestTechIdRouteImport.update({
+  id: '/request/$techId',
+  path: '/request/$techId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -198,7 +210,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
-  '/clinic': typeof ClinicRoute
+  '/clinic': typeof ClinicRouteWithChildren
   '/demo-health': typeof DemoHealthRoute
   '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
@@ -220,7 +232,9 @@ export interface FileRoutesByFullPath {
   '/academy/courses': typeof AcademyCoursesRoute
   '/academy/syllabus': typeof AcademySyllabusRoute
   '/c/$courseId': typeof CCourseIdRoute
+  '/clinic/profit': typeof ClinicProfitRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/request/$techId': typeof RequestTechIdRoute
   '/academy/': typeof AcademyIndexRoute
 }
 export interface FileRoutesByTo {
@@ -229,7 +243,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
-  '/clinic': typeof ClinicRoute
+  '/clinic': typeof ClinicRouteWithChildren
   '/demo-health': typeof DemoHealthRoute
   '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
@@ -251,7 +265,9 @@ export interface FileRoutesByTo {
   '/academy/courses': typeof AcademyCoursesRoute
   '/academy/syllabus': typeof AcademySyllabusRoute
   '/c/$courseId': typeof CCourseIdRoute
+  '/clinic/profit': typeof ClinicProfitRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/request/$techId': typeof RequestTechIdRoute
   '/academy': typeof AcademyIndexRoute
 }
 export interface FileRoutesById {
@@ -262,7 +278,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/boards': typeof BoardsRoute
   '/calculator': typeof CalculatorRoute
-  '/clinic': typeof ClinicRoute
+  '/clinic': typeof ClinicRouteWithChildren
   '/demo-health': typeof DemoHealthRoute
   '/demo-pricelist': typeof DemoPricelistRoute
   '/directory': typeof DirectoryRoute
@@ -284,7 +300,9 @@ export interface FileRoutesById {
   '/academy/courses': typeof AcademyCoursesRoute
   '/academy/syllabus': typeof AcademySyllabusRoute
   '/c/$courseId': typeof CCourseIdRoute
+  '/clinic/profit': typeof ClinicProfitRoute
   '/members/$memberId': typeof MembersMemberIdRoute
+  '/request/$techId': typeof RequestTechIdRoute
   '/academy/': typeof AcademyIndexRoute
 }
 export interface FileRouteTypes {
@@ -318,7 +336,9 @@ export interface FileRouteTypes {
     | '/academy/courses'
     | '/academy/syllabus'
     | '/c/$courseId'
+    | '/clinic/profit'
     | '/members/$memberId'
+    | '/request/$techId'
     | '/academy/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -349,7 +369,9 @@ export interface FileRouteTypes {
     | '/academy/courses'
     | '/academy/syllabus'
     | '/c/$courseId'
+    | '/clinic/profit'
     | '/members/$memberId'
+    | '/request/$techId'
     | '/academy'
   id:
     | '__root__'
@@ -381,7 +403,9 @@ export interface FileRouteTypes {
     | '/academy/courses'
     | '/academy/syllabus'
     | '/c/$courseId'
+    | '/clinic/profit'
     | '/members/$memberId'
+    | '/request/$techId'
     | '/academy/'
   fileRoutesById: FileRoutesById
 }
@@ -392,7 +416,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   BoardsRoute: typeof BoardsRoute
   CalculatorRoute: typeof CalculatorRoute
-  ClinicRoute: typeof ClinicRoute
+  ClinicRoute: typeof ClinicRouteWithChildren
   DemoHealthRoute: typeof DemoHealthRoute
   DemoPricelistRoute: typeof DemoPricelistRoute
   DirectoryRoute: typeof DirectoryRoute
@@ -412,6 +436,7 @@ export interface RootRouteChildren {
   VendorDealsRoute: typeof VendorDealsRoute
   CCourseIdRoute: typeof CCourseIdRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
+  RequestTechIdRoute: typeof RequestTechIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -619,11 +644,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CCourseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clinic/profit': {
+      id: '/clinic/profit'
+      path: '/profit'
+      fullPath: '/clinic/profit'
+      preLoaderRoute: typeof ClinicProfitRouteImport
+      parentRoute: typeof ClinicRoute
+    }
     '/members/$memberId': {
       id: '/members/$memberId'
       path: '/members/$memberId'
       fullPath: '/members/$memberId'
       preLoaderRoute: typeof MembersMemberIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request/$techId': {
+      id: '/request/$techId'
+      path: '/request/$techId'
+      fullPath: '/request/$techId'
+      preLoaderRoute: typeof RequestTechIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -646,6 +685,17 @@ const AcademyRouteChildren: AcademyRouteChildren = {
 const AcademyRouteWithChildren =
   AcademyRoute._addFileChildren(AcademyRouteChildren)
 
+interface ClinicRouteChildren {
+  ClinicProfitRoute: typeof ClinicProfitRoute
+}
+
+const ClinicRouteChildren: ClinicRouteChildren = {
+  ClinicProfitRoute: ClinicProfitRoute,
+}
+
+const ClinicRouteWithChildren =
+  ClinicRoute._addFileChildren(ClinicRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcademyRoute: AcademyRouteWithChildren,
@@ -653,7 +703,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   BoardsRoute: BoardsRoute,
   CalculatorRoute: CalculatorRoute,
-  ClinicRoute: ClinicRoute,
+  ClinicRoute: ClinicRouteWithChildren,
   DemoHealthRoute: DemoHealthRoute,
   DemoPricelistRoute: DemoPricelistRoute,
   DirectoryRoute: DirectoryRoute,
@@ -673,6 +723,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendorDealsRoute: VendorDealsRoute,
   CCourseIdRoute: CCourseIdRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
+  RequestTechIdRoute: RequestTechIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

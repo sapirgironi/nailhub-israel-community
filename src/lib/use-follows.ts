@@ -16,7 +16,7 @@ export function useFollowing(userId: string) {
         .select("followed_id")
         .eq("follower_id", userId);
       if (error) throw error;
-      return data.map((row) => row.followed_id);
+      return (data ?? []).map((row) => row.followed_id);
     },
   });
 }

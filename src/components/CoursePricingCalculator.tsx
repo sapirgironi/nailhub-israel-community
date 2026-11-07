@@ -250,7 +250,7 @@ export function CoursePricingCalculator({
           כדי להשתמש בכלי, יש לבחור בפרופיל מדריכה / מעבירת השתלמויות.
         </p>
         <Button asChild variant="outline" className="mt-4">
-          <Link to="/clinic">חזרה להקליניקה</Link>
+          <Link to="/academy">חזרה להקליניקה</Link>
         </Button>
       </Card>
     );
@@ -260,9 +260,9 @@ export function CoursePricingCalculator({
     <div dir="rtl" className="space-y-6">
       <header className="space-y-3">
         <Button asChild variant="ghost" size="sm" className="-mr-3">
-          <Link to="/clinic">
+          <Link to="/academy">
             <ArrowRight aria-hidden="true" />
-            הקליניקה שלי
+            האקדמיה שלי
           </Link>
         </Button>
         <div className="flex items-start gap-3">

@@ -5,9 +5,11 @@ export type HubSection =
   | "nailtrade"
   | "insurance"
   | "calculator"
+  | "profit_calculator"
   | "academy_pricing"
   | "academy_syllabus"
   | "academy_courses"
+  | "academy_hub"
   | "health_form"
   | "pricelist"
   | "saved"
@@ -72,9 +74,11 @@ export function canAccessSection(role: PreviewRole, section: HubSection): boolea
       section === "nailtrade" ||
       section === "insurance" ||
       section === "calculator" ||
+      section === "profit_calculator" ||
       section === "academy_pricing" ||
       section === "academy_syllabus" ||
       section === "academy_courses" ||
+      section === "academy_hub" ||
       section === "health_form" ||
       section === "pricelist" ||
       section === "draft"
@@ -86,6 +90,7 @@ export function canAccessSection(role: PreviewRole, section: HubSection): boolea
       section === "nailtrade" ||
       section === "insurance" ||
       section === "calculator" ||
+      section === "profit_calculator" ||
       section === "health_form" ||
       section === "pricelist" ||
       section === "draft"

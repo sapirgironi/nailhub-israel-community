@@ -20,12 +20,6 @@ import {
   BriefcaseBusiness,
   ShoppingBag,
   GraduationCap,
-  ChevronDown,
-  BookOpen,
-  FileText,
-  Calculator,
-  ClipboardList,
-  Tags,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { NotificationsBell } from "./NotificationsBell";
@@ -96,12 +90,20 @@ function NavLinks({
   onPreviewRoleChange?: ((role: PreviewRole) => void) | undefined;
   accountRole?: string | undefined;
 }) {
-  const academyActive = ["academy_pricing", "academy_syllabus", "academy_courses"].includes(
-    section,
-  );
-  const clinicActive = ["pricelist", "calculator", "health_form"].includes(section);
-  const [isAcademyOpen, setIsAcademyOpen] = useState(academyActive);
-  const [isClinicOpen, setIsClinicOpen] = useState(clinicActive);
+  const academyActive = [
+    "academy_hub",
+    "academy_pricing",
+    "academy_syllabus",
+    "academy_courses",
+  ].includes(section);
+  const clinicActive = [
+    "clinic",
+    "pricelist",
+    "calculator",
+    "profit_calculator",
+    "health_form",
+    "draft",
+  ].includes(section);
   const activeRole = isAdmin
     ? (previewRole ?? "SUPER_ADMIN")
     : getRoleForAccountRole(accountRole, isAdmin);
@@ -138,120 +140,28 @@ function NavLinks({
         </Link>
       </Button>
       {canSeeAcademy && (
-        <div className="space-y-1">
-          <Button
-            type="button"
-            variant={academyActive ? "secondary" : "ghost"}
-            aria-expanded={isAcademyOpen}
-            aria-controls="academy-navigation"
-            onClick={() => setIsAcademyOpen((open) => !open)}
-            className="w-full justify-between h-auto min-h-10 whitespace-normal text-right text-xs font-bold"
-          >
-            <span className="flex items-center gap-2">
-              <GraduationCap />
-              <span>🎓 האקדמיה שלי</span>
-            </span>
-            <ChevronDown
-              aria-hidden="true"
-              className={`size-4 transition-transform duration-200 ${isAcademyOpen ? "rotate-180" : ""}`}
-            />
-          </Button>
-          {isAcademyOpen && (
-            <div
-              id="academy-navigation"
-              className="mr-2 mt-1 space-y-1 border-r-2 border-primary/20 pr-3"
-            >
-              <Button
-                asChild
-                variant={section === "academy_pricing" ? "secondary" : "ghost"}
-                className="w-full justify-start h-auto min-h-9 whitespace-normal text-right text-xs"
-              >
-                <Link to="/academy/calculator" onClick={onPick}>
-                  <GraduationCap />
-                  <span>מחשבון תמחור קורסים</span>
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant={section === "academy_syllabus" ? "secondary" : "ghost"}
-                className="w-full justify-start h-auto min-h-9 whitespace-normal text-right text-xs"
-              >
-                <Link to="/academy/syllabus" onClick={onPick}>
-                  <FileText />
-                  <span>מחולל סילבוסים ומערכי שיעור</span>
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant={section === "academy_courses" ? "secondary" : "ghost"}
-                className="w-full justify-start h-auto min-h-9 whitespace-normal text-right text-xs"
-              >
-                <Link to="/academy/courses" onClick={onPick}>
-                  <BookOpen />
-                  <span>מאגר הקורסים שלי</span>
-                </Link>
-              </Button>
-            </div>
-          )}
-        </div>
+        <Button
+          asChild
+          variant={academyActive ? "secondary" : "ghost"}
+          className="w-full justify-start h-auto min-h-11 whitespace-normal text-right text-xs font-bold"
+        >
+          <Link to="/academy" onClick={onPick}>
+            <GraduationCap />
+            <span>האקדמיה שלי</span>
+          </Link>
+        </Button>
       )}
       {canSeeClinic && (
-        <div className="space-y-1">
-          <Button
-            type="button"
-            variant={clinicActive ? "secondary" : "ghost"}
-            aria-expanded={isClinicOpen}
-            aria-controls="clinic-navigation"
-            onClick={() => setIsClinicOpen((open) => !open)}
-            className="w-full justify-between h-auto min-h-10 whitespace-normal text-right text-xs font-bold"
-          >
-            <span className="flex items-center gap-2">
-              <BriefcaseBusiness />
-              <span>הקליניקה שלי</span>
-            </span>
-            <ChevronDown
-              aria-hidden="true"
-              className={`size-4 transition-transform duration-200 ${isClinicOpen ? "rotate-180" : ""}`}
-            />
-          </Button>
-          {isClinicOpen && (
-            <div
-              id="clinic-navigation"
-              className="mr-2 mt-1 space-y-1 border-r-2 border-primary/20 pr-3"
-            >
-              <Button
-                asChild
-                variant={section === "pricelist" ? "secondary" : "ghost"}
-                className="w-full justify-start h-auto min-h-9 whitespace-normal text-right text-xs"
-              >
-                <Link to="/pricelist" onClick={onPick}>
-                  <Tags />
-                  <span>המחירון שלי</span>
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant={section === "calculator" ? "secondary" : "ghost"}
-                className="w-full justify-start h-auto min-h-9 whitespace-normal text-right text-xs"
-              >
-                <Link to="/calculator" onClick={onPick}>
-                  <Calculator />
-                  <span>מחשבון תמחור</span>
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant={section === "health_form" ? "secondary" : "ghost"}
-                className="w-full justify-start h-auto min-h-9 whitespace-normal text-right text-xs"
-              >
-                <Link to="/health" onClick={onPick}>
-                  <ClipboardList />
-                  <span>הצהרות בריאות</span>
-                </Link>
-              </Button>
-            </div>
-          )}
-        </div>
+        <Button
+          asChild
+          variant={clinicActive ? "secondary" : "ghost"}
+          className="w-full justify-start h-auto min-h-11 whitespace-normal text-right text-xs font-bold"
+        >
+          <Link to="/clinic" onClick={onPick}>
+            <BriefcaseBusiness />
+            <span>הקליניקה שלי</span>
+          </Link>
+        </Button>
       )}
       {visibleLinks.map(({ id, path, label, icon: Icon }) => (
         <Button
@@ -355,6 +265,7 @@ export function HubShell({
   const clinicActive = [
     "clinic",
     "calculator",
+    "profit_calculator",
     "academy_pricing",
     "academy_syllabus",
     "academy_courses",

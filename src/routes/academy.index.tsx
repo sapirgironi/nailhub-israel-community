@@ -1,22 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DemoAcademy } from "@/components/DemoAcademy";
+import { NailHubApp } from "@/components/NailHubApp";
 
 export const Route = createFileRoute("/academy/")({
   head: () => ({
     meta: [
-      { title: "קורסים והשתלמויות — הדגמת NailHub Academy" },
+      { title: "האקדמיה שלי — NailHub" },
       {
         name: "description",
-        content: "לוח קורסים והשתלמויות בציפורניים עם הוספת קורס במצב הדגמה.",
+        content: "מרכז לניהול קורסים, סילבוסים ותמחור באקדמיה שלך.",
       },
-      { property: "og:title", content: "NailHub Academy — קורסים והשתלמויות" },
+      { property: "og:title", content: "האקדמיה שלי — NailHub" },
       {
         property: "og:description",
-        content: "לוח קורסים אינטראקטיבי עם נתוני דוגמה בלבד.",
+        content: "מרכז לניהול קורסים, סילבוסים ותמחור באקדמיה שלך.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: DemoAcademy,
+  component: () => <NailHubApp section="academy_hub" />,
 });

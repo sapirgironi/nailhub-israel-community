@@ -61,6 +61,7 @@ export function PhotoImage({ src, alt, loading = "lazy", ...props }: PhotoImageP
       alt={resolved.isError ? `${alt} — טעינת התמונה נכשלה` : alt}
       loading={loading}
       decoding="async"
+      draggable={false}
     />
   );
 }

@@ -5,6 +5,7 @@ import {
   TEXT_POST_BACKGROUNDS,
   DEFAULT_CAPTION_STYLE,
   captionStyleSchema,
+  getTextPostBackground,
   parseCaptionStyle,
   tagSchema,
   matchesPostSearch,
@@ -12,6 +13,7 @@ import {
   livePostMentions,
   readPostMentions,
   hasActivePremium,
+  matchesFeedTab,
 } from "../lib/feed-post";
 import { captionPreviewStyle } from "../lib/caption-style";
 describe("feed tags and mentions", () => {
@@ -37,6 +39,19 @@ describe("feed tags and mentions", () => {
     expect(matchesPostTag({ service_tags: ["מבנה_אנטומי"] }, "מבנה אנטומי")).toBe(true);
     expect(matchesPostTag({ service_tags: ["מבנה_אנטומי"] }, "לק_ג׳ל")).toBe(false);
   });
+  it("classifies posts for each feed tab", () => {
+    const imagePost = { image_url: "image.jpg", post_type: "post" };
+    const textPost = { image_url: null, post_type: "post" };
+    const coursePost = { image_url: "course.jpg", post_type: "course" };
+    const dealPost = { image_url: "deal.jpg", post_type: "deal" };
+
+    expect(matchesFeedTab(imagePost, "gallery")).toBe(true);
+    expect(matchesFeedTab(textPost, "discussions")).toBe(true);
+    expect(matchesFeedTab(coursePost, "gallery")).toBe(false);
+    expect(matchesFeedTab(coursePost, "courses")).toBe(true);
+    expect(matchesFeedTab(dealPost, "deals")).toBe(true);
+    expect(matchesFeedTab(imagePost, "following")).toBe(true);
+  });
   it("validates and safely defaults persisted text styling", () => {
     expect(captionStyleSchema.safeParse(DEFAULT_CAPTION_STYLE).success).toBe(true);
     expect(captionStyleSchema.safeParse({ ...DEFAULT_CAPTION_STYLE, fontSize: 999 }).success).toBe(
@@ -46,6 +61,32 @@ describe("feed tags and mentions", () => {
   });
   it("provides all seven styled text backgrounds", () => {
     expect(TEXT_POST_BACKGROUNDS).toHaveLength(7);
+    expect(TEXT_POST_BACKGROUNDS.map((background) => background.id)).toEqual([
+      "powder-pink",
+      "classic-nude",
+      "pearl-white",
+      "luxury-charcoal",
+      "soft-sunset",
+      "rose-gold",
+      "lavender-cream",
+    ]);
+    expect(TEXT_POST_BACKGROUNDS.some((background) => /בקבוק|איור/.test(background.label))).toBe(
+      false,
+    );
+  });
+  it("supports persisted custom background colors and validates custom caption colors", () => {
+    expect(getTextPostBackground("custom:#abc123").style).toEqual({ backgroundColor: "#abc123" });
+    expect(getTextPostBackground("custom:javascript:alert(1)").id).toBe("powder-pink");
+    expect(
+      captionStyleSchema.safeParse({
+        ...DEFAULT_CAPTION_STYLE,
+        color: "#12AB34",
+        highlightColor: "#ABCDEF",
+      }).success,
+    ).toBe(true);
+    expect(captionStyleSchema.safeParse({ ...DEFAULT_CAPTION_STYLE, color: "red" }).success).toBe(
+      false,
+    );
   });
   it("keeps the saved typography settings in the rendered style", () => {
     const style = captionPreviewStyle({
@@ -54,6 +95,7 @@ describe("feed tags and mentions", () => {
       textAlign: "right",
       highlight: "soft",
       color: "#F472B6",
+      highlightColor: "#12AB34",
       fontSize: 44,
     });
     expect(style).toMatchObject({
@@ -61,6 +103,7 @@ describe("feed tags and mentions", () => {
       textAlign: "right",
       fontSize: "44px",
       color: "#F472B6",
+      background: "rgba(18,171,52,0.55)",
     });
   });
   it("drops deleted mentions and rejects invalid profile targets", () => {

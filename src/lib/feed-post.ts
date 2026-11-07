@@ -18,64 +18,52 @@ export const POST_TAGS = [
     "אזור_הדרום",
   ]),
 ];
-function svgPattern(markup: string) {
-  return `url("data:image/svg+xml,${encodeURIComponent(markup)}")`;
-}
 export const TEXT_POST_BACKGROUNDS = [
   {
-    id: "baby-pink",
-    label: "ורוד בייבי",
-    style: { backgroundImage: "linear-gradient(135deg,#f9c5d5 0%,#edc9e8 55%,#e9d8f5 100%)" },
+    id: "powder-pink",
+    label: "ורוד פודרה",
+    style: { backgroundColor: "#EBC4CC" },
   },
   {
-    id: "elegant-nude",
-    label: "ניוד אלגנטי",
-    style: { backgroundImage: "linear-gradient(135deg,#f4e4d7 0%,#e8cbb8 100%)" },
+    id: "classic-nude",
+    label: "ניוד קלאסי",
+    style: { backgroundColor: "#DCC7B8" },
   },
   {
-    id: "minimal-white",
-    label: "לבן מינימליסטי",
-    style: { backgroundColor: "#fff", color: "#3f3435" },
+    id: "pearl-white",
+    label: "לבן פנינה",
+    style: { backgroundColor: "#FBFAF7" },
   },
   {
-    id: "pink-polka",
-    label: "נקודות ורדרדות",
-    style: {
-      backgroundColor: "#fff8fa",
-      backgroundImage: "radial-gradient(#e9aabc 1.2px,transparent 1.2px)",
-      backgroundSize: "20px 20px",
-    },
+    id: "luxury-charcoal",
+    label: "שחור פחם",
+    style: { backgroundColor: "#292629" },
   },
   {
-    id: "polish-icons",
-    label: "בקבוקי לק",
-    style: {
-      backgroundColor: "#fff5f8",
-      backgroundImage: svgPattern(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g fill="none" stroke="#d891a5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M25 7h14v8l4 5v32a3 3 0 0 1-3 3H24a3 3 0 0 1-3-3V20l4-5z"/><path d="M25 15h14M21 25h22M29 7v8"/></g><path fill="#f3c7d2" d="M24 28h16v23H24z"/></svg>',
-      ),
-      backgroundSize: "64px 64px",
-    },
+    id: "soft-sunset",
+    label: "שקיעה רכה",
+    style: { backgroundImage: "linear-gradient(135deg,#F9D7E2 0%,#F7C6B3 100%)" },
   },
   {
-    id: "nail-line-art",
-    label: "איור קווי עדין",
-    style: {
-      backgroundColor: "#fff9f8",
-      backgroundImage: svgPattern(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><g fill="none" stroke="#d9aaa8" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M39 68c-6-4-9-10-12-17l-8-16c-1-3 3-5 5-2l8 11-7-25c-1-4 4-5 5-1l6 18-3-25c0-4 5-4 5 0l4 24 2-20c1-4 5-3 5 1l-1 22 5-14c2-4 6-2 4 2l-5 22c-2 10-6 16-13 20z"/><path d="m27 39 5-2m10-7 5-1m5 7 4 1"/><path d="M31 29q3-4 5-1m4-8q3-3 5 0m5 5q3-3 5 0"/></g></svg>',
-      ),
-      backgroundSize: "80px 80px",
-    },
+    id: "rose-gold",
+    label: "גרדיאנט רוז-גולד",
+    style: { backgroundImage: "linear-gradient(135deg,#F5D6D1 0%,#DDB7A5 52%,#F3E1D2 100%)" },
   },
   {
-    id: "pastel-gradient",
-    label: "פסטל מודרני",
-    style: { backgroundImage: "linear-gradient(125deg,#f9c5dd 0%,#ffd6c3 48%,#fff2dc 100%)" },
+    id: "lavender-cream",
+    label: "לבנדר-שמנת",
+    style: { backgroundImage: "linear-gradient(135deg,#E7DDF2 0%,#F8F0E3 100%)" },
   },
 ] as const;
-export type TextPostBackgroundId = (typeof TEXT_POST_BACKGROUNDS)[number]["id"];
+export type TextPostBackgroundId =
+  (typeof TEXT_POST_BACKGROUNDS)[number]["id"] | `custom:${string}`;
 export function getTextPostBackground(id: string | null | undefined) {
+  if (id?.startsWith("custom:")) {
+    const color = id.slice("custom:".length);
+    if (/^#[\da-f]{6}$/i.test(color)) {
+      return { id, label: "צבע מותאם אישית", style: { backgroundColor: color } };
+    }
+  }
   return (
     TEXT_POST_BACKGROUNDS.find((background) => background.id === id) ?? TEXT_POST_BACKGROUNDS[0]
   );
@@ -85,13 +73,18 @@ export const DEFAULT_CAPTION_STYLE = {
   textAlign: "center",
   highlight: "solid",
   color: "#FFFFFF",
+  highlightColor: "#171717",
   fontSize: 32,
 } as const;
 export const captionStyleSchema = z.object({
   font: z.enum(["modern", "bold", "handwriting", "elegant"]),
   textAlign: z.enum(["center", "right", "left"]),
   highlight: z.enum(["none", "solid", "soft"]),
-  color: z.enum(["#FFFFFF", "#000000", "#F472B6", "#D7B19D", "#D4AF37"]),
+  color: z.string().regex(/^#[\da-f]{6}$/i),
+  highlightColor: z
+    .string()
+    .regex(/^#[\da-f]{6}$/i)
+    .default("#171717"),
   fontSize: z.number().int().min(16).max(56),
 });
 export type CaptionStyle = z.infer<typeof captionStyleSchema>;
@@ -104,6 +97,26 @@ export const postMentionSchema = z.object({
   label: z.string().regex(/^@[^\s@<>]{1,100}$/),
 });
 export type PostMention = z.infer<typeof postMentionSchema>;
+export type FeedPostType = "post" | "course" | "deal";
+export type FeedTab = "all" | "following" | "gallery" | "discussions" | "courses" | "deals";
+export function matchesFeedTab(
+  post: { image_url: string | null; post_type: string | null | undefined },
+  tab: FeedTab,
+) {
+  switch (tab) {
+    case "all":
+    case "following":
+      return true;
+    case "gallery":
+      return Boolean(post.image_url) && post.post_type !== "course" && post.post_type !== "deal";
+    case "discussions":
+      return !post.image_url;
+    case "courses":
+      return post.post_type === "course";
+    case "deals":
+      return post.post_type === "deal";
+  }
+}
 export function normalizeTag(value: string) {
   return value.trim().replace(/^#+/, "").replace(/\s+/g, "_");
 }

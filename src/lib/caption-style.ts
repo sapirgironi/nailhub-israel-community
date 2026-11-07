@@ -10,13 +10,23 @@ export const CAPTION_FONT_OPTIONS = [
 export const CAPTION_COLOR_OPTIONS = [
   { color: "#FFFFFF", label: "לבן" },
   { color: "#000000", label: "שחור" },
-  { color: "#F472B6", label: "ורוד עדין" },
+  { color: "#FF00A8", label: "ורוד פוקסיה" },
+  { color: "#FFB6C1", label: "ורוד בייבי" },
   { color: "#D7B19D", label: "ניוד" },
+  { color: "#800020", label: "בורדו עמוק" },
+  { color: "#E53935", label: "אדום קלאסי" },
   { color: "#D4AF37", label: "זהב" },
+  { color: "#6F4E37", label: "חום שוקולד" },
+  { color: "#C8A2C8", label: "סגול לילך" },
+  { color: "#8A9A5B", label: "ירוק מרווה" },
 ] as const;
 
-function isLightColor(color: string) {
-  return color === "#FFFFFF" || color === "#D7B19D" || color === "#D4AF37";
+function withAlpha(color: string, alpha: number) {
+  const hex = color.slice(1);
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  return `rgba(${red},${green},${blue},${alpha})`;
 }
 
 export function captionPreviewStyle(style: CaptionStyle): CSSProperties {
@@ -26,12 +36,8 @@ export function captionPreviewStyle(style: CaptionStyle): CSSProperties {
     style.highlight === "none"
       ? "transparent"
       : style.highlight === "solid"
-        ? isLightColor(style.color)
-          ? "#171717"
-          : "#FFFFFF"
-        : isLightColor(style.color)
-          ? "rgba(23,23,23,.55)"
-          : "rgba(255,255,255,.78)";
+        ? style.highlightColor
+        : withAlpha(style.highlightColor, 0.55);
   return {
     color: style.color,
     fontFamily: font.family,

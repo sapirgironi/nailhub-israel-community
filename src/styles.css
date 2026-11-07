@@ -83,13 +83,48 @@
   --gradient-blush: linear-gradient(135deg, var(--background), var(--accent));
   --gradient-rose: linear-gradient(110deg, var(--rose-start), var(--rose-middle), var(--rose-end));
 }
-@utility bg-blush { background-image: var(--gradient-blush); }
-@utility bg-rose-glam { background-image: var(--gradient-rose); }
-@utility text-rose-glam { background-image: var(--gradient-rose); -webkit-background-clip: text; background-clip: text; color: transparent; }
-@utility shadow-glow { box-shadow: 0 6px 20px -8px color-mix(in oklch, var(--glow) 35%, transparent); }
+@utility bg-blush {
+  background-image: var(--gradient-blush);
+}
+@utility bg-rose-glam {
+  background-image: var(--gradient-rose);
+}
+@utility text-rose-glam {
+  background-image: var(--gradient-rose);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility shadow-glow {
+  box-shadow: 0 6px 20px -8px color-mix(in oklch, var(--glow) 35%, transparent);
+}
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  body,
+  body * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  img {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -98,4 +133,6 @@
   }
 }
 
-@utility shadow-soft { box-shadow: 0 4px 24px -12px color-mix(in oklch, var(--foreground) 9%, transparent); }
+@utility shadow-soft {
+  box-shadow: 0 4px 24px -12px color-mix(in oklch, var(--foreground) 9%, transparent);
+}

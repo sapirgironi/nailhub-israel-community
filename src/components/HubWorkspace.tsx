@@ -38,8 +38,6 @@ import {
   Layers,
   Save,
   GripVertical,
-  Calculator,
-  GraduationCap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { HebrewPhotoInput } from "./HebrewPhotoInput";
@@ -55,6 +53,7 @@ import {
   getTextPostBackground,
   matchesPostSearch,
   matchesPostTag,
+  type FeedTab,
   parseCaptionStyle,
   POST_TAGS,
 } from "@/lib/feed-post";
@@ -67,6 +66,9 @@ import { Button } from "./ui/button";
 import type { HubSection } from "./HubShell";
 import { PostDraftWriter } from "./PostDraftWriter";
 import { ClinicHub } from "./ClinicHub";
+import { AcademyHub } from "./AcademyHub";
+import { WorkspaceToolFrame } from "./WorkspaceToolFrame";
+import { UnifiedProfitCalculator } from "./UnifiedProfitCalculator";
 import { CoursePricingCalculator } from "./CoursePricingCalculator";
 import { CourseSyllabusGenerator } from "./CourseSyllabusGenerator";
 import { AcademyCourseLibrary } from "./AcademyCourseLibrary";
@@ -185,70 +187,35 @@ export function HubWorkspace({
   isAdmin?: boolean;
 }) {
   const canUseAcademy = hasAcademyAccess(isAdmin, user.role);
-  if (section === "clinic") return <ClinicHub hasAcademyAccess={canUseAcademy} />;
-  if (section === "draft") return <PostDraftWriter />;
-  if (section === "calculator") return <PricingCalculator user={user} />;
+  if (section === "clinic") return <ClinicHub technicianId={user.id} />;
+  if (section === "profit_calculator")
+    return (
+      <WorkspaceToolFrame destination="clinic">
+        <UnifiedProfitCalculator userId={user.id} />
+      </WorkspaceToolFrame>
+    );
+  if (section === "draft")
+    return (
+      <WorkspaceToolFrame destination="clinic">
+        <PostDraftWriter />
+      </WorkspaceToolFrame>
+    );
+  if (section === "calculator")
+    return (
+      <WorkspaceToolFrame destination="clinic">
+        <PricingCalculator user={user} />
+      </WorkspaceToolFrame>
+    );
+  if (section === "academy_hub") return <AcademyHub hasAccess={canUseAcademy} />;
   if (section === "academy_pricing")
-    return <AcademyWorkspace user={user} canAccess={canUseAcademy} />;
+    return (
+      <WorkspaceToolFrame destination="academy">
+        <CoursePricingCalculator canAccess={canUseAcademy} userId={user.id} />
+      </WorkspaceToolFrame>
+    );
   if (section === "academy_syllabus")
     return canUseAcademy ? (
-      <CourseSyllabusGenerator
-        userId={user.id}
-        instructorProfile={{
-          businessName: user.businessName,
-          fullName: user.fullName,
-          phone: user.phone,
-          city: user.city,
-          logoUrl: user.avatar,
-        }}
-      />
-    ) : (
-      <CoursePricingCalculator canAccess={false} />
-    );
-  if (section === "academy_courses")
-    return canUseAcademy ? (
-      <AcademyCourseLibrary userId={user.id} />
-    ) : (
-      <CoursePricingCalculator canAccess={false} />
-    );
-  if (section === "health_form") return <HealthForm user={user} />;
-  if (section === "insurance") return <InsuranceForm user={user} />;
-  if (section === "pricelist") return <PriceList user={user} />;
-  if (section === "nailtrade") return <Trade user={user} />;
-  return (
-    <FeedErrorBoundary>
-      <Feed user={user} savedOnly={section === "saved"} />
-    </FeedErrorBoundary>
-  );
-}
-function AcademyWorkspace({ user, canAccess }: { user: Person; canAccess: boolean }) {
-  const [view, setView] = useState<"pricing" | "syllabus">("pricing");
-  if (!canAccess) return <CoursePricingCalculator canAccess={false} />;
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="כלי האקדמיה">
-        <Button
-          type="button"
-          variant={view === "pricing" ? "secondary" : "outline"}
-          aria-pressed={view === "pricing"}
-          onClick={() => setView("pricing")}
-        >
-          <Calculator />
-          מחשבון תמחור
-        </Button>
-        <Button
-          type="button"
-          variant={view === "syllabus" ? "secondary" : "outline"}
-          aria-pressed={view === "syllabus"}
-          onClick={() => setView("syllabus")}
-        >
-          <GraduationCap />
-          מחולל סילבוסים
-        </Button>
-      </div>
-      {view === "pricing" ? (
-        <CoursePricingCalculator canAccess={canAccess} userId={user.id} />
-      ) : (
+      <WorkspaceToolFrame destination="academy">
         <CourseSyllabusGenerator
           userId={user.id}
           instructorProfile={{
@@ -259,8 +226,36 @@ function AcademyWorkspace({ user, canAccess }: { user: Person; canAccess: boolea
             logoUrl: user.avatar,
           }}
         />
-      )}
-    </div>
+      </WorkspaceToolFrame>
+    ) : (
+      <CoursePricingCalculator canAccess={false} />
+    );
+  if (section === "academy_courses")
+    return canUseAcademy ? (
+      <WorkspaceToolFrame destination="academy">
+        <AcademyCourseLibrary userId={user.id} />
+      </WorkspaceToolFrame>
+    ) : (
+      <CoursePricingCalculator canAccess={false} />
+    );
+  if (section === "health_form")
+    return (
+      <WorkspaceToolFrame destination="clinic">
+        <HealthForm user={user} />
+      </WorkspaceToolFrame>
+    );
+  if (section === "insurance") return <InsuranceForm user={user} />;
+  if (section === "pricelist")
+    return (
+      <WorkspaceToolFrame destination="clinic">
+        <PriceList user={user} />
+      </WorkspaceToolFrame>
+    );
+  if (section === "nailtrade") return <Trade user={user} />;
+  return (
+    <FeedErrorBoundary>
+      <Feed user={user} savedOnly={section === "saved"} />
+    </FeedErrorBoundary>
   );
 }
 function StoriesBar({ user }: { user: Person }) {
@@ -1073,23 +1068,22 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [feedMode, setFeedMode] = useState<"all" | "following">("all");
+  const [feedTab, setFeedTab] = useState<FeedTab>("all");
   const [msg, setMsg] = useState("");
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<Row<"posts"> | null>(null);
   const [commentPost, setCommentPost] = useState<Row<"posts"> | null>(null);
   const [collabPost, setCollabPost] = useState<Row<"posts"> | null>(null);
   const [offersPost, setOffersPost] = useState<Row<"posts"> | null>(null);
-  const [heartPost, setHeartPost] = useState<string | null>(null);
   const following = useFollowing(user.id);
   const followingIds = following.data ?? [];
-  const feedQueryKey = ["hub-posts", user.id, savedOnly, feedMode] as const;
+  const feedQueryKey = ["hub-posts", user.id, savedOnly, feedTab] as const;
   useEffect(() => {
     if ("compose" in routeSearch && routeSearch.compose === true) setOpen(true);
   }, [routeSearch]);
   const posts = useInfiniteQuery({
     queryKey: feedQueryKey,
-    enabled: savedOnly || feedMode === "all" || following.isSuccess,
+    enabled: savedOnly || feedTab !== "following" || following.isSuccess,
     initialPageParam: null as PageCursor | null,
     queryFn: async ({ pageParam }) => {
       let rawPosts: Row<"posts">[] = [];
@@ -1122,7 +1116,7 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
         if (savedRows.length === FEED_PAGE_SIZE && last)
           nextCursor = { createdAt: last.created_at, id: last.id };
       } else {
-        if (feedMode === "following" && followingIds.length === 0)
+        if (feedTab === "following" && followingIds.length === 0)
           return { rows: [], nextCursor: null };
         let query = supabase
           .from("posts")
@@ -1130,7 +1124,12 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
           .limit(FEED_PAGE_SIZE);
-        if (feedMode === "following") query = query.in("author_id", followingIds);
+        if (feedTab === "following") query = query.in("author_id", followingIds);
+        if (feedTab === "gallery")
+          query = query.not("image_url", "is", null).not("post_type", "in", '("course","deal")');
+        if (feedTab === "discussions") query = query.is("image_url", null);
+        if (feedTab === "courses") query = query.eq("post_type", "course");
+        if (feedTab === "deals") query = query.eq("post_type", "deal");
         if (pageParam)
           query = query.or(
             `created_at.lt.${pageParam.createdAt},and(created_at.eq.${pageParam.createdAt},id.lt.${pageParam.id})`,
@@ -1177,14 +1176,14 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
   const authorPages = useQueries({
     queries: pagePostIds.map((ids) => ({
       queryKey: ["hub-post-authors", ids],
-      enabled: ids.length > 0,
+      enabled: ids.length > 0 && Boolean(user.id),
       staleTime: 30_000,
       queryFn: async () => {
         const { data, error } = await supabase.rpc("feed_post_authors", {
           post_ids: ids,
         });
         if (error) throw error;
-        return data;
+        return data ?? [];
       },
     })),
   });
@@ -1305,8 +1304,6 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
     await qc.invalidateQueries({ queryKey: ["hub-likes", user.id] });
   }
   function doubleTap(p: Row<"posts">) {
-    setHeartPost(p.id);
-    setTimeout(() => setHeartPost(null), 850);
     if (!liked(p.id)) void toggleLike(p);
   }
   const availableTags = [
@@ -1324,24 +1321,41 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
       )}
       <h1 className="font-black text-2xl mb-4">{savedOnly ? "השמורים שלי" : "הפיד המקצועי"}</h1>
       {!savedOnly && (
-        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="סינון הפיד">
-          <Button
-            type="button"
-            variant={feedMode === "all" ? "default" : "outline"}
-            aria-pressed={feedMode === "all"}
-            onClick={() => setFeedMode("all")}
-          >
-            כל הפיד
-          </Button>
-          <Button
-            type="button"
-            variant={feedMode === "following" ? "default" : "outline"}
-            aria-pressed={feedMode === "following"}
-            disabled={following.isPending || following.isError}
-            onClick={() => setFeedMode("following")}
-          >
-            עוקבת
-          </Button>
+        <div
+          className="mb-4 flex min-w-0 scroll-smooth gap-2 overflow-x-auto pb-2 scrollbar-none"
+          role="tablist"
+          aria-label="לשוניות הפיד"
+          dir="rtl"
+        >
+          {(
+            [
+              ["all", "כל הפיד"],
+              ["following", "עוקבת"],
+              ["gallery", "עבודות והשראה"],
+              ["discussions", "דיונים והתייעצויות"],
+              ["courses", "קורסים והשתלמויות"],
+              ["deals", "מבצעים והטבות"],
+            ] as const
+          ).map(([tab, label]) => (
+            <Button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={feedTab === tab}
+              aria-pressed={feedTab === tab}
+              disabled={tab === "following" && (following.isPending || following.isError)}
+              variant={feedTab === tab ? "default" : "secondary"}
+              className={`shrink-0 rounded-full px-4 transition-all ${feedTab === tab ? "text-primary-foreground shadow-glow ring-2 ring-primary/30" : "hover:bg-accent"}`}
+              style={
+                feedTab === tab
+                  ? { backgroundImage: "linear-gradient(110deg,#ec4899,#fb923c)" }
+                  : undefined
+              }
+              onClick={() => setFeedTab(tab)}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
       )}
       <div
@@ -1424,7 +1438,7 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
         savedPages.some((page) => page.isError) ||
         likedPages.some((page) => page.isError) ||
         commentPages.some((page) => page.isError)) && <Notice text="טעינת העבודות נכשלה" />}
-      {feedMode === "following" && following.isError ? (
+      {feedTab === "following" && following.isError ? (
         <Notice text="טעינת רשימת המעקב נכשלה" />
       ) : posts.isPending ? (
         <Notice text="טוענת עבודות..." />
@@ -1434,11 +1448,19 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
           <p className="font-bold">
             {savedOnly
               ? "אין עדיין עבודות שמורות"
-              : feedMode === "following"
+              : feedTab === "following"
                 ? followingIds.length
                   ? "אין עדיין פוסטים ממי שאת עוקבת אחריה"
                   : "עדיין לא עקבת אחרי חברות קהילה"
-                : "אין עדיין עבודות בפיד"}
+                : feedTab === "gallery"
+                  ? "אין עדיין עבודות עם תמונות"
+                  : feedTab === "discussions"
+                    ? "אין עדיין דיונים והתייעצויות"
+                    : feedTab === "courses"
+                      ? "אין עדיין קורסים והשתלמויות"
+                      : feedTab === "deals"
+                        ? "אין עדיין מבצעים והטבות"
+                        : "אין עדיין עבודות בפיד"}
           </p>
         </div>
       ) : list.length === 0 ? (
@@ -1501,15 +1523,9 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
                   )}
                 </div>
               </div>
-              <FeedPostArtwork
-                post={p}
-                heartVisible={heartPost === p.id}
-                onDoubleClick={() => doubleTap(p)}
-              />
+              <FeedPostArtwork post={p} onDoubleClick={() => doubleTap(p)} />
               <div className="p-5">
-                {p.displayUrl && p.caption_style === null && (
-                  <PostCaption text={p.caption} mentions={p.mentions} />
-                )}
+                {p.displayUrl && <PostCaption text={p.caption} mentions={p.mentions} />}
                 {(p.service_tags ?? []).length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {p.service_tags?.map((t) => (
@@ -1607,55 +1623,36 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
 }
 function FeedPostArtwork({
   post,
-  heartVisible,
   onDoubleClick,
 }: {
   post: FeedDisplayPost;
-  heartVisible: boolean;
   onDoubleClick: () => void;
 }) {
   const captionStyle = captionPreviewStyle(parseCaptionStyle(post.caption_style));
-  const caption =
-    post.caption && post.caption_style !== null ? (
-      <div
-        className="relative max-w-full whitespace-pre-wrap break-words px-3 py-1"
-        style={captionStyle}
-      >
-        <PostCaption
-          text={post.caption}
-          mentions={post.mentions}
-          className="m-0 whitespace-pre-wrap break-words"
+  if (post.displayUrl)
+    return (
+      <div onDoubleClick={onDoubleClick} className="cursor-pointer">
+        <PhotoImage
+          src={post.displayUrl}
+          alt="עבודת ציפורניים"
+          className="block w-full max-h-[560px] object-contain bg-card"
         />
       </div>
-    ) : null;
+    );
 
   return (
     <div
       onDoubleClick={onDoubleClick}
-      className={`relative grid cursor-pointer place-items-center overflow-hidden ${post.displayUrl ? "" : "min-h-72 p-8 text-center"}`}
-      style={post.displayUrl ? undefined : getTextPostBackground(post.text_background).style}
+      className="grid min-h-72 cursor-pointer place-items-center overflow-hidden p-8 text-center"
+      style={getTextPostBackground(post.text_background).style}
     >
-      {post.displayUrl && (
-        <PhotoImage
-          src={post.displayUrl}
-          alt="עבודת ציפורניים"
-          className="w-full h-auto max-h-[560px] object-contain bg-card"
-        />
-      )}
-      {caption && (
-        <div
-          className={
-            post.displayUrl
-              ? "absolute inset-0 grid place-items-center overflow-hidden p-8"
-              : "relative z-10 max-w-full"
-          }
-        >
-          {caption}
-        </div>
-      )}
-      {heartVisible && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <Heart className="w-20 h-20 text-primary fill-primary animate-ping opacity-90 drop-shadow-xl" />
+      {post.caption && (
+        <div className="max-w-full whitespace-pre-wrap break-words" style={captionStyle}>
+          <PostCaption
+            text={post.caption}
+            mentions={post.mentions}
+            className="m-0 whitespace-pre-wrap break-words"
+          />
         </div>
       )}
     </div>
@@ -2276,12 +2273,14 @@ function PriceList({ user }: { user: Person }) {
   const [highlight, setHighlight] = useState(false);
   const [marker, setMarker] = useState("white");
   const [logo, setLogo] = useState("");
+  const [backgroundImage, setBackgroundImage] = useState("");
   const [scale, setScale] = useState(45);
   const [opacity, setOpacity] = useState(25);
   const [front, setFront] = useState(false);
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [uploading, setUploading] = useState(false);
   const screen = useRef<HTMLDivElement>(null);
+  const backgroundInput = useRef<HTMLInputElement>(null);
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const movingRow = useRef<string | null>(null);
   const palette = PRICE_LIST_PALETTE;
@@ -2296,28 +2295,53 @@ function PriceList({ user }: { user: Person }) {
     }
   };
   useEffect(() => {
+    let active = true;
     setColors({ ...DEFAULT_PRICE_LIST_COLORS });
     try {
       const saved = localStorage.getItem(`nailhub_pricelist_colors_${user.id}`);
-      if (!saved) return;
-      const parsed: unknown = JSON.parse(saved);
-      if (!parsed || typeof parsed !== "object") throw new Error("Invalid saved colors");
-      const stored = parsed as Record<string, unknown>;
-      setColors({
-        background: isPriceListColor(stored["background"])
-          ? stored["background"]
-          : DEFAULT_PRICE_LIST_COLORS.background,
-        text: isPriceListColor(stored["text"]) ? stored["text"] : DEFAULT_PRICE_LIST_COLORS.text,
-        title: isPriceListColor(stored["title"])
-          ? stored["title"]
-          : DEFAULT_PRICE_LIST_COLORS.title,
-        border: isPriceListColor(stored["border"])
-          ? stored["border"]
-          : DEFAULT_PRICE_LIST_COLORS.border,
-      });
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (!parsed || typeof parsed !== "object") throw new Error("Invalid saved colors");
+        const stored = parsed as Record<string, unknown>;
+        setColors({
+          background: isPriceListColor(stored["background"])
+            ? stored["background"]
+            : DEFAULT_PRICE_LIST_COLORS.background,
+          text: isPriceListColor(stored["text"]) ? stored["text"] : DEFAULT_PRICE_LIST_COLORS.text,
+          title: isPriceListColor(stored["title"])
+            ? stored["title"]
+            : DEFAULT_PRICE_LIST_COLORS.title,
+          border: isPriceListColor(stored["border"])
+            ? stored["border"]
+            : DEFAULT_PRICE_LIST_COLORS.border,
+        });
+      }
     } catch {
       setMsg("טעינת צבעי העיצוב השמורים נכשלה");
     }
+    try {
+      const savedBackground = localStorage.getItem(`nailhub_pricelist_background_${user.id}`);
+      if (!savedBackground) {
+        setBackgroundImage("");
+      } else {
+        void (async () => {
+          try {
+            const image = await photoUrl(savedBackground);
+            if (!image) throw new Error("Invalid saved background image");
+            if (active) setBackgroundImage(image);
+          } catch (error) {
+            console.error("Failed to load saved price list background", error);
+            if (active) setMsg("טעינת תמונת הרקע השמורה נכשלה");
+          }
+        })();
+      }
+    } catch (error) {
+      console.error("Failed to read saved price list background", error);
+      setMsg("טעינת תמונת הרקע השמורה נכשלה");
+    }
+    return () => {
+      active = false;
+    };
   }, [user.id]);
   const services = [
     "מבנה אנטומי",
@@ -2443,6 +2467,40 @@ function PriceList({ user }: { user: Person }) {
       setMsg("העלאת הלוגו נכשלה. בחרי תמונת לוגו תקינה ונסי שוב.");
     } finally {
       setUploading(false);
+    }
+  }
+  async function uploadBackground(file: File | null) {
+    if (!file || uploading) return;
+    setUploading(true);
+    try {
+      const url = await uploadPhoto(file, user.id);
+      const image = await photoUrl(url);
+      if (!image) throw new Error("Uploaded background image could not be loaded");
+      try {
+        localStorage.setItem(`nailhub_pricelist_background_${user.id}`, url);
+      } catch (error) {
+        console.error("Failed to save price list background reference", error);
+        setBackgroundImage(image);
+        setMsg("תמונת הרקע הועלתה, אך שמירת העיצוב נכשלה");
+        return;
+      }
+      setBackgroundImage(image);
+      setMsg("תמונת הרקע נשמרה בעיצוב המחירון");
+    } catch (error) {
+      console.error("Failed to upload price list background", error);
+      setMsg("העלאת תמונת הרקע נכשלה. בחרי תמונה תקינה ונסי שוב.");
+    } finally {
+      setUploading(false);
+    }
+  }
+  function removeBackground() {
+    try {
+      localStorage.removeItem(`nailhub_pricelist_background_${user.id}`);
+      setBackgroundImage("");
+      setMsg("תמונת הרקע הוסרה");
+    } catch (error) {
+      console.error("Failed to remove saved price list background", error);
+      setMsg("הסרת תמונת הרקע נכשלה. נסי שוב.");
     }
   }
   const sectionTitle = (text: string) => <h2 className="font-bold text-sm mb-4">{text}</h2>;
@@ -2851,6 +2909,51 @@ function PriceList({ user }: { user: Person }) {
               </>
             )}
           </section>
+          <section className="py-6">
+            {sectionTitle("תמונת רקע")}
+            <p className="mb-3 text-xs text-muted-foreground">
+              התמונה תכסה את רקע כרטיס המחירון ותישאר ממורכזת.
+            </p>
+            <input
+              ref={backgroundInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-label="העלאת תמונת רקע"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0] ?? null;
+                event.currentTarget.value = "";
+                void uploadBackground(file);
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploading}
+                onClick={() => backgroundInput.current?.click()}
+              >
+                <ImagePlus aria-hidden="true" />
+                העלאת תמונת רקע
+              </Button>
+              {backgroundImage && (
+                <Button type="button" variant="ghost" onClick={removeBackground}>
+                  <Trash2 aria-hidden="true" />
+                  הסרת תמונת רקע
+                </Button>
+              )}
+            </div>
+            {uploading && <ImageUploadStatus />}
+            {backgroundImage && (
+              <img
+                src={backgroundImage}
+                alt="תצוגה מקדימה של תמונת הרקע למחירון"
+                className="mt-4 h-28 w-full rounded-xl border border-border object-cover object-center"
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+          </section>
         </div>
         <aside
           id="pl-preview-panel"
@@ -2877,6 +2980,10 @@ function PriceList({ user }: { user: Person }) {
                   "--pl-title": `var(--pl-${colors.title})`,
                   "--pl-border": `var(--pl-${colors.border})`,
                   "--pl-marker": highlight ? `var(--pl-${marker})` : "transparent",
+                  backgroundImage: backgroundImage ? `url("${backgroundImage}")` : "none",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
                   fontSize: size,
                   textAlign: align,
                   fontWeight: bold ? 700 : 400,

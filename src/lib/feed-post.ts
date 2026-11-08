@@ -69,15 +69,28 @@ export function getTextPostBackground(id: string | null | undefined) {
   );
 }
 export const DEFAULT_CAPTION_STYLE = {
-  font: "modern",
+  font: "assistant",
   textAlign: "center",
   highlight: "solid",
   color: "#FFFFFF",
   highlightColor: "#171717",
   fontSize: 32,
 } as const;
+export const TEXT_POST_CAPTION_LIMIT = 400;
 export const captionStyleSchema = z.object({
-  font: z.enum(["modern", "bold", "handwriting", "elegant"]),
+  font: z.enum([
+    "assistant",
+    "heebo",
+    "italic",
+    "hand",
+    "round",
+    "playful",
+    "serif",
+    "modern",
+    "bold",
+    "handwriting",
+    "elegant",
+  ]),
   textAlign: z.enum(["center", "right", "left"]),
   highlight: z.enum(["none", "solid", "soft"]),
   color: z.string().regex(/^#[\da-f]{6}$/i),

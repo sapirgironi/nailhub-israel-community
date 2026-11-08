@@ -52,14 +52,12 @@ import { PostCaption } from "./PostCaption";
 import {
   getTextPostBackground,
   matchesPostSearch,
-  matchesPostTag,
   type FeedTab,
   parseCaptionStyle,
-  POST_TAGS,
 } from "@/lib/feed-post";
 import { useFollowing } from "@/lib/use-follows";
 import { MemberFollowButton } from "./MemberFollowControls";
-import { captionPreviewStyle } from "@/lib/caption-style";
+import { captionHighlightStyle, captionPreviewStyle } from "@/lib/caption-style";
 import { groupStories } from "@/lib/story-groups";
 import { readMentions, type StoryMention } from "@/lib/story-layout";
 import { Button } from "./ui/button";
@@ -181,10 +179,14 @@ export function HubWorkspace({
   section,
   user,
   isAdmin = false,
+  composePostOpen = false,
+  onComposePostClose,
 }: {
   section: HubSection;
   user: Person;
   isAdmin?: boolean;
+  composePostOpen?: boolean;
+  onComposePostClose?: (() => void) | undefined;
 }) {
   const canUseAcademy = hasAcademyAccess(isAdmin, user.role);
   if (section === "clinic") return <ClinicHub technicianId={user.id} />;
@@ -254,7 +256,13 @@ export function HubWorkspace({
   if (section === "nailtrade") return <Trade user={user} />;
   return (
     <FeedErrorBoundary>
-      <Feed user={user} savedOnly={section === "saved"} />
+      <Feed
+        user={user}
+        savedOnly={section === "saved"}
+        isAdmin={isAdmin}
+        composePostOpen={composePostOpen}
+        onComposePostClose={onComposePostClose}
+      />
     </FeedErrorBoundary>
   );
 }
@@ -605,7 +613,7 @@ function StoriesBar({ user }: { user: Person }) {
                 <PhotoImage
                   src={current?.media_url ?? ""}
                   alt={current?.alt_text || "סטורי"}
-                  loading="eager"
+                  loading="lazy"
                   className="w-full h-full object-contain pointer-events-none"
                 />
                 <div className="absolute inset-0 pointer-events-none">
@@ -804,15 +812,34 @@ function CommentsModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="תגובות לעבודה"
-        className="bg-card border border-border rounded-3xl p-6 max-w-md w-full space-y-4 text-right max-h-[80vh] overflow-y-auto"
+        aria-label="פוסט ותגובות"
+        className="bg-card border border-border rounded-3xl p-6 max-w-2xl w-full space-y-4 text-right max-h-[90dvh] overflow-y-auto"
       >
         <div className="flex items-center justify-between">
-          <h2 className="font-bold">תגובות</h2>
+          <h2 className="font-bold">הפוסט והתגובות</h2>
           <Button size="icon" variant="ghost" aria-label="סגירת התגובות" onClick={onClose}>
             <X />
           </Button>
         </div>
+        <article className="space-y-3 border-b border-border pb-4">
+          {post.image_url && (
+            <PhotoImage
+              src={post.image_url}
+              alt="תמונת הפוסט"
+              className="mx-auto max-h-72 w-full rounded-xl bg-muted object-contain"
+            />
+          )}
+          {post.caption && (
+            <PostCaption
+              text={post.caption}
+              mentions={post.mentions}
+              className="max-w-full whitespace-pre-wrap break-words text-base leading-8 [overflow-wrap:anywhere]"
+            />
+          )}
+          <time className="block text-xs text-muted-foreground">
+            {new Date(post.created_at).toLocaleDateString("he-IL")}
+          </time>
+        </article>
         {comments.isError && <Notice text="טעינת התגובות נכשלה" />}
         {comments.isPending ? (
           <Notice text="טוענת תגובות..." />
@@ -1063,24 +1090,40 @@ function OffersModal({ post, onClose }: { post: Row<"posts">; onClose: () => voi
     </div>
   );
 }
-function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
+function Feed({
+  user,
+  savedOnly,
+  isAdmin,
+  composePostOpen,
+  onComposePostClose,
+}: {
+  user: Person;
+  savedOnly: boolean;
+  isAdmin: boolean;
+  composePostOpen: boolean;
+  onComposePostClose?: (() => void) | undefined;
+}) {
   const routeSearch = useSearch({ strict: false });
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [feedTab, setFeedTab] = useState<FeedTab>("all");
   const [msg, setMsg] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(composePostOpen);
   const [deleting, setDeleting] = useState<Row<"posts"> | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
   const [commentPost, setCommentPost] = useState<Row<"posts"> | null>(null);
   const [collabPost, setCollabPost] = useState<Row<"posts"> | null>(null);
   const [offersPost, setOffersPost] = useState<Row<"posts"> | null>(null);
   const following = useFollowing(user.id);
   const followingIds = following.data ?? [];
   const feedQueryKey = ["hub-posts", user.id, savedOnly, feedTab] as const;
+  const composeFromUrl = "compose" in routeSearch && routeSearch.compose === true;
   useEffect(() => {
-    if ("compose" in routeSearch && routeSearch.compose === true) setOpen(true);
-  }, [routeSearch]);
+    if (composeFromUrl) setOpen(true);
+  }, [composeFromUrl]);
+  useEffect(() => {
+    if (composePostOpen) setOpen(true);
+  }, [composePostOpen]);
   const posts = useInfiniteQuery({
     queryKey: feedQueryKey,
     enabled: savedOnly || feedTab !== "following" || following.isSuccess,
@@ -1259,14 +1302,39 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
         : Promise.resolve(),
     ]);
   }
-  async function remove(p: Row<"posts">) {
+  async function deletePost(p: Row<"posts">) {
+    setDeletePending(true);
+    await qc.cancelQueries({ queryKey: ["hub-posts"] });
+    const previousPosts = qc.getQueriesData<InfiniteData<FeedPage>>({
+      queryKey: ["hub-posts"],
+    });
+    qc.setQueriesData<InfiniteData<FeedPage>>({ queryKey: ["hub-posts"] }, (old) =>
+      old
+        ? {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              rows: page.rows.filter((post) => post.id !== p.id),
+            })),
+          }
+        : old,
+    );
     const { error } = await supabase.from("posts").delete().eq("id", p.id);
     if (error) {
+      for (const [queryKey, data] of previousPosts) qc.setQueryData(queryKey, data);
       setMsg("המחיקה נכשלה");
+      setDeletePending(false);
+      await qc.invalidateQueries({ queryKey: ["hub-posts"] });
       return;
     }
     setDeleting(null);
-    await qc.invalidateQueries({ queryKey: ["hub-posts"] });
+    setDeletePending(false);
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["hub-posts"] }),
+      qc.invalidateQueries({ queryKey: ["hub-saved", user.id] }),
+      qc.invalidateQueries({ queryKey: ["hub-likes", user.id] }),
+      qc.invalidateQueries({ queryKey: ["hub-comment-counts", user.id] }),
+    ]);
   }
   const liked = (id: string) => likedRows.some((l) => l.post_id === id);
   async function toggleLike(p: Row<"posts">) {
@@ -1306,11 +1374,8 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
   function doubleTap(p: Row<"posts">) {
     if (!liked(p.id)) void toggleLike(p);
   }
-  const availableTags = [
-    ...new Set([...POST_TAGS, ...pageRows.flatMap((p) => p.service_tags ?? [])]),
-  ];
   const list = pageRows
-    .filter((p) => matchesPostSearch(p, search) && matchesPostTag(p, selectedTag))
+    .filter((p) => matchesPostSearch(p, search))
     .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned));
   return (
     <>
@@ -1358,38 +1423,9 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
           ))}
         </div>
       )}
-      <div
-        className="mb-4 flex gap-2 overflow-x-auto pb-2"
-        role="group"
-        aria-label="סינון לפי תגית"
-      >
-        <Button
-          type="button"
-          size="sm"
-          variant={selectedTag === null ? "default" : "secondary"}
-          aria-pressed={selectedTag === null}
-          className="shrink-0 rounded-full"
-          onClick={() => setSelectedTag(null)}
-        >
-          כל התגיות
-        </Button>
-        {availableTags.map((tag) => (
-          <Button
-            key={tag}
-            type="button"
-            size="sm"
-            variant={selectedTag === tag ? "default" : "secondary"}
-            aria-pressed={selectedTag === tag}
-            className="shrink-0 rounded-full"
-            onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-          >
-            #{tag}
-          </Button>
-        ))}
-      </div>
       <input
         aria-label="חיפוש עבודות"
-        placeholder="חיפוש עבודות, טכניקות או #תגיות..."
+        placeholder="חיפוש עבודות או טכניקות..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className={`${field} mb-6`}
@@ -1397,9 +1433,13 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
       {open && (
         <FeedPostComposer
           userId={user.id}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            setOpen(false);
+            onComposePostClose?.();
+          }}
           onPublished={() => {
             setOpen(false);
+            onComposePostClose?.();
             setMsg("העבודה פורסמה");
           }}
         />
@@ -1415,10 +1455,14 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
             <h2 className="font-bold">למחוק את העבודה?</h2>
             <p className="text-sm text-muted-foreground">לא ניתן לשחזר עבודה שנמחקה.</p>
             <div className="flex gap-2">
-              <Button variant="destructive" onClick={() => remove(deleting)}>
+              <Button
+                variant="destructive"
+                disabled={deletePending}
+                onClick={() => void deletePost(deleting)}
+              >
                 מחיקה
               </Button>
-              <Button variant="outline" onClick={() => setDeleting(null)}>
+              <Button variant="outline" disabled={deletePending} onClick={() => setDeleting(null)}>
                 ביטול
               </Button>
             </div>
@@ -1504,15 +1548,15 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
                   <time className="text-xs text-muted-foreground">
                     {new Date(p.created_at).toLocaleDateString("he-IL")}
                   </time>
-                  {p.author_id !== user.id && (
+                  {(p.author_id === user.id || isAdmin) && (
                     <Button
                       size="icon"
                       variant="ghost"
-                      aria-label="דיווח על הפוסט"
-                      title="דיווח"
-                      onClick={() => reportPost(p)}
+                      aria-label="מחיקת פוסט"
+                      title="מחיקת פוסט"
+                      onClick={() => setDeleting(p)}
                     >
-                      <Flag />
+                      <Trash2 />
                     </Button>
                   )}
                   {p.author_id !== user.id && (
@@ -1523,27 +1567,13 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
                   )}
                 </div>
               </div>
-              <FeedPostArtwork post={p} onDoubleClick={() => doubleTap(p)} />
+              <FeedPostArtwork
+                post={p}
+                onDoubleClick={() => doubleTap(p)}
+                onOpen={() => setCommentPost(p)}
+              />
               <div className="p-5">
                 {p.displayUrl && <PostCaption text={p.caption} mentions={p.mentions} />}
-                {(p.service_tags ?? []).length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {p.service_tags?.map((t) => (
-                      <Button
-                        key={t}
-                        size="sm"
-                        variant="secondary"
-                        className="text-xs rounded-full h-auto min-h-8 whitespace-normal break-words"
-                        onClick={() => {
-                          setSearch("");
-                          setSelectedTag(t);
-                        }}
-                      >
-                        #{t}
-                      </Button>
-                    ))}
-                  </div>
-                )}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     <Button
@@ -1583,20 +1613,22 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
                     </Button>
                   </div>
                   <div className="flex items-center gap-1">
+                    {p.author_id !== user.id && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="דיווח על הפוסט"
+                        title="דיווח"
+                        onClick={() => void reportPost(p)}
+                      >
+                        <Flag />
+                      </Button>
+                    )}
                     {p.author_id === user.id && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => setOffersPost(p)}>
                           <Handshake />
                           הצעות
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label="מחיקת עבודה"
-                          title="מחיקת עבודה"
-                          onClick={() => setDeleting(p)}
-                        >
-                          <Trash2 />
                         </Button>
                       </>
                     )}
@@ -1624,17 +1656,33 @@ function Feed({ user, savedOnly }: { user: Person; savedOnly: boolean }) {
 function FeedPostArtwork({
   post,
   onDoubleClick,
+  onOpen,
 }: {
   post: FeedDisplayPost;
   onDoubleClick: () => void;
+  onOpen: () => void;
 }) {
-  const captionStyle = captionPreviewStyle(parseCaptionStyle(post.caption_style));
+  const style = parseCaptionStyle(post.caption_style);
+  const captionStyle = captionPreviewStyle(style);
+  const captionRef = useRef<HTMLDivElement>(null);
+  const [showReadMore, setShowReadMore] = useState(false);
+  useEffect(() => {
+    const caption = captionRef.current;
+    if (!caption) return;
+    const measure = () => setShowReadMore(caption.scrollHeight > caption.clientHeight + 1);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(caption);
+    return () => observer.disconnect();
+  }, [post.caption, post.caption_style]);
   if (post.displayUrl)
     return (
       <div onDoubleClick={onDoubleClick} className="cursor-pointer">
         <PhotoImage
           src={post.displayUrl}
           alt="עבודת ציפורניים"
+          loading="lazy"
           className="block w-full max-h-[560px] object-contain bg-card"
         />
       </div>
@@ -1642,17 +1690,44 @@ function FeedPostArtwork({
 
   return (
     <div
-      onDoubleClick={onDoubleClick}
-      className="grid min-h-72 cursor-pointer place-items-center overflow-hidden p-8 text-center"
+      role="button"
+      tabIndex={0}
+      aria-label="פתיחת הפוסט לקריאה מלאה"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="mx-auto flex aspect-[4/5] max-h-[460px] w-full max-w-[368px] cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden p-6 text-center"
       style={getTextPostBackground(post.text_background).style}
     >
       {post.caption && (
-        <div className="max-w-full whitespace-pre-wrap break-words" style={captionStyle}>
-          <PostCaption
-            text={post.caption}
-            mentions={post.mentions}
-            className="m-0 whitespace-pre-wrap break-words"
-          />
+        <div className="w-full min-w-0">
+          <div
+            ref={captionRef}
+            className={`line-clamp-4 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${style.highlight === "solid" ? "leading-[2.2]" : ""}`}
+            style={captionStyle}
+          >
+            <span style={captionHighlightStyle(style)}>
+              <PostCaption text={post.caption} mentions={post.mentions} inline />
+            </span>
+          </div>
+          {showReadMore && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="mt-2 h-7 rounded-full bg-card/60 px-3 text-xs font-bold"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen();
+              }}
+            >
+              המשך קריאה...
+            </Button>
+          )}
         </div>
       )}
     </div>

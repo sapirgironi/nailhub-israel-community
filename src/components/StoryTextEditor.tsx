@@ -1,9 +1,10 @@
 import type { CSSProperties, RefObject } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Highlighter, Type } from "lucide-react";
-import type { CaptionStyle } from "@/lib/feed-post";
+import { AlignCenter, AlignLeft, AlignRight, Highlighter } from "lucide-react";
+import { TEXT_POST_CAPTION_LIMIT, type CaptionStyle } from "@/lib/feed-post";
 import {
   CAPTION_COLOR_OPTIONS,
   CAPTION_FONT_OPTIONS,
+  captionHighlightStyle,
   captionPreviewStyle,
 } from "@/lib/caption-style";
 import { Button } from "./ui/button";
@@ -34,6 +35,7 @@ export function StoryTextEditor({
   placeholder?: string;
 }) {
   const previewStyle = captionPreviewStyle(style);
+  const captionLimit = textOnly ? TEXT_POST_CAPTION_LIMIT : 2000;
   const updateStyle = (updates: Partial<CaptionStyle>) => onStyleChange({ ...style, ...updates });
   const highlightModes: CaptionStyle["highlight"][] = ["none", "solid", "soft"];
   const nextHighlight =
@@ -43,14 +45,16 @@ export function StoryTextEditor({
     <section className="space-y-4" aria-label="עורך טקסט לפוסט">
       {textOnly ? (
         <div
-          className="grid min-h-64 place-items-center overflow-hidden rounded-2xl border border-border p-6 text-center"
+          className="mx-auto grid aspect-[4/5] max-h-[460px] min-w-0 w-full max-w-[368px] place-items-center overflow-hidden rounded-2xl border border-border p-6 text-center"
           style={backgroundStyle}
         >
           <p
-            className="max-w-full whitespace-pre-wrap break-words"
+            className={`max-h-full min-w-0 max-w-full overflow-y-auto px-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${style.highlight === "solid" ? "leading-[2.2]" : ""}`}
             style={{ ...previewStyle, textAlign: style.textAlign }}
           >
-            {value.trim() || "התצוגה המקדימה של הפוסט שלך"}
+            <span style={captionHighlightStyle(style)}>
+              {value.trim() || "התצוגה המקדימה של הפוסט שלך"}
+            </span>
           </p>
         </div>
       ) : (
@@ -79,7 +83,7 @@ export function StoryTextEditor({
         id="feed-caption"
         ref={inputRef}
         aria-label="כיתוב לפוסט"
-        maxLength={2000}
+        maxLength={captionLimit}
         rows={4}
         value={value}
         disabled={disabled}
@@ -91,7 +95,7 @@ export function StoryTextEditor({
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{textOnly ? "הטקסט נשמר יחד עם העיצוב" : "הכיתוב יוצג מתחת לתמונה"}</span>
         <output aria-label="מונה תווים" dir="ltr">
-          {value.length} / 2000
+          {value.length} / {captionLimit}
         </output>
       </div>
 
@@ -107,10 +111,8 @@ export function StoryTextEditor({
                 variant={style.font === font.id ? "default" : "outline"}
                 aria-pressed={style.font === font.id}
                 onClick={() => updateStyle({ font: font.id })}
-                style={{ fontFamily: font.family }}
+                style={{ fontFamily: font.family, fontStyle: font.italic ? "italic" : "normal" }}
               >
-                {font.id === "bold" && <Bold className="size-3" />}
-                {font.id === "modern" && <Type className="size-3" />}
                 {font.label}
               </Button>
             ))}

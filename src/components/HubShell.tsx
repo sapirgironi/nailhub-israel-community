@@ -245,6 +245,7 @@ export function HubShell({
   previewRole,
   onPreviewRoleChange,
   accountRole,
+  onCreatePost,
 }: {
   section: HubSection;
   children: ReactNode;
@@ -255,6 +256,7 @@ export function HubShell({
   previewRole?: PreviewRole;
   onPreviewRoleChange?: ((role: PreviewRole) => void) | undefined;
   accountRole?: string | undefined;
+  onCreatePost?: (() => void) | undefined;
 }) {
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState(false);
@@ -323,11 +325,13 @@ export function HubShell({
     >
       <aside className="hidden md:flex md:sticky md:top-0 md:h-screen w-64 shrink-0 border-l border-border bg-card p-5 flex-col">
         <div className="flex items-center mb-6">
-          <Link to="/feed" search={{ compose: false }} className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-2xl bg-accent text-primary grid place-items-center">
-              <Sparkles />
-            </span>
-            <span className="font-black text-2xl text-primary">NailHub</span>
+          <Link
+            to="/feed"
+            search={{ compose: false }}
+            aria-label="NailHub – הבית של בונות הציפורניים בישראל"
+            className="flex h-8 items-center"
+          >
+            <img src="/NailHub.png" alt="" className="h-full w-8 shrink-0 object-cover" />
           </Link>
         </div>
         <nav className="space-y-1 overflow-y-auto flex-1">
@@ -370,9 +374,14 @@ export function HubShell({
             <Link
               to="/feed"
               search={{ compose: false }}
-              className="min-w-0 font-black text-xl text-primary"
+              aria-label="NailHub"
+              className="flex h-full min-w-0 items-center justify-center"
             >
-              NailHub
+              <img
+                src="/logo-main.png"
+                alt="NailHub Logo"
+                className="h-11 sm:h-12 w-auto object-contain"
+              />
             </Link>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -444,7 +453,19 @@ export function HubShell({
             className="absolute top-0 right-0 h-full w-72 max-w-[85vw] bg-card shadow-soft p-5 flex flex-col animate-in slide-in-from-right duration-200"
           >
             <div className="flex items-center justify-between mb-4">
-              <span className="font-black text-xl text-primary">NailHub</span>
+              <Link
+                to="/feed"
+                search={{ compose: false }}
+                aria-label="NailHub"
+                onClick={() => setMenu(false)}
+                className="flex h-12 min-w-0 items-center"
+              >
+                <img
+                  src="/NailHub2.png"
+                  alt="NailHub Logo"
+                  className="h-11 w-auto object-contain sm:h-12"
+                />
+              </Link>
               <Button
                 size="icon"
                 variant="ghost"
@@ -534,6 +555,7 @@ export function HubShell({
                 variant="outline"
                 onClick={() => {
                   setSheet(false);
+                  onCreatePost?.();
                   void navigate({ to: "/feed", search: { compose: true } });
                 }}
                 className="h-auto flex flex-col items-center justify-center p-4 rounded-2xl border border-border bg-accent/50 hover:bg-accent text-center gap-2 whitespace-normal"

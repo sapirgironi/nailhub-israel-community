@@ -1,6 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export function isMissingUserFollowsTable(error: { code?: string } | null) {
+  return error?.code === "PGRST205" || error?.code === "42P01";
+}
+
 export function followingQueryKey(userId: string) {
   return ["hub-following", userId] as const;
 }
@@ -15,7 +19,10 @@ export function useFollowing(userId: string) {
         .from("user_follows")
         .select("followed_id")
         .eq("follower_id", userId);
-      if (error) throw error;
+      if (error) {
+        if (isMissingUserFollowsTable(error)) return [];
+        throw error;
+      }
       return (data ?? []).map((row) => row.followed_id);
     },
   });

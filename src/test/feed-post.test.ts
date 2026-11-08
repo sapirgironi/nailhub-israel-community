@@ -4,6 +4,7 @@ import {
   POST_TAGS,
   TEXT_POST_BACKGROUNDS,
   DEFAULT_CAPTION_STYLE,
+  TEXT_POST_CAPTION_LIMIT,
   captionStyleSchema,
   getTextPostBackground,
   parseCaptionStyle,
@@ -15,7 +16,12 @@ import {
   hasActivePremium,
   matchesFeedTab,
 } from "../lib/feed-post";
-import { captionPreviewStyle } from "../lib/caption-style";
+import {
+  CAPTION_FONT_OPTIONS,
+  captionHighlightStyle,
+  captionPreviewStyle,
+} from "../lib/caption-style";
+import { STORY_FONTS } from "../lib/story-fonts";
 describe("feed tags and mentions", () => {
   it("offers the requested curated tag groups and retains existing tags", () => {
     expect(POST_TAG_GROUPS.map((g) => g.tags.flat())).toEqual([
@@ -74,6 +80,9 @@ describe("feed tags and mentions", () => {
       false,
     );
   });
+  it("limits styled text posts to 400 characters", () => {
+    expect(TEXT_POST_CAPTION_LIMIT).toBe(400);
+  });
   it("supports persisted custom background colors and validates custom caption colors", () => {
     expect(getTextPostBackground("custom:#abc123").style).toEqual({ backgroundColor: "#abc123" });
     expect(getTextPostBackground("custom:javascript:alert(1)").id).toBe("powder-pink");
@@ -103,8 +112,27 @@ describe("feed tags and mentions", () => {
       textAlign: "right",
       fontSize: "44px",
       color: "#F472B6",
-      background: "rgba(18,171,52,0.55)",
     });
+    expect(
+      captionHighlightStyle({
+        ...DEFAULT_CAPTION_STYLE,
+        highlight: "soft",
+        highlightColor: "#12AB34",
+      }),
+    ).toMatchObject({
+      background: "rgba(18,171,52,0.55)",
+      borderRadius: 999,
+      boxDecorationBreak: "clone",
+      WebkitBoxDecorationBreak: "clone",
+    });
+  });
+  it("uses the complete shared story font list for styled feed posts", () => {
+    expect(CAPTION_FONT_OPTIONS.map(({ id }) => id)).toEqual(STORY_FONTS.map(({ id }) => id));
+    for (const font of STORY_FONTS) {
+      expect(
+        captionStyleSchema.safeParse({ ...DEFAULT_CAPTION_STYLE, font: font.id }).success,
+      ).toBe(true);
+    }
   });
   it("drops deleted mentions and rejects invalid profile targets", () => {
     const m = { userId: "00000000-0000-4000-8000-000000000001", label: "@ספיר_גירוני" };

@@ -25,6 +25,7 @@ import {
   captionStyleSchema,
   DEFAULT_CAPTION_STYLE,
   getTextPostBackground,
+  TEXT_POST_CAPTION_LIMIT,
   TEXT_POST_BACKGROUNDS,
   postMetadataSchema,
   tagSchema,
@@ -39,6 +40,7 @@ import { StoryMentionPicker } from "./StoryMentionPicker";
 import { StoryTextEditor } from "./StoryTextEditor";
 import { ImageUploadStatus } from "./ImageUploadStatus";
 import { Button } from "./ui/button";
+import type { Database } from "@/integrations/supabase/types";
 const field =
   "w-full min-w-0 text-right border border-input rounded-xl bg-card px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-ring";
 export function FeedPostComposer({
@@ -179,30 +181,29 @@ export function FeedPostComposer({
     if (
       !parsed.success ||
       (postMode === "image" && !file) ||
-      (postMode === "text" && !caption.trim())
+      (postMode === "text" && (!caption.trim() || caption.length > TEXT_POST_CAPTION_LIMIT))
     ) {
       setMsg(
-        postMode === "image" ? "בחרי תמונה ובדקי את הטקסט והתגיות" : "הוסיפי טקסט ובדקי את התגיות",
+        postMode === "image"
+          ? "בחרי תמונה ובדקי את הטקסט והתגיות"
+          : `הוסיפי טקסט ובדקי את התגיות (עד ${TEXT_POST_CAPTION_LIMIT} תווים)`,
       );
       return;
     }
     setBusy(true);
     try {
       const image_url = postMode === "image" && file ? await uploadPhoto(file, userId) : null;
-      const { error } = await supabase
-        .from("posts")
-        .insert({
-          author_id: userId,
-          image_url,
-          caption: parsed.data.caption,
-          post_type: postType,
-          service_tags: parsed.data.tags,
-          mentions: parsed.data.mentions,
-          text_background: postMode === "text" ? textBackground : null,
-          caption_style: captionStyleSchema.parse(captionStyle),
-        })
-        .select("id")
-        .single();
+      const post: Database["public"]["Tables"]["posts"]["Insert"] = {
+        author_id: userId,
+        image_url,
+        caption: parsed.data.caption,
+        post_type: postType,
+        service_tags: parsed.data.tags,
+        mentions: parsed.data.mentions,
+        text_background: postMode === "text" ? textBackground : null,
+        caption_style: captionStyleSchema.parse(captionStyle),
+      };
+      const { error } = await supabase.from("posts").insert(post).select("id").single();
       if (error) {
         const m = error.message;
         throw new Error(
@@ -222,11 +223,13 @@ export function FeedPostComposer({
     }
   }
   return (
-    <>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm">
       <form
         onSubmit={publish}
         aria-label="יצירת פוסט"
-        className="mb-8 bg-card border border-border rounded-3xl shadow-soft overflow-hidden text-right"
+        role="dialog"
+        aria-modal="true"
+        className="max-h-[92dvh] w-full max-w-6xl overflow-y-auto rounded-3xl border border-border/80 bg-card shadow-2xl text-right"
         dir="rtl"
       >
         <header className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -586,6 +589,6 @@ export function FeedPostComposer({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

@@ -137,6 +137,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
   const [currentStep, setCurrentStep] = useState<"gate" | "login" | "onboarding" | "app">("login");
   const activeTab = section;
   const navigate = useNavigate();
+  const [composePostOpen, setComposePostOpen] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Member | null>(null);
 
@@ -1020,6 +1021,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
       hasAcademyAccess={hasAcademyAccess(isAdmin, currentUser?.role)}
       previewRole={previewRole}
       onPreviewRoleChange={setPreviewRole}
+      onCreatePost={() => setComposePostOpen(true)}
     >
       {authError && (
         <p role="alert" className="text-right text-sm text-destructive mb-4">
@@ -1221,7 +1223,13 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
 
       {/* תוכן עמוד פרופיל אישי */}
       {!["directory", "profile", "admin", "support"].includes(activeTab) && currentUser && (
-        <HubWorkspace section={section} user={currentUser} isAdmin={isAdmin} />
+        <HubWorkspace
+          section={section}
+          user={currentUser}
+          isAdmin={isAdmin}
+          composePostOpen={composePostOpen}
+          onComposePostClose={() => setComposePostOpen(false)}
+        />
       )}
 
       {activeTab === "profile" && currentUser && (

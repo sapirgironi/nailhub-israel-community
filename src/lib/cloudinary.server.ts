@@ -1,10 +1,14 @@
 import { IMAGE_OPTIMIZATION } from './cloudinary';
 
-export async function fetchOptimizedImage(cloud: string, secret: string, path: string) {
-  const signedPath = `${IMAGE_OPTIMIZATION}/${path}`;
+export async function createOptimizedImageUrl(cloud: string, secret: string, path: string) {
+  const signedPath = `${IMAGE_OPTIMIZATION},w_800,c_limit/${path}`;
   const bytes = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(`${signedPath}${secret}`));
   const signature = btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').slice(0, 8);
-  const url = `https://res.cloudinary.com/${cloud}/image/authenticated/s--${signature}--/${signedPath}`;
+  return `https://res.cloudinary.com/${cloud}/image/authenticated/s--${signature}--/${signedPath}`;
+}
+
+export async function fetchOptimizedImage(cloud: string, secret: string, path: string) {
+  const url = await createOptimizedImageUrl(cloud, secret, path);
   const response = await fetch(url, {
     headers: { Accept: 'image/webp,image/*' }, cache: 'no-store',
   });

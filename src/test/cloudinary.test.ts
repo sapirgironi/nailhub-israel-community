@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cloudinaryReference, IMAGE_OPTIMIZATION, validateImage } from '../lib/cloudinary';
-import { fetchOptimizedImage } from '../lib/cloudinary.server';
+import { createOptimizedImageUrl, fetchOptimizedImage } from '../lib/cloudinary.server';
 afterEach(() => vi.restoreAllMocks());
 
 describe('Cloudinary image rules', () => {
@@ -34,10 +34,21 @@ describe('Cloudinary image rules', () => {
     );
 
     expect(new TextDecoder().decode(digest.mock.calls[0]?.[1])).toBe(
-      'f_auto,q_auto/v42/nailhub/12345678-1234-1234-1234-123456789abc/12345678-1234-1234-1234-123456789abc.jpgserver-secret',
+      'f_auto,q_auto,w_800,c_limit/v42/nailhub/12345678-1234-1234-1234-123456789abc/12345678-1234-1234-1234-123456789abc.jpgserver-secret',
     );
     expect(fetch.mock.calls[0]?.[0]).toBe(
-      'https://res.cloudinary.com/example-cloud/image/authenticated/s--AAECAwQF--/f_auto,q_auto/v42/nailhub/12345678-1234-1234-1234-123456789abc/12345678-1234-1234-1234-123456789abc.jpg',
+      'https://res.cloudinary.com/example-cloud/image/authenticated/s--AAECAwQF--/f_auto,q_auto,w_800,c_limit/v42/nailhub/12345678-1234-1234-1234-123456789abc/12345678-1234-1234-1234-123456789abc.jpg',
+    );
+  });
+  it('creates an authenticated optimized URL with an 800-pixel width limit', async () => {
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(
+      Uint8Array.from({ length: 20 }, (_, index) => index).buffer,
+    );
+
+    await expect(
+      createOptimizedImageUrl('example-cloud', 'server-secret', 'v42/nailhub/member/image.jpg'),
+    ).resolves.toBe(
+      'https://res.cloudinary.com/example-cloud/image/authenticated/s--AAECAwQF--/f_auto,q_auto,w_800,c_limit/v42/nailhub/member/image.jpg',
     );
   });
   it('logs the exact failed delivery URL and full HTTP response details', async () => {
@@ -56,7 +67,7 @@ describe('Cloudinary image rules', () => {
     expect(error).toHaveBeenCalledWith(
       'Cloudinary delivery failed',
       expect.objectContaining({
-        url: 'https://res.cloudinary.com/example-cloud/image/authenticated/s--AAECAwQF--/f_auto,q_auto/v42/nailhub/member/image.jpg',
+        url: 'https://res.cloudinary.com/example-cloud/image/authenticated/s--AAECAwQF--/f_auto,q_auto,w_800,c_limit/v42/nailhub/member/image.jpg',
         status: 404,
         statusText: 'Not Found',
         response: 'asset not found',

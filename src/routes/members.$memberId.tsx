@@ -1,8 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { UserRound, ArrowRight } from "lucide-react";
-import { findCommunityMembers } from "@/lib/community.functions";
 import { Button } from "@/components/ui/button";
 import { PhotoImage } from "@/components/PhotoImage";
 import { MemberFollowButton, MemberFollowCounts } from "@/components/MemberFollowControls";
@@ -22,10 +20,17 @@ export const Route = createFileRoute("/members/$memberId")({
 });
 function MemberProfile() {
   const { memberId } = Route.useParams();
-  const find = useServerFn(findCommunityMembers);
   const member = useQuery({
     queryKey: ["community-member", memberId],
-    queryFn: () => find({ data: { memberId, query: "" } }),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("community_members", {
+        search_text: "",
+        member_id: memberId,
+        page_size: 1,
+      });
+      if (error) throw error;
+      return data;
+    },
   });
   const viewer = useQuery({
     queryKey: ["current-user-id"],
@@ -51,7 +56,7 @@ function MemberProfile() {
           </p>
         ) : member.isError ? (
           <p role="alert" className="py-8">
-            יש להתחבר כדי לצפות בפרופיל, או לנסות שוב.
+            טעינת הפרופיל נכשלה. נסי שוב בעוד רגע.
           </p>
         ) : p ? (
           <section className="py-10 space-y-4">

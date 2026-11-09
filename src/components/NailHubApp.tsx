@@ -209,7 +209,6 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
       return false;
     }
     setBlocked(false);
-    setAccessChecked(true);
     return true;
   };
 
@@ -226,67 +225,73 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
   });
 
   const loadData = async (userId: string) => {
-    if (!(await checkAccess(userId))) return;
-    const { data: authData, error: authUserError } = await supabase.auth.getUser();
-    if (authUserError || !authData.user) {
-      setAuthError(hebrewError(authUserError, "לא ניתן לטעון את החשבון. התחברי שוב."));
-      return;
+    setAccessChecked(false);
+    try {
+      if (!(await checkAccess(userId))) return;
+      const { data: authData, error: authUserError } = await supabase.auth.getUser();
+      if (authUserError || !authData.user) {
+        setAuthError(hebrewError(authUserError, "לא ניתן לטעון את החשבון. התחברי שוב."));
+        return;
+      }
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) {
+        setAuthError("טעינת הפרופיל נכשלה. נסי להתחבר שוב.");
+        return;
+      }
+      const provider = authData.user.app_metadata.provider;
+      if (
+        (provider === "google" || provider === "apple") &&
+        (!profile || !profile.business_name?.trim())
+      ) {
+        const metadataName =
+          authData.user.user_metadata["full_name"] ?? authData.user.user_metadata["name"];
+        setFormData((previous) => ({
+          ...previous,
+          fullName:
+            profile?.display_name ||
+            (typeof metadataName === "string" ? metadataName : "") ||
+            authData.user.email?.split("@")[0] ||
+            "",
+          businessName: profile?.business_name ?? "",
+          phone: profile?.phone ?? "",
+          city: profile?.city || previous.city,
+          role:
+            Object.values(ROLES).find((role) => role.id === profile?.account_role)?.id ??
+            "nail_tech",
+          specialties: profile?.specialties ?? previous.specialties,
+          additionalServices: profile?.additional_services ?? previous.additionalServices,
+        }));
+        setProfileCompletion(true);
+        setProfileCompletionUserId(userId);
+        setCurrentUser(null);
+        setCurrentStep("onboarding");
+        return;
+      }
+      const signedInMember = profile
+        ? { ...toMember(profile), avatar: profile.avatar_url || undefined }
+        : null;
+      if (!signedInMember) {
+        setCurrentUser(null);
+        setCurrentStep("login");
+        setAuthError("לא נמצא פרופיל לחשבון. התחברי שוב או פני לתמיכה.");
+        return;
+      }
+      setProfileCompletion(false);
+      setProfileCompletionUserId(null);
+      setCurrentUser(signedInMember);
+      const { data: adminCheck } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin",
+      });
+      setIsAdmin(adminCheck === true);
+      setCurrentStep("app");
+    } finally {
+      setAccessChecked(true);
     }
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) {
-      setAuthError("טעינת הפרופיל נכשלה. נסי להתחבר שוב.");
-      return;
-    }
-    const provider = authData.user.app_metadata.provider;
-    if (
-      (provider === "google" || provider === "apple") &&
-      (!profile || !profile.business_name?.trim())
-    ) {
-      const metadataName =
-        authData.user.user_metadata["full_name"] ?? authData.user.user_metadata["name"];
-      setFormData((previous) => ({
-        ...previous,
-        fullName:
-          profile?.display_name ||
-          (typeof metadataName === "string" ? metadataName : "") ||
-          authData.user.email?.split("@")[0] ||
-          "",
-        businessName: profile?.business_name ?? "",
-        phone: profile?.phone ?? "",
-        city: profile?.city || previous.city,
-        role:
-          Object.values(ROLES).find((role) => role.id === profile?.account_role)?.id ?? "nail_tech",
-        specialties: profile?.specialties ?? previous.specialties,
-        additionalServices: profile?.additional_services ?? previous.additionalServices,
-      }));
-      setProfileCompletion(true);
-      setProfileCompletionUserId(userId);
-      setCurrentUser(null);
-      setCurrentStep("onboarding");
-      return;
-    }
-    const signedInMember = profile
-      ? { ...toMember(profile), avatar: profile.avatar_url || undefined }
-      : null;
-    if (!signedInMember) {
-      setCurrentUser(null);
-      setCurrentStep("login");
-      setAuthError("לא נמצא פרופיל לחשבון. התחברי שוב או פני לתמיכה.");
-      return;
-    }
-    setProfileCompletion(false);
-    setProfileCompletionUserId(null);
-    setCurrentUser(signedInMember);
-    const { data: adminCheck } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
-    setIsAdmin(adminCheck === true);
-    setCurrentStep("app");
   };
 
   useEffect(() => {

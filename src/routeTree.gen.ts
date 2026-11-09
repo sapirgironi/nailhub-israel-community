@@ -24,6 +24,7 @@ import { Route as FeedRouteImport } from './routes/feed'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as InsuranceRouteImport } from './routes/insurance'
 import { Route as NailtradeRouteImport } from './routes/nailtrade'
+import { Route as OauthRouteImport } from './routes/oauth'
 import { Route as PlansRouteImport } from './routes/plans'
 import { Route as PricelistRouteImport } from './routes/pricelist'
 import { Route as PricingRouteImport } from './routes/pricing'
@@ -37,6 +38,7 @@ import { Route as AcademyIndexRouteImport } from './routes/academy.index'
 import { Route as AcademyCalculatorRouteImport } from './routes/academy.calculator'
 import { Route as AcademyCoursesRouteImport } from './routes/academy.courses'
 import { Route as AcademySyllabusRouteImport } from './routes/academy.syllabus'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as CCourseIdRouteImport } from './routes/c.$courseId'
 import { Route as ClinicProfitRouteImport } from './routes/clinic.profit'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
@@ -117,6 +119,11 @@ const NailtradeRoute = NailtradeRouteImport.update({
   path: '/nailtrade',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OauthRoute = OauthRouteImport.update({
+  id: '/oauth',
+  path: '/oauth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlansRoute = PlansRouteImport.update({
   id: '/plans',
   path: '/plans',
@@ -182,6 +189,11 @@ const AcademySyllabusRoute = AcademySyllabusRouteImport.update({
   path: '/syllabus',
   getParentRoute: () => AcademyRoute,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CCourseIdRoute = CCourseIdRouteImport.update({
   id: '/c/$courseId',
   path: '/c/$courseId',
@@ -219,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/health': typeof HealthRoute
   '/insurance': typeof InsuranceRoute
   '/nailtrade': typeof NailtradeRoute
+  '/oauth': typeof OauthRoute
   '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
   '/pricing': typeof PricingRoute
@@ -231,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/academy/calculator': typeof AcademyCalculatorRoute
   '/academy/courses': typeof AcademyCoursesRoute
   '/academy/syllabus': typeof AcademySyllabusRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/c/$courseId': typeof CCourseIdRoute
   '/clinic/profit': typeof ClinicProfitRoute
   '/members/$memberId': typeof MembersMemberIdRoute
@@ -252,6 +266,7 @@ export interface FileRoutesByTo {
   '/health': typeof HealthRoute
   '/insurance': typeof InsuranceRoute
   '/nailtrade': typeof NailtradeRoute
+  '/oauth': typeof OauthRoute
   '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
   '/pricing': typeof PricingRoute
@@ -264,6 +279,7 @@ export interface FileRoutesByTo {
   '/academy/calculator': typeof AcademyCalculatorRoute
   '/academy/courses': typeof AcademyCoursesRoute
   '/academy/syllabus': typeof AcademySyllabusRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/c/$courseId': typeof CCourseIdRoute
   '/clinic/profit': typeof ClinicProfitRoute
   '/members/$memberId': typeof MembersMemberIdRoute
@@ -287,6 +303,7 @@ export interface FileRoutesById {
   '/health': typeof HealthRoute
   '/insurance': typeof InsuranceRoute
   '/nailtrade': typeof NailtradeRoute
+  '/oauth': typeof OauthRoute
   '/plans': typeof PlansRoute
   '/pricelist': typeof PricelistRoute
   '/pricing': typeof PricingRoute
@@ -299,6 +316,7 @@ export interface FileRoutesById {
   '/academy/calculator': typeof AcademyCalculatorRoute
   '/academy/courses': typeof AcademyCoursesRoute
   '/academy/syllabus': typeof AcademySyllabusRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/c/$courseId': typeof CCourseIdRoute
   '/clinic/profit': typeof ClinicProfitRoute
   '/members/$memberId': typeof MembersMemberIdRoute
@@ -323,6 +341,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/insurance'
     | '/nailtrade'
+    | '/oauth'
     | '/plans'
     | '/pricelist'
     | '/pricing'
@@ -335,6 +354,7 @@ export interface FileRouteTypes {
     | '/academy/calculator'
     | '/academy/courses'
     | '/academy/syllabus'
+    | '/auth/callback'
     | '/c/$courseId'
     | '/clinic/profit'
     | '/members/$memberId'
@@ -356,6 +376,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/insurance'
     | '/nailtrade'
+    | '/oauth'
     | '/plans'
     | '/pricelist'
     | '/pricing'
@@ -368,6 +389,7 @@ export interface FileRouteTypes {
     | '/academy/calculator'
     | '/academy/courses'
     | '/academy/syllabus'
+    | '/auth/callback'
     | '/c/$courseId'
     | '/clinic/profit'
     | '/members/$memberId'
@@ -390,6 +412,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/insurance'
     | '/nailtrade'
+    | '/oauth'
     | '/plans'
     | '/pricelist'
     | '/pricing'
@@ -402,6 +425,7 @@ export interface FileRouteTypes {
     | '/academy/calculator'
     | '/academy/courses'
     | '/academy/syllabus'
+    | '/auth/callback'
     | '/c/$courseId'
     | '/clinic/profit'
     | '/members/$memberId'
@@ -425,6 +449,7 @@ export interface RootRouteChildren {
   HealthRoute: typeof HealthRoute
   InsuranceRoute: typeof InsuranceRoute
   NailtradeRoute: typeof NailtradeRoute
+  OauthRoute: typeof OauthRoute
   PlansRoute: typeof PlansRoute
   PricelistRoute: typeof PricelistRoute
   PricingRoute: typeof PricingRoute
@@ -434,6 +459,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   VendorDealsRoute: typeof VendorDealsRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   CCourseIdRoute: typeof CCourseIdRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
   RequestTechIdRoute: typeof RequestTechIdRoute
@@ -546,6 +572,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NailtradeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/oauth': {
+      id: '/oauth'
+      path: '/oauth'
+      fullPath: '/oauth'
+      preLoaderRoute: typeof OauthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/plans': {
       id: '/plans'
       path: '/plans'
@@ -637,6 +670,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcademySyllabusRouteImport
       parentRoute: typeof AcademyRoute
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/c/$courseId': {
       id: '/c/$courseId'
       path: '/c/$courseId'
@@ -712,6 +752,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthRoute: HealthRoute,
   InsuranceRoute: InsuranceRoute,
   NailtradeRoute: NailtradeRoute,
+  OauthRoute: OauthRoute,
   PlansRoute: PlansRoute,
   PricelistRoute: PricelistRoute,
   PricingRoute: PricingRoute,
@@ -721,6 +762,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   VendorDealsRoute: VendorDealsRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   CCourseIdRoute: CCourseIdRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
   RequestTechIdRoute: RequestTechIdRoute,

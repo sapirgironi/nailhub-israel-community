@@ -482,10 +482,23 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
         ? { email: identifier, password: authPassword }
         : { phone: identifier, password: authPassword };
       const { data, error } = await supabase.auth.signInWithPassword(credentials);
-      if (error) setAuthError(hebrewError(error));
-      else if (data.session) {
+      if (error) {
+        const loginError =
+          error.status === 401 ||
+          ["bad_jwt", "session_expired", "refresh_token_not_found"].includes(error.code ?? "")
+            ? { code: "invalid_credentials" }
+            : error;
+        setAuthError(
+          hebrewError(
+            loginError,
+            "פרטי ההתחברות אינם נכונים או שלא ניתן לאמת את החשבון. בדקי את הפרטים ונסי שוב.",
+          ),
+        );
+      } else if (data.session) {
         await loadData(data.session.user.id);
         await navigate({ to: "/feed", search: { compose: false } });
+      } else {
+        setAuthError("ההתחברות לא הושלמה. בדקי את פרטי הגישה ונסי שוב.");
       }
     } catch (error) {
       setAuthError(hebrewError(error));

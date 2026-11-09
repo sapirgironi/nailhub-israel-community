@@ -302,6 +302,9 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session && !recoveryPending.current) void loadData(data.session.user.id);
       else setAccessChecked(true);
+    }).catch((error: unknown) => {
+      console.error("Could not restore session", error);
+      setAccessChecked(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {

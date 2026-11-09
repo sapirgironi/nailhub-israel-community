@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createRoute, createRouter } from "@tanstack/react-router";
+import { createRoute, createRouter, type AnyRoute } from "@tanstack/react-router";
 import { OAuthCallback } from "./components/OAuthCallback";
 import { routeTree } from "./routeTree.gen";
 
@@ -9,11 +9,18 @@ const TildeOAuthRoute = createRoute({
   component: OAuthCallback,
 });
 
+// addChildren mutates and replaces the root's children, so keep the generated
+// children and register the extra route exactly once at module load.
+const routeTreeWithOAuth = routeTree.addChildren([
+  ...(Object.values(routeTree.children ?? {}) as AnyRoute[]),
+  TildeOAuthRoute,
+]);
+
 export const getRouter = () => {
   const queryClient = new QueryClient();
 
   const router = createRouter({
-    routeTree: routeTree.addChildren([TildeOAuthRoute]),
+    routeTree: routeTreeWithOAuth,
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,

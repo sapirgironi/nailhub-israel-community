@@ -32,15 +32,17 @@ function MemberProfile() {
       return data;
     },
   });
+  // Read-only view is open to every signed-in member; ownership only toggles edit controls.
   const viewer = useQuery({
     queryKey: ["current-user-id"],
     queryFn: async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
-      return data.user?.id ?? null;
+      return data.session?.user.id ?? null;
     },
   });
   const p = member.data?.[0];
+  const isOwner = Boolean(viewer.data && p && viewer.data === p.id);
   return (
     <main dir="rtl" className="min-h-screen bg-background text-right px-5 py-8">
       <div className="max-w-xl mx-auto">
@@ -85,7 +87,14 @@ function MemberProfile() {
               )[p.account_role] ?? "חברת קהילה"}
             </p>
             <MemberFollowCounts memberId={p.id} />
-            {viewer.data && <MemberFollowButton userId={viewer.data} memberId={p.id} />}
+            {viewer.data && !isOwner && (
+              <MemberFollowButton userId={viewer.data} memberId={p.id} />
+            )}
+            {isOwner && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/profile">עריכת הפרופיל שלי</Link>
+              </Button>
+            )}
             {viewer.isError && (
               <p role="alert" className="text-sm text-destructive">
                 לא ניתן לטעון את סטטוס ההתחברות כדי לעקוב

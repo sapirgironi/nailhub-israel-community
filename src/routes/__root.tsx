@@ -76,6 +76,8 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   );
 }
 
+const SITE_URL = "https://nailhub-two.vercel.app";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -84,8 +86,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "NailHub" },
       { name: "description", content: "קהילת הציפורניים המקצועית של ישראל" },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "NailHub" },
+      { property: "og:image", content: `${SITE_URL}/og-image.png` },
+      { property: "og:image:secure_url", content: `${SITE_URL}/og-image.png` },
+      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "NailHub" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:image", content: `${SITE_URL}/og-image.png` },
       { name: "theme-color", content: "#E11D48" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -94,14 +103,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "manifest", href: "/manifest.json" },
-      { rel: "apple-touch-icon", href: "/icon-192.png" },
+      { rel: "apple-touch-icon", href: `${SITE_URL}/icon-192.png` },
       {
         rel: "stylesheet",
         href: appCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=Assistant:wght@400;700;800&family=Rubik:ital,wght@1,400;1,700&family=Amatic+SC:wght@400;700&family=Varela+Round&family=Playpen+Sans+Hebrew:wght@400;700&family=Frank+Ruhl+Libre:wght@400;700&display=swap" },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: `${SITE_URL}/icon-192.png`, type: "image/png", sizes: "192x192" },
+      { rel: "shortcut icon", href: `${SITE_URL}/favicon.ico`, type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,

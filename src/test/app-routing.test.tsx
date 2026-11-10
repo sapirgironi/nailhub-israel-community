@@ -1,4 +1,3 @@
-import { QueryClient } from "@tanstack/react-query";
 import { rootRouteId } from "@tanstack/react-router";
 import { describe, expect, it } from "vitest";
 
@@ -38,7 +37,10 @@ describe("App routing", () => {
     const matches = router.matchRoutes("/terms");
     expect(matches.at(-1)?.routeId).toBe("/terms");
     for (const match of matches) {
-      const route = router.routesById[match.routeId];
+      const route = Object.values(router.routesById).find(
+        (candidate) => candidate.id === match.routeId,
+      );
+      expect(route).toBeDefined();
       expect(route?.options.beforeLoad).toBeUndefined();
       expect(route?.options.loader).toBeUndefined();
     }
@@ -48,7 +50,10 @@ describe("App routing", () => {
     const matches = router.matchRoutes("/request/9ba7b810-9dad-41f0-8b2a-0b2f6d5f5e54");
     expect(matches.at(-1)?.routeId).toBe("/request/$techId");
     for (const match of matches) {
-      const route = router.routesById[match.routeId];
+      const route = Object.values(router.routesById).find(
+        (candidate) => candidate.id === match.routeId,
+      );
+      expect(route).toBeDefined();
       expect(route?.options.beforeLoad).toBeUndefined();
       expect(route?.options.loader).toBeUndefined();
     }

@@ -1,9 +1,10 @@
 import {PASSWORD_LENGTH_MESSAGE} from './password-policy';
-export type ErrorKind = 'weak_password' | 'email_exists' | 'credentials' | 'unconfirmed' | 'rate_limit' | 'network' | 'forbidden' | 'expired' | 'unknown';
+export type ErrorKind = 'weak_password' | 'email_exists' | 'credentials' | 'unconfirmed' | 'rate_limit' | 'network' | 'forbidden' | 'expired' | 'configuration' | 'unknown';
 export function classifyError(error: unknown): ErrorKind {
   const value = typeof error === 'object' && error !== null ? error as {code?: unknown; message?: unknown; status?: unknown} : {};
   const code = String(value.code ?? '');
   const message = String(value.message ?? '').toLowerCase();
+  if (code === 'invalid_api_key' || /invalid api key|no api key found|missing supabase environment variable/.test(message)) return 'configuration';
   if (code === 'weak_password' || /weak password|password.*(least|short|weak|strength|pwned)|password is known/.test(message)) return 'weak_password';
   if (['user_already_exists','email_exists'].includes(code) || /already.*(registered|exists)/.test(message)) return 'email_exists';
   if (code === 'invalid_credentials' || /invalid login credentials/.test(message)) return 'credentials';
@@ -23,11 +24,19 @@ const messages: Record<ErrorKind,string> = {
   network:'לא ניתן להתחבר כרגע. בדקי את חיבור האינטרנט ונסי שוב.',
   forbidden:'אין לך הרשאה לבצע פעולה זו.',
   expired:'החיבור לחשבון הסתיים. התחברי שוב כדי להמשיך.',
+  configuration:'שירות ההתחברות אינו מוגדר כראוי. פני לתמיכה.',
   unknown:'הפעולה לא הושלמה. נסי שוב בעוד כמה רגעים.',
 };
 export function hebrewError(error: unknown, fallback = messages.unknown): string {
   const kind = classifyError(error);
   return kind === 'unknown' ? fallback : messages[kind];
+}
+export function hebrewAuthError(error: unknown, fallback: string): string {
+  const value = typeof error === 'object' && error !== null ? error as {status?: unknown} : {};
+  if (value.status === 401 && classifyError(error) === 'expired') {
+    return 'לא ניתן לאמת את הבקשה מול שירות ההתחברות. נסי שוב או פני לתמיכה.';
+  }
+  return hebrewError(error, fallback);
 }
 export function hebrewValidation(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): string {
   const v=input.validity;

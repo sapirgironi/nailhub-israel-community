@@ -19,7 +19,7 @@ import { HebrewPhotoInput } from "./HebrewPhotoInput";
 import { PasswordField } from "./PasswordField";
 import { lovable } from "@/integrations/lovable/index";
 import { isPasswordAllowed, PASSWORD_LENGTH_MESSAGE } from "@/lib/password-policy";
-import { hebrewError } from "@/lib/hebrew-errors";
+import { hebrewAuthError, hebrewError } from "@/lib/hebrew-errors";
 import { phoneText, plainText } from "@/lib/input-security";
 import {
   Sparkles,
@@ -159,6 +159,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
+  const [signupNotice, setSignupNotice] = useState("");
   const [recoveryMode, setRecoveryMode] = useState<"none" | "request" | "otp" | "password">("none");
   const [recoveryChannel, setRecoveryChannel] = useState<"email" | "sms">("email");
   const [recoveryOtp, setRecoveryOtp] = useState("");
@@ -199,11 +200,14 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
   const checkAccess = async (userId: string) => {
     const { data, error } = await supabase.rpc("is_account_banned", { target_user: userId });
     if (error || data !== false) {
+      if (error) console.error("Could not check account access", { code: error.code });
       setBlocked(true);
       setCurrentUser(null);
       setIsAdmin(false);
       setAuthError(
-        error ? "בדיקת הגישה נכשלה. נסי שוב." : "החשבון נחסם לצמיתות. אין אפשרות להיכנס לאפליקציה.",
+        error
+          ? hebrewError(error, "בדיקת הגישה נכשלה. נסי שוב.")
+          : "החשבון נחסם לצמיתות. אין אפשרות להיכנס לאפליקציה.",
       );
       setAccessChecked(true);
       return false;
@@ -227,20 +231,22 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
   const loadData = async (userId: string) => {
     setAccessChecked(false);
     try {
-      if (!(await checkAccess(userId))) return;
       const { data: authData, error: authUserError } = await supabase.auth.getUser();
-      if (authUserError || !authData.user) {
+      if (authUserError || !authData.user || authData.user.id !== userId) {
+        console.error("Could not verify session user", { code: authUserError?.code });
         setAuthError(hebrewError(authUserError, "לא ניתן לטעון את החשבון. התחברי שוב."));
-        return;
+        return false;
       }
+      if (!(await checkAccess(userId))) return false;
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .maybeSingle();
       if (error) {
-        setAuthError("טעינת הפרופיל נכשלה. נסי להתחבר שוב.");
-        return;
+        console.error("Could not load profile", { code: error.code });
+        setAuthError(hebrewError(error, "טעינת הפרופיל נכשלה. נסי להתחבר שוב או פני לתמיכה."));
+        return false;
       }
       const provider = authData.user.app_metadata.provider;
       if (
@@ -269,7 +275,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
         setProfileCompletionUserId(userId);
         setCurrentUser(null);
         setCurrentStep("onboarding");
-        return;
+        return false;
       }
       const signedInMember = profile
         ? { ...toMember(profile), avatar: profile.avatar_url || undefined }
@@ -278,55 +284,93 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
         setCurrentUser(null);
         setCurrentStep("login");
         setAuthError("לא נמצא פרופיל לחשבון. התחברי שוב או פני לתמיכה.");
-        return;
+        return false;
       }
       setProfileCompletion(false);
       setProfileCompletionUserId(null);
       setCurrentUser(signedInMember);
-      const { data: adminCheck } = await supabase.rpc("has_role", {
+      const { data: adminCheck, error: adminError } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "admin",
       });
+      if (adminError) console.error("Could not check admin role", { code: adminError.code });
       setIsAdmin(adminCheck === true);
       setCurrentStep("app");
+      return true;
+    } catch (error) {
+      console.error("Could not load account data", error);
+      setAuthError(hebrewError(error, "טעינת החשבון נכשלה. נסי להתחבר שוב."));
+      return false;
     } finally {
       setAccessChecked(true);
     }
   };
 
   useEffect(() => {
+    let active = true;
+    const timers = new Set<number>();
     if (window.location.hash.includes("type=recovery")) {
       recoveryPending.current = true;
       setRecoveryMode("password");
     }
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session && !recoveryPending.current) void loadData(data.session.user.id);
-      else setAccessChecked(true);
-    }).catch((error: unknown) => {
-      console.error("Could not restore session", error);
+    let unsubscribe: (() => void) | undefined;
+    try {
+      supabase.auth
+        .getSession()
+        .then(({ data, error }) => {
+          if (!active) return;
+          if (error) {
+            console.error("Could not restore session", { code: error.code, status: error.status });
+            setAuthError(hebrewError(error, "לא ניתן לשחזר את החיבור לחשבון. התחברי שוב."));
+          }
+          if (data.session && !recoveryPending.current) void loadData(data.session.user.id);
+          else setAccessChecked(true);
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            console.error("Could not restore session", error);
+            setAuthError(hebrewError(error, "לא ניתן לשחזר את החיבור לחשבון. התחברי שוב."));
+            setAccessChecked(true);
+          }
+        });
+      const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "PASSWORD_RECOVERY") {
+          recoveryPending.current = true;
+          setRecoveryMode("password");
+          setRecoveryNotice("");
+          setCurrentStep("login");
+          setAccessChecked(true);
+        }
+        if (event === "SIGNED_IN" && session && !recoveryPending.current) {
+          const timer = window.setTimeout(() => {
+            timers.delete(timer);
+            if (active && !recoveryPending.current) void loadData(session.user.id);
+          }, 0);
+          timers.add(timer);
+        }
+        if (event === "SIGNED_OUT") {
+          timers.forEach((timer) => window.clearTimeout(timer));
+          timers.clear();
+          recoveryPending.current = false;
+          setCurrentUser(null);
+          setIsAdmin(false);
+          setProfileCompletion(false);
+          setProfileCompletionUserId(null);
+          setRecoveryMode("none");
+          setCurrentStep("login");
+        }
+      });
+      unsubscribe = () => sub.subscription.unsubscribe();
+    } catch (error) {
+      console.error("Could not initialize authentication", error);
+      setAuthError(hebrewError(error, "לא ניתן להפעיל את שירות ההתחברות. פני לתמיכה."));
       setAccessChecked(true);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        recoveryPending.current = true;
-        setRecoveryMode("password");
-        setRecoveryNotice("");
-        setCurrentStep("login");
-        setAccessChecked(true);
-      }
-      if (event === "SIGNED_IN" && session && !recoveryPending.current)
-        void loadData(session.user.id);
-      if (event === "SIGNED_OUT") {
-        recoveryPending.current = false;
-        setCurrentUser(null);
-        setIsAdmin(false);
-        setProfileCompletion(false);
-        setProfileCompletionUserId(null);
-        setRecoveryMode("none");
-        setCurrentStep("login");
-      }
-    });
-    return () => sub.subscription.unsubscribe();
+    }
+    return () => {
+      active = false;
+      timers.forEach((timer) => window.clearTimeout(timer));
+      unsubscribe?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -407,8 +451,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
         }
         setProfileCompletion(false);
         setProfileCompletionUserId(null);
-        await loadData(data.id);
-        await navigate({ to: "/feed", search: { compose: false } });
+        if (await loadData(data.id)) await navigate({ to: "/feed", search: { compose: false } });
       } catch (error) {
         setAuthError(hebrewError(error, "שמירת הפרופיל נכשלה. נסי שוב."));
       } finally {
@@ -426,6 +469,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
       return;
     }
     setAuthError("");
+    setSignupNotice("");
     if (!isPasswordAllowed(authPassword)) {
       setAuthError(PASSWORD_LENGTH_MESSAGE);
       return;
@@ -448,28 +492,26 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
           },
         },
       });
-      setAuthLoading(false);
-      if (error)
-        return setAuthError(hebrewError(error, "ההרשמה לא הושלמה. נסי שוב בעוד כמה רגעים."));
+      if (error) {
+        console.error("Signup failed", { code: error.code, status: error.status });
+        return setAuthError(hebrewAuthError(error, "ההרשמה לא הושלמה. נסי שוב בעוד כמה רגעים."));
+      }
       if (data.user?.identities?.length === 0)
         return setAuthError(hebrewError({ code: "email_exists" }));
+      if (!data.user) {
+        console.error("Signup returned no user");
+        return setAuthError("ההרשמה לא הושלמה. נסי שוב או פני לתמיכה.");
+      }
       if (data.session) {
-        await loadData(data.session.user.id);
-        await navigate({ to: "/feed", search: { compose: false } });
+        if (await loadData(data.session.user.id))
+          await navigate({ to: "/feed", search: { compose: false } });
       } else {
-        const { data: login, error: loginError } = await supabase.auth.signInWithPassword({
-          email: authEmail.trim(),
-          password: authPassword,
-        });
-        if (loginError || !login.session) {
-          setAuthError(hebrewError(loginError, "לא ניתן להתחבר כרגע. נסי שוב."));
-          return;
-        }
-        await loadData(login.session.user.id);
-        await navigate({ to: "/feed", search: { compose: false } });
+        setSignupNotice("אם ההרשמה הושלמה, בדקי את האימייל ואמתי את הכתובת לפני ההתחברות.");
+        setCurrentStep("login");
       }
     } catch (error) {
-      setAuthError(hebrewError(error));
+      console.error("Signup failed", error);
+      setAuthError(hebrewAuthError(error, "ההרשמה לא הושלמה. נסי שוב בעוד כמה רגעים."));
     } finally {
       setAuthLoading(false);
     }
@@ -478,6 +520,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
+    setSignupNotice("");
     setAuthLoading(true);
     try {
       const identifier = authEmail.trim();
@@ -486,25 +529,17 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
         : { phone: identifier, password: authPassword };
       const { data, error } = await supabase.auth.signInWithPassword(credentials);
       if (error) {
-        const loginError =
-          error.status === 401 ||
-          ["bad_jwt", "session_expired", "refresh_token_not_found"].includes(error.code ?? "")
-            ? { code: "invalid_credentials" }
-            : error;
-        setAuthError(
-          hebrewError(
-            loginError,
-            "פרטי ההתחברות אינם נכונים או שלא ניתן לאמת את החשבון. בדקי את הפרטים ונסי שוב.",
-          ),
-        );
+        console.error("Login failed", { code: error.code, status: error.status });
+        setAuthError(hebrewAuthError(error, "ההתחברות לא הושלמה. נסי שוב או פני לתמיכה."));
       } else if (data.session) {
-        await loadData(data.session.user.id);
-        await navigate({ to: "/feed", search: { compose: false } });
+        if (await loadData(data.session.user.id))
+          await navigate({ to: "/feed", search: { compose: false } });
       } else {
         setAuthError("ההתחברות לא הושלמה. בדקי את פרטי הגישה ונסי שוב.");
       }
     } catch (error) {
-      setAuthError(hebrewError(error));
+      console.error("Login failed", error);
+      setAuthError(hebrewAuthError(error, "ההתחברות לא הושלמה. נסי שוב או פני לתמיכה."));
     } finally {
       setAuthLoading(false);
     }
@@ -591,8 +626,8 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
         setRecoveryOtp("");
         setRecoveryPassword("");
         setRecoveryPasswordConfirm("");
-        await loadData(data.user.id);
-        await navigate({ to: "/feed", search: { compose: false } });
+        if (await loadData(data.user.id))
+          await navigate({ to: "/feed", search: { compose: false } });
       }
     } catch (error) {
       setAuthError(
@@ -721,6 +756,14 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
                 <span className="h-px flex-1 bg-border" />
               </div>
               <form onSubmit={handleLogin} className="space-y-4">
+                {signupNotice && (
+                  <p
+                    role="status"
+                    className="text-xs text-muted-foreground bg-accent rounded-xl p-2"
+                  >
+                    {signupNotice}
+                  </p>
+                )}
                 <div>
                   <label
                     htmlFor="login-identifier"

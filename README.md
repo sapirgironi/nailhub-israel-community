@@ -1,5 +1,22 @@
 # Nailhub Israel Community
 
+## Supabase authentication configuration
+
+Set `VITE_SUPABASE_URL` and either `VITE_SUPABASE_PUBLISHABLE_KEY` (preferred)
+or `VITE_SUPABASE_ANON_KEY` for the browser build. Set `SUPABASE_URL` and
+`SUPABASE_PUBLISHABLE_KEY` or `SUPABASE_ANON_KEY` for server functions; both
+URLs and keys must refer to the same Supabase project. Vite variables are
+embedded at build time, so rebuild and redeploy after changing them. Use only a
+public publishable/anon key in `VITE_` variables, never a service-role or
+secret key. The privileged server client uses `SUPABASE_SERVICE_ROLE_KEY`
+separately.
+
+If email confirmation is enabled, signup may return no session: the user must
+confirm the email before signing in. The signup trigger creates the profile;
+profile reads require an authenticated session and the owner/admin RLS policy.
+Check the Supabase project configuration, deployed migrations and Auth logs
+when a request fails; do not log passwords, API keys or session tokens.
+
 import React, { useState } from 'react';
 
 import { 

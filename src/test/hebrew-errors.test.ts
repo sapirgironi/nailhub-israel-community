@@ -15,5 +15,6 @@ describe('Auth error classification',()=>{
     expect(classifyError({ code: 'email_not_confirmed', status: 400 })).toBe('unconfirmed');
     expect(classifyError({ code: '42501' })).toBe('forbidden');
     expect(classifyError(new Error('Missing Supabase environment variable(s)'))).toBe('configuration');
+    expect(classifyError(new Error('Invalid Supabase configuration: URL must be an absolute HTTPS origin.'))).toBe('configuration');
   });
 });

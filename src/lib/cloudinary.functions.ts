@@ -1,8 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { setResponseHeader } from '@tanstack/react-start/server';
 import { requireActiveAccount } from './account-access';
-import { cloudinaryReference, IMAGE_OPTIMIZATION, validateOptimizedImage } from './cloudinary';
-import { fetchOptimizedImage } from './cloudinary.server';
+import { cloudinaryReference, validateOptimizedImage } from './cloudinary';
 
 export const uploadCloudinaryImage = createServerFn({ method: 'POST' })
   .middleware([requireActiveAccount])
@@ -15,49 +14,10 @@ export const uploadCloudinaryImage = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data, context }) => {
     setResponseHeader('Cache-Control', 'private, no-store');
-    const cloud = process.env['CLOUDINARY_CLOUD_NAME'];
-    const key = process.env['CLOUDINARY_API_KEY'];
-    const secret = process.env['CLOUDINARY_API_SECRET'];
-    if (!cloud || !key || !secret) throw new Error('שירות התמונות אינו מוגדר כרגע');
     const file = data.get('file');
     if (!(file instanceof File)) throw new Error('לא נבחרה תמונה');
-    // Check actual file headers too, not just caller-controlled MIME metadata.
-    const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-    const valid = file.type === 'image/jpeg' ? header[0] === 255 && header[1] === 216 && header[2] === 255
-      : file.type === 'image/png' ? [137,80,78,71,13,10,26,10].every((b,i) => header[i] === b)
-      : new TextDecoder().decode(header.slice(0,4)) === 'RIFF' && new TextDecoder().decode(header.slice(8,12)) === 'WEBP';
-    if (!valid) throw new Error('קובץ התמונה אינו תקין');
-    const body = new FormData();
-    body.set('file', file);
-    body.set('type', 'authenticated');
-    const publicId = `nailhub/${context.userId}/${crypto.randomUUID()}`;
-    body.set('public_id', publicId);
-    body.set('overwrite', 'false');
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloud)}/image/upload`;
-    let response: Response;
-    try {
-      response = await fetch(uploadUrl, {
-        method: 'POST', headers: { Authorization: `Basic ${btoa(`${key}:${secret}`)}` }, body,
-      });
-    } catch (error) {
-      console.error('Cloudinary upload request failed', { url: uploadUrl, error });
-      throw new Error(`לא ניתן להתחבר לשירות התמונות בכתובת ${uploadUrl}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    if (!response.ok) {
-      const details = await response.text();
-      console.error('Cloudinary upload failed', {
-        url: response.url || uploadUrl,
-        status: response.status,
-        statusText: response.statusText,
-        response: details,
-      });
-      throw new Error(`העלאת התמונה נכשלה בכתובת ${uploadUrl} (HTTP ${response.status}): ${details}`);
-    }
-    const result = await response.json() as { public_id: string; version: number; format: string };
-    if (result.public_id !== publicId || !['jpg','png','webp'].includes(result.format) || !Number.isInteger(result.version))
-      throw new Error('עיבוד התמונה נכשל');
-    const url = `https://res.cloudinary.com/${cloud}/image/authenticated/${IMAGE_OPTIMIZATION}/v${result.version}/${publicId}.${result.format}`;
-    return { url };
+    const { uploadAuthenticatedImage } = await import('./cloudinary.server');
+    return uploadAuthenticatedImage(file, context.userId);
   });
 
 export const readCloudinaryImage = createServerFn({ method: 'POST' })
@@ -68,9 +28,8 @@ export const readCloudinaryImage = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data, context }) => {
     setResponseHeader('Cache-Control', 'private, no-store');
-    const cloud = process.env['CLOUDINARY_CLOUD_NAME'];
-    const secret = process.env['CLOUDINARY_API_SECRET'];
-    if (!cloud || !secret) throw new Error('שירות התמונות אינו מוגדר כרגע');
+    const { getCloudinaryDeliveryConfig, fetchOptimizedImage } = await import('./cloudinary.server');
+    const { cloud, secret } = getCloudinaryDeliveryConfig();
     const reference = cloudinaryReference(data.url, cloud);
     if (reference.owner !== context.userId) {
       const db = context.supabase;

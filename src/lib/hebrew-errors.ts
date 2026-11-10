@@ -4,7 +4,7 @@ export function classifyError(error: unknown): ErrorKind {
   const value = typeof error === 'object' && error !== null ? error as {code?: unknown; message?: unknown; status?: unknown} : {};
   const code = String(value.code ?? '');
   const message = String(value.message ?? '').toLowerCase();
-  if (code === 'invalid_api_key' || /invalid api key|no api key found|missing supabase environment variable/.test(message)) return 'configuration';
+  if (code === 'invalid_api_key' || /invalid api key|no api key found|missing supabase environment variable|invalid supabase configuration/.test(message)) return 'configuration';
   if (code === 'weak_password' || /weak password|password.*(least|short|weak|strength|pwned)|password is known/.test(message)) return 'weak_password';
   if (['user_already_exists','email_exists'].includes(code) || /already.*(registered|exists)/.test(message)) return 'email_exists';
   if (code === 'invalid_credentials' || /invalid login credentials/.test(message)) return 'credentials';

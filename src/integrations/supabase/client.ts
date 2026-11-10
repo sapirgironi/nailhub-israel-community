@@ -7,18 +7,53 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
 
-// The public URL can be reachable only from the browser, so server requests go to the runtime URL of the same backend.
-function serverSupabaseUrl(publicUrl: string, supabaseKey: string): string | undefined {
-  if (typeof window !== 'undefined' || typeof process === 'undefined') return undefined;
-  const serverUrl = process.env['SUPABASE_URL']?.replace(/\/+$/, '');
-  const serverKey = process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_ANON_KEY'];
-  if (!serverUrl || serverUrl === publicUrl || serverKey !== supabaseKey) return undefined;
-  return serverUrl;
+function validateSupabaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('Invalid Supabase configuration: URL must be an absolute HTTPS origin.');
+  }
+  const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  const validHostname = url.hostname === '[::1]' || url.hostname.split('.').every(
+    (label) => label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label),
+  );
+  if (
+    (url.protocol !== 'https:' && !(isLocal && url.protocol === 'http:')) ||
+    !validHostname ||
+    url.username || url.password || url.pathname !== '/' || url.search || url.hash
+  ) {
+    throw new Error('Invalid Supabase configuration: URL must be an absolute HTTPS origin with a valid hostname.');
+  }
+  return url.origin;
 }
 
-function createSupabaseFetch(supabaseUrl: string, supabaseKey: string): typeof fetch {
-  const publicUrl = supabaseUrl.replace(/\/+$/, '');
-  const serverUrl = serverSupabaseUrl(publicUrl, supabaseKey);
+function validatePublicKey(key: string, url: string): void {
+  if (key.startsWith('sb_secret_')) {
+    throw new Error('Invalid Supabase configuration: a secret key cannot be used in the public client.');
+  }
+  if (!key.startsWith('eyJ')) return;
+  let payload: unknown;
+  try {
+    const part = key.split('.')[1];
+    if (!part) throw new Error('Missing JWT payload');
+    payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    throw new Error('Invalid Supabase configuration: the public API key is malformed.');
+  }
+  if (typeof payload !== 'object' || payload === null) {
+    throw new Error('Invalid Supabase configuration: the public API key is malformed.');
+  }
+  if ('role' in payload && payload.role !== 'anon') {
+    throw new Error('Invalid Supabase configuration: the public client requires an anon key.');
+  }
+  const project = /^([a-z0-9-]+)\.supabase\.co$/i.exec(new URL(url).hostname)?.[1];
+  if (project && 'ref' in payload && typeof payload.ref === 'string' && payload.ref !== project) {
+    throw new Error('Invalid Supabase configuration: the URL and public API key belong to different projects.');
+  }
+}
+
+function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
@@ -34,39 +69,31 @@ function createSupabaseFetch(supabaseUrl: string, supabaseKey: string): typeof f
     }
 
     headers.set('apikey', supabaseKey);
-    if (serverUrl) {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (url.startsWith(`${publicUrl}/`)) {
-        const target = serverUrl + url.slice(publicUrl.length);
-        const request = typeof input === 'string' || input instanceof URL ? target : new Request(target, input);
-        return fetch(request, { ...init, headers });
-      }
-    }
     return fetch(input, { ...init, headers });
   };
 }
 
 
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const serverEnv = typeof process === 'undefined' ? undefined : process.env;
-  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || serverEnv?.['SUPABASE_URL'];
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || import.meta.env['VITE_SUPABASE_ANON_KEY'] || serverEnv?.['SUPABASE_PUBLISHABLE_KEY'] || serverEnv?.['SUPABASE_ANON_KEY'];
+  const serverEnv = typeof window === 'undefined' && typeof process !== 'undefined' ? process.env : undefined;
+  const SUPABASE_URL = (import.meta.env['VITE_SUPABASE_URL'] || serverEnv?.['SUPABASE_URL'])?.trim();
+  const SUPABASE_ANON_KEY = (import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || import.meta.env['VITE_SUPABASE_ANON_KEY'] || serverEnv?.['SUPABASE_PUBLISHABLE_KEY'] || serverEnv?.['SUPABASE_ANON_KEY'])?.trim();
 
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     const missing = [
       ...(!SUPABASE_URL ? ['VITE_SUPABASE_URL (or SUPABASE_URL on the server)'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY (or their server equivalents)'] : []),
+      ...(!SUPABASE_ANON_KEY ? ['VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY (or their server equivalents)'] : []),
     ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
+    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}.`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
 
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  const validatedUrl = validateSupabaseUrl(SUPABASE_URL);
+  validatePublicKey(SUPABASE_ANON_KEY, validatedUrl);
+  return createClient<Database>(validatedUrl, SUPABASE_ANON_KEY, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY),
+      fetch: createSupabaseFetch(SUPABASE_ANON_KEY),
     },
     auth: {
       storage: brokeredPreviewStorage(),

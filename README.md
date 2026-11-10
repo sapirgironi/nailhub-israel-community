@@ -2,20 +2,30 @@
 
 ## Supabase authentication configuration
 
-Set `VITE_SUPABASE_URL` and either `VITE_SUPABASE_PUBLISHABLE_KEY` (preferred)
-or `VITE_SUPABASE_ANON_KEY` for the browser build. Set `SUPABASE_URL` and
-`SUPABASE_PUBLISHABLE_KEY` or `SUPABASE_ANON_KEY` for server functions; both
-URLs and keys must refer to the same Supabase project. Vite variables are
-embedded at build time, so rebuild and redeploy after changing them. Use only a
-public publishable/anon key in `VITE_` variables, never a service-role or
-secret key. The privileged server client uses `SUPABASE_SERVICE_ROLE_KEY`
-separately.
+For local development, set `VITE_SUPABASE_URL` and either
+`VITE_SUPABASE_PUBLISHABLE_KEY` or `VITE_SUPABASE_ANON_KEY` in `.env`.
+The shared client prefers the publishable key when both are set. Server
+functions require `SUPABASE_URL` and either `SUPABASE_PUBLISHABLE_KEY` or
+`SUPABASE_ANON_KEY` for the same project. Privileged server operations
+separately require that project's `SUPABASE_SERVICE_ROLE_KEY`; never expose
+service-role or secret keys to the browser. Restart the dev server after
+changing `.env`. Ensure the selected database has the required migrations.
 
 If email confirmation is enabled, signup may return no session: the user must
 confirm the email before signing in. The signup trigger creates the profile;
 profile reads require an authenticated session and the owner/admin RLS policy.
 Check the Supabase project configuration, deployed migrations and Auth logs
 when a request fails; do not log passwords, API keys or session tokens.
+
+## Cloudinary configuration
+
+Copy `.env.example` to `.env` for local development and set the Cloudinary cloud
+name, API key and API secret there. Store these values in server-side deployment
+environment variables for deployed environments; never use a `VITE_` prefix for
+the secret. The authenticated server function uploads images for active accounts
+and keeps Cloudinary credentials on the server. Local `.env` files are ignored by
+Git. A secret previously committed to Git must be rotated in Cloudinary even
+after the file is removed from tracking.
 
 import React, { useState } from 'react';
 

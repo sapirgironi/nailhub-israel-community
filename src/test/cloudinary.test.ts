@@ -1,9 +1,47 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cloudinaryReference, IMAGE_OPTIMIZATION, validateImage } from '../lib/cloudinary';
-import { createOptimizedImageUrl, fetchOptimizedImage } from '../lib/cloudinary.server';
-afterEach(() => vi.restoreAllMocks());
+import { createOptimizedImageUrl, fetchOptimizedImage, uploadAuthenticatedImage } from '../lib/cloudinary.server';
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe('Cloudinary image rules', () => {
+  it('uploads privately from the server with the owner id and never returns credentials', async () => {
+    vi.stubEnv('CLOUDINARY_CLOUD_NAME', 'example-cloud');
+    vi.stubEnv('CLOUDINARY_API_KEY', 'example-key');
+    vi.stubEnv('CLOUDINARY_API_SECRET', 'example-secret');
+    const id = '12345678-1234-1234-1234-123456789abc';
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(id);
+    const file = new File([new Uint8Array([255, 216, 255, 0])], 'test.jpg', { type: 'image/jpeg' });
+    const slice = file.slice.bind(file);
+    vi.spyOn(file, 'slice').mockImplementation((...args) => {
+      const blob = slice(...args);
+      Object.defineProperty(blob, 'arrayBuffer', { value: async () => new Uint8Array([255, 216, 255, 0]).buffer });
+      return blob;
+    });
+    const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ public_id: `nailhub/${id}/${id}`, version: 1, format: 'jpg' })),
+    );
+    const result = await uploadAuthenticatedImage(file, id);
+    expect(result).toEqual({ url: `https://res.cloudinary.com/example-cloud/image/authenticated/f_auto,q_auto/v1/nailhub/${id}/${id}.jpg` });
+    const [url, options] = request.mock.calls[0]!;
+    expect(url).toBe('https://api.cloudinary.com/v1_1/example-cloud/image/upload');
+    const form = options?.body as FormData;
+    expect(form.get('type')).toBe('authenticated');
+    expect(form.get('public_id')).toBe(`nailhub/${id}/${id}`);
+    expect(new Headers(options?.headers).get('authorization')).toBe(`Basic ${btoa('example-key:example-secret')}`);
+    expect(JSON.stringify(result)).not.toContain('example-secret');
+  });
+  it('rejects invalid image content before sending it to Cloudinary', async () => {
+    vi.stubEnv('CLOUDINARY_CLOUD_NAME', 'example-cloud');
+    vi.stubEnv('CLOUDINARY_API_KEY', 'example-key');
+    vi.stubEnv('CLOUDINARY_API_SECRET', 'example-secret');
+    const file = new File(['bad'], 'test.jpg', { type: 'image/jpeg' });
+    const blob = file.slice();
+    Object.defineProperty(blob, 'arrayBuffer', { value: async () => new Uint8Array([0, 0, 0]).buffer });
+    vi.spyOn(file, 'slice').mockReturnValue(blob);
+    const request = vi.spyOn(globalThis, 'fetch');
+    await expect(uploadAuthenticatedImage(file, 'owner')).rejects.toThrow('קובץ התמונה אינו תקין');
+    expect(request).not.toHaveBeenCalled();
+  });
   it('requires automatic format and quality optimization', () => {
     expect(IMAGE_OPTIMIZATION).toBe('f_auto,q_auto');
     expect(() => cloudinaryReference('https://res.cloudinary.com/test/image/upload/f_auto,q_auto/x.jpg','test')).toThrow();

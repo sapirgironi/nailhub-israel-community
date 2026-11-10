@@ -396,14 +396,9 @@ function StoriesBar({ user }: { user: Person }) {
       alt_text: alt?.trim() || null,
       mentions: Array.isArray(mentions) ? mentions : [],
     };
-    const supabaseUrl =
-      import.meta.env["VITE_SUPABASE_URL"] ||
-      (typeof process !== "undefined" ? process.env["SUPABASE_URL"] : undefined);
-    const url = `${supabaseUrl?.replace(/\/+$/, "") ?? "[Supabase URL unavailable]"}/rest/v1/stories`;
     const { error } = await supabase.from("stories").insert(payload);
     if (error) {
       console.error("Story insert failed", {
-        url,
         payload: { ...payload, media_url: "[omitted]" },
         error: {
           name: error.name,

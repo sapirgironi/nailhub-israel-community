@@ -77,7 +77,10 @@ beforeEach(() => {
     error: null,
   });
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+});
 
 function renderApp() {
   return render(
@@ -96,6 +99,19 @@ async function login() {
 }
 
 describe("authentication flow", () => {
+  it("hides Apple sign-in only when explicitly disabled", async () => {
+    vi.stubEnv("VITE_APPLE_SIGNIN_ENABLED", "false");
+    renderApp();
+    expect(await screen.findByRole("button", { name: "התחברי באמצעות Google" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "התחברי באמצעות Apple" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Apple sign-in available by default", async () => {
+    vi.stubEnv("VITE_APPLE_SIGNIN_ENABLED", "");
+    renderApp();
+    expect(await screen.findByRole("button", { name: "התחברי באמצעות Apple" })).toBeVisible();
+  });
+
   it("asks for email confirmation instead of attempting a password login without a session", async () => {
     mocks.signUp.mockResolvedValue({
       data: { user: { identities: [{}] }, session: null },

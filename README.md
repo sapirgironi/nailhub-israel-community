@@ -11,6 +11,13 @@ separately require that project's `SUPABASE_SERVICE_ROLE_KEY`; never expose
 service-role or secret keys to the browser. Restart the dev server after
 changing `.env`. Ensure the selected database has the required migrations.
 
+OAuth defaults to the existing Lovable flow. Set `VITE_SUPABASE_OAUTH_MODE`
+to `supabase` only after configuring the required providers and permitted
+redirect URLs in the selected Supabase project. Both the main login and client
+request flow then use that project's Supabase Auth. If Apple is temporarily
+unavailable, set `VITE_APPLE_SIGNIN_ENABLED=false` to hide its login button;
+the default retains Apple sign-in.
+
 If email confirmation is enabled, signup may return no session: the user must
 confirm the email before signing in. The signup trigger creates the profile;
 profile reads require an authenticated session and the owner/admin RLS policy.

@@ -17,7 +17,7 @@ import { uploadPhoto } from "@/lib/media";
 import { ImageUploadStatus } from "./ImageUploadStatus";
 import { HebrewPhotoInput } from "./HebrewPhotoInput";
 import { PasswordField } from "./PasswordField";
-import { lovable } from "@/integrations/lovable/index";
+import { signInWithOAuth } from "@/lib/oauth";
 import { isPasswordAllowed, PASSWORD_LENGTH_MESSAGE } from "@/lib/password-policy";
 import { hebrewAuthError, hebrewError } from "@/lib/hebrew-errors";
 import { phoneText, plainText } from "@/lib/input-security";
@@ -134,6 +134,7 @@ type DirectoryCursor = { displayName: string; id: string };
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
 export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
+  const appleSignInEnabled = import.meta.env["VITE_APPLE_SIGNIN_ENABLED"] !== "false";
   const [currentStep, setCurrentStep] = useState<"gate" | "login" | "onboarding" | "app">("login");
   const activeTab = section;
   const navigate = useNavigate();
@@ -549,9 +550,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
     setAuthError("");
     setAuthLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: window.location.origin + "/feed",
-      });
+      const result = await signInWithOAuth(provider, window.location.origin + "/feed");
       if (result.error) {
         setAuthError(hebrewError(result.error, "לא ניתן להתחבר כרגע. נסי שוב."));
         return;
@@ -709,7 +708,9 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
 
           {recoveryMode === "none" ? (
             <>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div
+                className={`grid grid-cols-1 gap-2 ${appleSignInEnabled ? "sm:grid-cols-2" : ""}`}
+              >
                 <Button
                   type="button"
                   variant="outline"
@@ -737,18 +738,20 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
                   </svg>
                   התחברי באמצעות Google
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={authLoading}
-                  className="rounded-2xl text-sm font-bold"
-                  onClick={() => void handleOAuthLogin("apple")}
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-                    <path d="M16.37 12.67c.02 2.2 1.93 2.93 1.95 2.94-.02.05-.3 1.03-1 2.04-.6.87-1.23 1.74-2.22 1.76-.97.02-1.28-.57-2.38-.57-1.1 0-1.45.55-2.37.59-.95.04-1.67-.94-2.27-1.8-1.23-1.78-2.17-5.03-.9-7.22.63-1.09 1.76-1.78 2.99-1.8.93-.02 1.8.63 2.38.63.57 0 1.64-.78 2.76-.66.47.02 1.8.19 2.65 1.43-.07.04-1.58.92-1.57 2.66ZM14.55 6.8c.5-.6.84-1.44.75-2.28-.72.03-1.59.48-2.1 1.08-.46.53-.87 1.38-.76 2.2.8.06 1.61-.41 2.11-1Z" />
-                  </svg>
-                  התחברי באמצעות Apple
-                </Button>
+                {appleSignInEnabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={authLoading}
+                    className="rounded-2xl text-sm font-bold"
+                    onClick={() => void handleOAuthLogin("apple")}
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+                      <path d="M16.37 12.67c.02 2.2 1.93 2.93 1.95 2.94-.02.05-.3 1.03-1 2.04-.6.87-1.23 1.74-2.22 1.76-.97.02-1.28-.57-2.38-.57-1.1 0-1.45.55-2.37.59-.95.04-1.67-.94-2.27-1.8-1.23-1.78-2.17-5.03-.9-7.22.63-1.09 1.76-1.78 2.99-1.8.93-.02 1.8.63 2.38.63.57 0 1.64-.78 2.76-.66.47.02 1.8.19 2.65 1.43-.07.04-1.58.92-1.57 2.66ZM14.55 6.8c.5-.6.84-1.44.75-2.28-.72.03-1.59.48-2.1 1.08-.46.53-.87 1.38-.76 2.2.8.06 1.61-.41 2.11-1Z" />
+                    </svg>
+                    התחברי באמצעות Apple
+                  </Button>
+                )}
               </div>
               <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="h-px flex-1 bg-border" />

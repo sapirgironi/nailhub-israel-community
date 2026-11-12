@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { signInWithOAuth } from "@/lib/oauth";
 import {
   clientRequestSchema,
   CLIENT_REQUEST_TYPES,
@@ -158,9 +158,10 @@ export function ClientRequestPage({ techId }: { techId: string }) {
         return;
       }
 
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/request/${encodeURIComponent(techId)}`,
-      });
+      const result = await signInWithOAuth(
+        "google",
+        `${window.location.origin}/request/${encodeURIComponent(techId)}`,
+      );
       if (result.error) throw result.error;
       if (!result.redirected) {
         const { data, error } = await supabase.auth.getSession();

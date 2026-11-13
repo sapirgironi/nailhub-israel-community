@@ -4,6 +4,7 @@ import { Send, LifeBuoy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from './ui/button';
 import { plainText } from '@/lib/input-security';
+import { Pagination, PAGE_SIZE, pageRange } from './Pagination';
 
 const field = 'text-right w-full border border-input rounded-lg bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 const CATEGORIES = [
@@ -21,10 +22,13 @@ export function SupportForm({ user }: { user: { id: string; fullName: string; ph
   const [body, setBody] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(0);
   const mine = useQuery({
-    queryKey: ['my-tickets', user.id],
+    queryKey: ['my-tickets', user.id, page],
+    staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from('support_tickets').select('id,subject,category,status,created_at').eq('user_id', user.id).order('created_at', { ascending: false });
+      const { from, to } = pageRange(page);
+      const { data, error } = await supabase.from('support_tickets').select('id,subject,category,status,created_at').eq('user_id', user.id).order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to);
       if (error) throw error;
       return data;
     },
@@ -68,7 +72,7 @@ export function SupportForm({ user }: { user: { id: string; fullName: string; ph
         <h2 className="font-bold">הפניות שלי</h2>
         {mine.isError && <p className="text-sm text-muted-foreground">טעינת הפניות נכשלה</p>}
         {mine.data?.length === 0 && <p className="text-sm text-muted-foreground">עדיין לא שלחת פניות</p>}
-        {(mine.data ?? []).map((t) => (
+        {(mine.data ?? []).slice(0, PAGE_SIZE).map((t) => (
           <div key={t.id} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-bold break-words">{t.subject}</p>
@@ -77,6 +81,7 @@ export function SupportForm({ user }: { user: { id: string; fullName: string; ph
             <span className="text-[11px] font-bold bg-accent text-primary px-2 py-1 rounded-lg shrink-0">{STATUS_LABEL[t.status] ?? t.status}</span>
           </div>
         ))}
+        <Pagination page={page} onPageChange={setPage} hasNext={(mine.data?.length ?? 0) > PAGE_SIZE} loading={mine.isFetching} />
       </div>
     </div>
   );

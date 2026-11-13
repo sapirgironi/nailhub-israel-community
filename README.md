@@ -24,6 +24,22 @@ profile reads require an authenticated session and the owner/admin RLS policy.
 Check the Supabase project configuration, deployed migrations and Auth logs
 when a request fails; do not log passwords, API keys or session tokens.
 
+For machines under memory pressure, `npm run build:low-memory` runs the same
+production build with a bounded Node heap and reduced native concurrency.
+The standard `npm run build` remains unchanged.
+
+## Local writing, pricing and comment review
+
+Post drafts and feed suggestions use local category templates; they do not
+analyze images or call a model. Templates are available to professional
+accounts without a premium subscription, while publication permissions remain
+unchanged. The pricing calculator uses entered material costs, package
+quantities and hourly rates; length and decoration time additions are estimates.
+Comment publication remains server-mediated, validates plain text and checks
+account sanctions, post visibility and the database blocked-word list. It does
+not perform semantic moderation: wording absent from that list may pass, so
+maintainers must manage the list and continue community oversight.
+
 ## Cloudinary configuration
 
 Copy `.env.example` to `.env` for local development and set the Cloudinary cloud
@@ -34,35 +50,263 @@ and keeps Cloudinary credentials on the server. Local `.env` files are ignored b
 Git. A secret previously committed to Git must be rotated in Cloudinary even
 after the file is removed from tracking.
 
+## Database migration reconciliation and isolated checks
+
+The migration journal is authoritative for the Drizzle migration runner; the
+presence of a numbered SQL file alone does not mean that it runs. The journal
+continues after `0026` with `0029`, `0033`–`0042`. Migration `0033`
+reconciles the final feed and follow changes represented by `0027`, `0028`,
+and `0030`–`0032`, which are intentionally not separate journal entries.
+`0029` must run before `0033`. Migration `0034` protects post moderation and
+creation-time fields; its compatibility with the definer-owned likes trigger
+must be checked with the actual deployment roles. `0035` adds private academy
+courses, a narrow public projection, and an import ledger.
+`0036` restores the signup trigger function from `0003` on destinations where
+it has drifted; it does not change existing profiles or roles.
+`0037` enables profile RLS, revokes dangerous table privileges from client
+roles, and revokes those privileges from the executing role's public-schema
+default privileges. Default privileges belong to each creator role: review
+and revoke equivalent grants for other creators separately with appropriate
+authority. In particular, the inspected target also has such grants for
+`supabase_admin`, which `postgres` cannot change.
+`0038` adds restrictive insert policies for posts and stories: only profiles
+with the nail technician or instructor role may publish. Existing read, like,
+save and owner policies remain in force.
+`0039` adds the guarded client-request function and a private rate-limit table;
+it does not revoke existing direct client access to requests or deletions.
+`0040` adds bounded followed-feed and image-visibility queries, database-side
+blocked-word matching, and an administrator-checked supplier search and balance
+lookup. The corresponding application changes require this migration; deploy
+them together after independently reviewing the target's migration history.
+`0041` disables the existing direct sticker-file deletion policy and adds a
+restrictive delete policy for the sticker bucket, even when other permissive
+policies grant deletion. A restrictive update policy also prevents sticker
+objects from being moved or overwritten to bypass the deletion restriction.
+Other buckets retain their existing policies and
+the server's RLS-bypassing service role can still delete stickers. `0042`
+revokes direct request inserts and content deletions. Apply both only after the
+server-mediated code is deployed and verified. `0041` requires a database role
+authorized to alter and create `storage.objects` policies; a service API key
+does not provide this SQL authority. Verify the supported execution path on the
+specific hosted project without changing ownership of managed tables. Both late
+migrations fail unless the migration transaction explicitly sets
+`nailhub.lockdown_approved` to `yes`;
+this operator safeguard does not verify that deployment has occurred.
+On the inspected target, four additional broad authenticated Storage policies
+remain in place. `0041` limits sticker deletion and updates but does not fix
+their broader read, upload, update or non-sticker delete access. The separate
+pre-deployment security procedure below narrows those four reviewed policies.
+The standard migrator attempts every pending entry and has no pause after `0040`;
+without the setting, the late guard fails and the transaction rolls back. A
+reviewed, journal-aware staged procedure is still required before production.
+Image batches are capped at four and fall back to individual reads when a
+batch would exceed the response size budget. Story stickers use short-lived
+batched storage signatures and local blobs for canvas export.
+Deploy the additive migrations before the corresponding application code, then
+verify that code before applying the late access restrictions. Until the late
+restrictions are applied, direct client access is not locked down.
+Reconcile the existing target migration history first; never run the migrator
+against that target without a separately approved deployment plan.
+
+### Guarded staged migration runner
+
+`scripts/staged-migrations.mjs` is pinned to the reviewed migration hashes,
+timestamps, project identities and catalog fingerprints. It preserves the four
+Supabase history rows and validates every Drizzle row in order. Stage A creates
+the baseline and applies `0039`–`0040` in one transaction. Stage B verifies
+that exact state, sets the lockdown flag locally and applies `0041`–`0042` and
+their journal rows in one transaction. A mismatch or SQL error rolls back the
+entire stage. It does not use the normal all-pending Drizzle migrator.
+
+Production execution is blocked unless the four known Storage policies have
+their exact reviewed disabled definitions, and while unsafe client default
+privileges from other creators, existing client `MAINTAIN` grants or a missing
+private `story-stickers` bucket remain. The owner approved retaining the hosted
+`supabase_admin` default table grants to `anon` and `authenticated` in `public`;
+the runner explicitly warns about this exception and still checks global and
+`PUBLIC` grants and grants from other creators. This does not revoke those
+privileges or remove their risk for future objects created by `supabase_admin`.
+Review such objects and extension placement separately. Resolve and review other
+blockers with approval; the runner does not change them. Other unreviewed schema or
+policy changes fail its pinned fingerprint. The test target intentionally
+allows the known synthetic exposure to exercise the restrictive policies.
+These checks do not replace a complete security review.
+
+#### Separate pre-deployment security procedure
+
+`scripts/predeploy-storage-security.sql` is an independently approved security
+procedure, not a Drizzle migration: it neither modifies the Drizzle journal nor
+applies `0039`–`0042`. Before stage A, and only after verifying a current
+database and Storage backup and reviewing effects on the deployed
+application, the authorized SQL operator can run the **complete file in one
+database transaction**, in a single SQL session:
+
+1. Begin the transaction and set
+   `SET LOCAL nailhub.predeploy_security_approved = 'yes';`.
+2. Execute the entire file without splitting it into separate transactions.
+3. Commit only if every statement succeeded; otherwise roll back the transaction.
+
+For example, in the Supabase SQL Editor, submit one SQL statement batch
+containing `BEGIN;`, the `SET LOCAL` statement above, the entire file contents,
+and `COMMIT;` in that order. Confirm that the editor uses one session and
+transaction for the complete batch. On an error, ensure the transaction is
+rolled back; never run the file's individual statements separately. A Storage
+service API key alone does not grant SQL authority. The executing database role
+must have the necessary authority over the reviewed policies and grants.
+For example, the following PowerShell command copies the complete transaction
+batch to the clipboard for pasting into the correct project's SQL Editor:
+
+```powershell
+@('BEGIN;', "SET LOCAL nailhub.predeploy_security_approved = 'yes';", (Get-Content -Raw -ErrorAction Stop scripts\predeploy-storage-security.sql), 'COMMIT;') -join "`n" | Set-Clipboard
+```
+
+The procedure checks the original or already-disabled definitions of the four
+reviewed policies before setting them to false, creates the private
+`story-stickers` bucket if absent, rejects an existing public or mismatched
+bucket, and revokes and verifies effective client `MAINTAIN` privileges on
+existing public tables. It also revokes dangerous public-schema default grants
+for objects created by `postgres`, but **does not change** defaults owned by
+`supabase_admin` or another creator. `postgres` cannot change the managed
+`supabase_admin` defaults, which remain in place under the approved exception.
+Do not change managed-role ownership or assume the exception removes the risk.
+Changing these policies can affect existing clients, so verify all required
+Storage operations before any production execution. This procedure was tested
+on the test project inside a transaction that was rolled back.
+
+Use the session-mode connection URL for the selected project, provided through
+`NAILHUB_MIGRATION_DATABASE_URL`, and a trusted Supabase root certificate via
+`NODE_EXTRA_CA_CERTS`. Download the certificate from that project's database
+settings; do not commit credentials or paste them into chat. TLS hostname and
+certificate verification must remain enabled.
+
+After addressing the blockers, pause writes and run the read-only preflight:
+
+```powershell
+node scripts\staged-migrations.mjs --target=production --stage=a --check
+```
+
+Only after explicit approval, verifying the backup and a successful preflight,
+execute stage A. The preferred option requires a backup with verified restoration:
+
+```powershell
+node scripts\staged-migrations.mjs --target=production --stage=a --confirm=production-a --backup-verified --writes-paused
+```
+
+The owner may instead explicitly accept the risk of an unverified restore after
+checking backup integrity. In that case use **both** `--backup-integrity-verified`
+and `--restore-risk-accepted` in place of `--backup-verified`. The local backup
+previously checked has not passed a full restore and does not include the Vault
+key or project configuration; integrity checks do not prove recoverability.
+
+Deploy and verify the corresponding server code before the second stage.
+With a valid backup and writes paused again, use the read-only preflight and
+then, only after explicit approval, execute:
+
+```powershell
+node scripts\staged-migrations.mjs --target=production --stage=b --check
+node scripts\staged-migrations.mjs --target=production --stage=b --confirm=production-b --backup-verified --writes-paused --code-verified
+```
+
+The flags are operator assertions, not proof of backup, restoration, write pause
+or code deployment. The runner is tied to the reviewed catalog and migration files; if
+they change, re-review and re-test the fingerprints rather than bypassing them.
+It serializes other instances of this runner but cannot stop unrelated SQL or
+other migrators, so the maintenance window must prevent concurrent changes.
+
+Public requests use the Vercel-provided `x-vercel-forwarded-for` address and
+the server-side service-role key to derive keyed hashes, never raw IP addresses.
+The limit is five accepted requests per source in a rolling hour; duplicate
+requests from the same source in that window are rejected. Expired rate records are removed in
+small batches on subsequent submissions, so a period with no submissions can
+leave expired hashes in the database until traffic resumes. Outside Vercel,
+production requests fail closed unless a trusted source is explicitly designed
+and implemented; local development shares a single test source. Shared network
+addresses share the limit. Test the actual Vercel proxy and isolated Supabase
+storage and authorization configuration before deployment.
+
+The feed repair represented by `0030`–`0032` was previously applied manually
+to the existing database without Drizzle journal records, and also added a
+duplicate `posts_safe_text` trigger. `0033` removes that duplicate while
+retaining `validate_plain_text`. The manual change is not proof that any
+particular Drizzle journal entry was applied.
+
+Run `npm run test:database` to test a clean in-memory PGlite database, a
+simulation of that manual feed repair, and a signup-function drift upgrade,
+sequentially. The script models journal
+timestamps and hashes but does not execute the actual Drizzle PostgreSQL
+migrator. Its mock auth, storage and default privileges are approximations:
+these checks do not replace integration tests against an isolated Supabase
+project with the real Auth, PostgREST, storage, server functions and roles.
+
+Before deploying, take and verify a restorable backup, inspect the target's
+actual migration journal timestamps, schema, existing `client_requests`
+objects, policies, ownership and data against the new constraints. Check for
+other out-of-band changes and later migration timestamps. Resolve any
+discrepancies explicitly rather than inserting journal records to skip SQL.
+Exercise the actual PostgreSQL migrator and critical CRUD/RLS workflows on an
+isolated copy first; do not apply the proposed migrations to a live project
+until those checks and a deployment and rollback plan are approved.
+Pasting SQL into the Supabase SQL Editor does not itself record a Drizzle
+migration; in particular, `0029` and `0035` cannot simply be run twice.
+Reconcile migration history using a reviewed deployment procedure, not
+unverified manual journal entries.
+
+When moving to another Supabase project, the database export is only a
+point-in-time snapshot. It does not contain storage file bytes, provider
+configuration, project API keys, or server secrets. Preserve storage paths and
+access policies when copying files, and reconfigure authentication providers
+and deployment variables before switching. Users must sign in again because
+sessions are project-specific. Compare the destination's existing schema,
+signup trigger and grants with the source; applying these migrations alone
+does not reconcile every possible difference. Test the selective account and
+data restore with the actual destination roles, then coordinate a write pause
+and a current final export before switching traffic.
+
+## Academy course storage
+
+The proposed server-backed academy requires `0035`. On first use per account,
+the browser backs up its existing local course data, then imports it as private
+drafts. The server import ledger prevents old local copies from overwriting or
+resurrecting server courses. Failed imports leave the backup in the browser
+and are retried; they do not report success. Each browser with existing data
+must be opened by its owner to import its own local courses. Backup keys remain
+in local storage; clearing browser data also deletes those backups.
+
+Publication requires a separate confirmation and makes a restricted course
+page available to anyone with its link. The projection omits telephone numbers,
+pricing calculations and instructor lesson plans. Uploaded course images are
+stored in the course data and are visible when the page is published. An
+isolated Supabase integration test is required before deploying this behavior.
+
 import React, { useState } from 'react';
 
-import { 
+import {
 
-  Sparkles, 
+Sparkles,
 
-  Search, 
+Search,
 
-  MapPin, 
+MapPin,
 
-  Phone, 
+Phone,
 
-  ShieldCheck, 
+ShieldCheck,
 
-  UserCheck, 
+UserCheck,
 
-  Users, 
+Users,
 
-  User, 
+User,
 
-  Layers, 
+Layers,
 
-  Check, 
+Check,
 
-  ArrowRight,
+ArrowRight,
 
-  SlidersHorizontal,
+SlidersHorizontal,
 
-  X
+X
 
 } from 'lucide-react';
 
@@ -74,55 +318,55 @@ import {
 
 export const ROLES = {
 
-  NAIL_TECH: { 
+NAIL_TECH: {
 
-    id: 'nail_tech', 
+    id: 'nail_tech',
 
-    label: 'בונת ציפורניים ומניקוריסטית', 
+    label: 'בונת ציפורניים ומניקוריסטית',
 
-    color: 'bg-rose-50 text-rose-700 border-rose-200' 
+    color: 'bg-rose-50 text-rose-700 border-rose-200'
 
-  },
+},
 
-  INSTRUCTOR: { 
+INSTRUCTOR: {
 
-    id: 'instructor', 
+    id: 'instructor',
 
-    label: 'מדריכה מוסמכת ואקדמיה', 
+    label: 'מדריכה מוסמכת ואקדמיה',
 
-    color: 'bg-amber-50 text-amber-700 border-amber-200' 
+    color: 'bg-amber-50 text-amber-700 border-amber-200'
 
-  },
+},
 
-  SUPPLIER: { 
+SUPPLIER: {
 
-    id: 'supplier', 
+    id: 'supplier',
 
-    label: 'ספק / מותג מורשה', 
+    label: 'ספק / מותג מורשה',
 
-    color: 'bg-blue-50 text-blue-700 border-blue-200' 
+    color: 'bg-blue-50 text-blue-700 border-blue-200'
 
-  },
+},
 
-  CLIENT: { 
+CLIENT: {
 
-    id: 'client', 
+    id: 'client',
 
-    label: 'לקוחה', 
+    label: 'לקוחה',
 
-    color: 'bg-stone-100 text-stone-700 border-stone-200' 
+    color: 'bg-stone-100 text-stone-700 border-stone-200'
 
-  },
+},
 
-  MODEL: { 
+MODEL: {
 
-    id: 'model', 
+    id: 'model',
 
-    label: 'מודליסטית', 
+    label: 'מודליסטית',
 
-    color: 'bg-pink-50 text-pink-700 border-pink-200' 
+    color: 'bg-pink-50 text-pink-700 border-pink-200'
 
-  }
+}
 
 } as const;
 
@@ -130,89 +374,87 @@ type RoleKey = keyof typeof ROLES;
 
 const ADDITIONAL_SERVICES_LIST = [
 
-  'פדיקור קוסמטי',
+'פדיקור קוסמטי',
 
-  'פדיקור רפואי / טיפולי',
+'פדיקור רפואי / טיפולי',
 
-  'לק ג\'ל רגליים',
+'לק ג\'ל רגליים',
 
-  'עיצוב ושיקום גבות',
+'עיצוב ושיקום גבות',
 
-  'הרמת גבות',
+'הרמת גבות',
 
-  'הרמת ריסים',
+'הרמת ריסים',
 
-  'שזירת ריסים',
+'שזירת ריסים',
 
-  'איפור קבוע',
+'איפור קבוע',
 
-  'טיפולי פנים'
+'טיפולי פנים'
 
 ];
 
 const SPECIALTIES_LIST = [
 
-  'מבנה אנטומי',
+'מבנה אנטומי',
 
-  'בנייה באקריל',
+'בנייה באקריל',
 
-  'בנייה בג\'ל / פוליג\'ל',
+'בנייה בג\'ל / פוליג\'ל',
 
-  'דיפ פאוודר',
+'דיפ פאוודר',
 
-  'פרנץ\' מדויק',
+'פרנץ\' מדויק',
 
-  'ציורי ציפורניים וארט',
+'ציורי ציפורניים וארט',
 
-  'השלמת ציפורן שבורה',
+'השלמת ציפורן שבורה',
 
-  'מיניקוריסטיות מתחילות'
+'מיניקוריסטיות מתחילות'
 
 ];
 
 interface Member {
 
-  id: string;
+id: string;
 
-  fullName: string;
+fullName: string;
 
-  businessName: string;
+businessName: string;
 
-  role: string;
+role: string;
 
-  city: string;
+city: string;
 
-  specialties: string[];
+specialties: string[];
 
-  additionalServices: string[];
+additionalServices: string[];
 
-  phone: string;
+phone: string;
 
-  accountStatus?: 'active' | 'pending_approval';
+accountStatus?: 'active' | 'pending_approval';
 
 }
 
 export default function NailHubApp() {
 
-  // ניהול מצבי ניווט ומערכת
+// ניהול מצבי ניווט ומערכת
 
-  const [currentStep, setCurrentStep] = useState<'gate' | 'login' | 'onboarding' | 'app'>('gate');
+const [currentStep, setCurrentStep] = useState<'gate' | 'login' | 'onboarding' | 'app'>('gate');
 
-  const [activeTab, setActiveTab] = useState<'directory' | 'profile'>('directory');
+const [activeTab, setActiveTab] = useState<'directory' | 'profile'>('directory');
 
-  const [inviteCode, setInviteCode] = useState('');
+const [inviteCode, setInviteCode] = useState('');
 
-  const [gateError, setGateError] = useState('');
+const [gateError, setGateError] = useState('');
 
-  
+// נתוני המשתמשת המחוברת
 
-  // נתוני המשתמשת המחוברת
+const [currentUser, setCurrentUser] = useState<Member | null>(null);
 
-  const [currentUser, setCurrentUser] = useState<Member | null>(null);
+// טופס הרשמה
 
-  // טופס הרשמה
-
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
 
     fullName: '',
 
@@ -228,19 +470,19 @@ export default function NailHubApp() {
 
     additionalServices: ['פדיקור קוסמטי']
 
-  });
+});
 
-  // מודאל בקשת שינוי תפקיד
+// מודאל בקשת שינוי תפקיד
 
-  const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
+const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
 
-  const [roleChangeData, setRoleChangeData] = useState({ requestedRole: 'instructor', reason: '' });
+const [roleChangeData, setRoleChangeData] = useState({ requestedRole: 'instructor', reason: '' });
 
-  const [roleChangeSuccess, setRoleChangeSuccess] = useState(false);
+const [roleChangeSuccess, setRoleChangeSuccess] = useState(false);
 
-  // מאגר חברים לדוגמה בדירקטורי
+// מאגר חברים לדוגמה בדירקטורי
 
-  const [members, setMembers] = useState<Member[]>([
+const [members, setMembers] = useState<Member[]>([
 
     {
 
@@ -286,21 +528,21 @@ export default function NailHubApp() {
 
     }
 
-  ]);
+]);
 
-  // פילטרים לדירקטורי
+// פילטרים לדירקטורי
 
-  const [filterRole, setFilterRole] = useState('all');
+const [filterRole, setFilterRole] = useState('all');
 
-  const [searchQuery, setSearchQuery] = useState('');
+const [searchQuery, setSearchQuery] = useState('');
 
-  // ------------------------------------------
+// ------------------------------------------
 
-  // שלב 1: אימות שער כניסה (Invite Gate)
+// שלב 1: אימות שער כניסה (Invite Gate)
 
-  // ------------------------------------------
+// ------------------------------------------
 
-  const handleVerifyInvite = (e: React.FormEvent) => {
+const handleVerifyInvite = (e: React.FormEvent) => {
 
     e.preventDefault();
 
@@ -316,15 +558,15 @@ export default function NailHubApp() {
 
     }
 
-  };
+};
 
-  // ------------------------------------------
+// ------------------------------------------
 
-  // שלב 2: סיום הרשמה
+// שלב 2: סיום הרשמה
 
-  // ------------------------------------------
+// ------------------------------------------
 
-  const handleCompleteRegistration = (e: React.FormEvent) => {
+const handleCompleteRegistration = (e: React.FormEvent) => {
 
     e.preventDefault();
 
@@ -358,15 +600,15 @@ export default function NailHubApp() {
 
     setCurrentStep('app');
 
-  };
+};
 
-  // ------------------------------------------
+// ------------------------------------------
 
-  // שלב 3: התחברות למשתמשת קיימת (Mock Login)
+// שלב 3: התחברות למשתמשת קיימת (Mock Login)
 
-  // ------------------------------------------
+// ------------------------------------------
 
-  const handleLogin = (e: React.FormEvent) => {
+const handleLogin = (e: React.FormEvent) => {
 
     e.preventDefault();
 
@@ -376,31 +618,31 @@ export default function NailHubApp() {
 
     setCurrentStep('app');
 
-  };
+};
 
-  // עזר לבחירה מרובה (Toggle)
+// עזר לבחירה מרובה (Toggle)
 
-  const toggleItem = (list: string[], item: string) => {
+const toggleItem = (list: string[], item: string) => {
 
     return list.includes(item) ? list.filter(i => i !== item) : [...list, item];
 
-  };
+};
 
-  const getRoleDetails = (roleId: string) => {
+const getRoleDetails = (roleId: string) => {
 
     const found = Object.values(ROLES).find(r => r.id === roleId);
 
     return found || ROLES.NAIL_TECH;
 
-  };
+};
 
-  // ==========================================
+// ==========================================
 
-  // תצוגת שער הגישה (Invite Gate UI)
+// תצוגת שער הגישה (Invite Gate UI)
 
-  // ==========================================
+// ==========================================
 
-  if (currentStep === 'gate') {
+if (currentStep === 'gate') {
 
     return (
 
@@ -422,7 +664,7 @@ export default function NailHubApp() {
 
           </div>
 
-          
+
 
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-amber-900 text-sm leading-relaxed">
 
@@ -470,7 +712,7 @@ export default function NailHubApp() {
 
           <div className="mt-6 text-center pt-4 border-t border-stone-100">
 
-            <button 
+            <button
 
               onClick={() => setCurrentStep('login')}
 
@@ -492,15 +734,15 @@ export default function NailHubApp() {
 
     );
 
-  }
+}
 
-  // ==========================================
+// ==========================================
 
-  // תצוגת התחברות (Login Screen)
+// תצוגת התחברות (Login Screen)
 
-  // ==========================================
+// ==========================================
 
-  if (currentStep === 'login') {
+if (currentStep === 'login') {
 
     return (
 
@@ -552,7 +794,7 @@ export default function NailHubApp() {
 
           <div className="mt-6 text-center">
 
-            <button 
+            <button
 
               onClick={() => setCurrentStep('gate')}
 
@@ -572,15 +814,15 @@ export default function NailHubApp() {
 
     );
 
-  }
+}
 
-  // ==========================================
+// ==========================================
 
-  // תצוגת אונבורדינג והרשמה (Onboarding)
+// תצוגת אונבורדינג והרשמה (Onboarding)
 
-  // ==========================================
+// ==========================================
 
-  if (currentStep === 'onboarding') {
+if (currentStep === 'onboarding') {
 
     return (
 
@@ -708,9 +950,9 @@ export default function NailHubApp() {
 
                     className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${
 
-                      formData.role === role.id 
+                      formData.role === role.id
 
-                        ? 'border-stone-900 bg-stone-900 text-white shadow-sm' 
+                        ? 'border-stone-900 bg-stone-900 text-white shadow-sm'
 
                         : 'border-stone-200 hover:border-stone-300 bg-stone-50/50 text-stone-800'
 
@@ -774,9 +1016,9 @@ export default function NailHubApp() {
 
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
 
-                        isSelected 
+                        isSelected
 
-                          ? 'bg-rose-50 text-rose-700 border-rose-300 font-bold' 
+                          ? 'bg-rose-50 text-rose-700 border-rose-300 font-bold'
 
                           : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
 
@@ -822,9 +1064,9 @@ export default function NailHubApp() {
 
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
 
-                        isSelected 
+                        isSelected
 
-                          ? 'bg-stone-900 text-white border-stone-900' 
+                          ? 'bg-stone-900 text-white border-stone-900'
 
                           : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
 
@@ -866,23 +1108,23 @@ export default function NailHubApp() {
 
     );
 
-  }
+}
 
-  // ==========================================
+// ==========================================
 
-  // תצוגת האפליקציה המרכזית (Main App UI)
+// תצוגת האפליקציה המרכזית (Main App UI)
 
-  // ==========================================
+// ==========================================
 
-  const filteredMembers = members.filter((m) => {
+const filteredMembers = members.filter((m) => {
 
     const matchRole = filterRole === 'all' || m.role === filterRole;
 
-    const matchQuery = 
+    const matchQuery =
 
-      m.fullName.includes(searchQuery) || 
+      m.fullName.includes(searchQuery) ||
 
-      m.businessName.includes(searchQuery) || 
+      m.businessName.includes(searchQuery) ||
 
       m.city.includes(searchQuery) ||
 
@@ -890,9 +1132,9 @@ export default function NailHubApp() {
 
     return matchRole && matchQuery;
 
-  });
+});
 
-  return (
+return (
 
     <div className="min-h-screen bg-stone-50 font-sans text-right" dir="rtl">
 
@@ -1130,7 +1372,7 @@ export default function NailHubApp() {
 
                     <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
 
-                      <a 
+                      <a
 
                         href={`tel:${m.phone}`}
 
@@ -1322,7 +1564,7 @@ export default function NailHubApp() {
 
             ) : (
 
-              <form 
+              <form
 
                 onSubmit={(e) => {
 
@@ -1330,7 +1572,7 @@ export default function NailHubApp() {
 
                   setRoleChangeSuccess(true);
 
-                }} 
+                }}
 
                 className="space-y-4"
 
@@ -1406,7 +1648,7 @@ export default function NailHubApp() {
 
     </div>
 
-  );
+);
 
 }
 

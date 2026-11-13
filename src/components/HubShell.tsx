@@ -27,6 +27,7 @@ import { queueStory } from "@/lib/story-handoff";
 import { supabase } from "@/integrations/supabase/client";
 import {
   canAccessSection,
+  canCreateFeedContent,
   getRoleForAccountRole,
   PREVIEW_ROLES,
   type HubSection,
@@ -300,9 +301,7 @@ export function HubShell({
           { path: "/clinic", label: "הקליניקה שלי", icon: BriefcaseBusiness, active: clinicActive },
           { path: "/profile", label: "הפרופיל שלי", icon: User, active: section === "profile" },
         ];
-  const showCreateAction =
-    (!isAdmin || effectiveRole === "SUPER_ADMIN") &&
-    ["SUPER_ADMIN", "INSTRUCTOR", "NAIL_TECH"].includes(effectiveRole);
+  const showCreateAction = canCreateFeedContent(accountRole, isAdmin, previewRole);
   const item = (i: (typeof mobileItems)[number] | undefined) =>
     i ? (
       <Button
@@ -401,16 +400,18 @@ export function HubShell({
             )}
             {(!isAdmin || effectiveRole === "SUPER_ADMIN") && (
               <>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label="פרסום עבודה חדשה"
-                  title="פרסום עבודה חדשה"
-                  className="hidden md:inline-flex text-primary"
-                  onClick={() => setSheet(true)}
-                >
-                  <Plus />
-                </Button>
+                {showCreateAction && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="פרסום עבודה חדשה"
+                    title="פרסום עבודה חדשה"
+                    className="hidden md:inline-flex text-primary"
+                    onClick={() => setSheet(true)}
+                  >
+                    <Plus />
+                  </Button>
+                )}
                 <NotificationsBell />
               </>
             )}
@@ -505,7 +506,7 @@ export function HubShell({
           </aside>
         </div>
       )}
-      {sheet && (
+      {sheet && showCreateAction && (
         <div
           className="fixed inset-0 z-50 bg-overlay backdrop-blur-sm flex flex-col justify-end"
           onClick={() => setSheet(false)}

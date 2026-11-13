@@ -10,7 +10,7 @@ const icons:Record<string,typeof Heart>={like:Heart,comment:MessageCircle,collab
 export function NotificationsBell(){
  const qc=useQueryClient();const [open,setOpen]=useState(false);const [uid,setUid]=useState<string|null>(null);
  useEffect(()=>{let alive=true;void supabase.auth.getUser().then(({data})=>{if(alive)setUid(data.user?.id??null);});return()=>{alive=false;};},[]);
- const list=useQuery({queryKey:['hub-notifications',uid],enabled:uid!==null,refetchInterval:30000,queryFn:async()=>{const {data,error}=await supabase.from('notifications').select('*').eq('user_id',uid!).order('created_at',{ascending:false}).limit(50);if(error)throw error;return data;}});
+ const list=useQuery({queryKey:['hub-notifications',uid],enabled:uid!==null,staleTime:60_000,refetchInterval:120_000,refetchIntervalInBackground:false,queryFn:async()=>{const {data,error}=await supabase.from('notifications').select('*').eq('user_id',uid!).order('created_at',{ascending:false}).limit(50);if(error)throw error;return data;}});
  const unread=(list.data??[]).filter(n=>!n.read).length;
  async function toggle(){
   const next=!open;setOpen(next);

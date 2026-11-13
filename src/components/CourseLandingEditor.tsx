@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ImagePlus, Plus, Save, Trash2 } from "lucide-react";
 import { plainText } from "@/lib/input-security";
 import { optimizeUploadImage } from "@/lib/image-optimization";
-import { academyStorage } from "@/lib/academy-storage";
+import { academyServerStorage } from "@/lib/academy-server-storage";
+import { normalizeAcademyVideoUrl } from "@/lib/academy-media";
 import { hebrewError } from "@/lib/hebrew-errors";
 import type { CourseBranding, FaqItem, SavedCourse } from "@/types/academy";
 import { Button } from "./ui/button";
@@ -40,38 +41,6 @@ const DEFAULT_BRANDING: CourseBranding = {
 
 function isValidColor(value: string) {
   return /^#[\da-f]{6}$/i.test(value);
-}
-
-function normalizeVideoUrl(value: string) {
-  if (!value.trim()) return "";
-
-  try {
-    const url = new URL(value.trim());
-    const allowedHosts = new Set([
-      "youtube.com",
-      "www.youtube.com",
-      "m.youtube.com",
-      "youtu.be",
-      "vimeo.com",
-      "www.vimeo.com",
-      "player.vimeo.com",
-    ]);
-
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      url.hash ||
-      !allowedHosts.has(url.hostname.toLowerCase())
-    ) {
-      return null;
-    }
-
-    return url.href;
-  } catch {
-    return null;
-  }
 }
 
 function validateFaqs(faqs: FaqItem[]) {
@@ -139,7 +108,7 @@ export function CourseLandingEditor({
     }
   }
 
-  function saveBranding() {
+  async function saveBranding() {
     if (!isValidColor(branding.primaryColor) || !isValidColor(branding.secondaryColor)) {
       setMessage("יש לבחור צבעי מותג תקינים.");
       return;
@@ -153,7 +122,7 @@ export function CourseLandingEditor({
       return;
     }
 
-    const videoUrl = normalizeVideoUrl(videoInput);
+    const videoUrl = normalizeAcademyVideoUrl(videoInput);
     if (videoInput.trim() && !videoUrl) {
       setMessage("קישור הסרטון חייב להיות כתובת HTTPS תקינה מ-YouTube או Vimeo.");
       return;
@@ -168,14 +137,17 @@ export function CourseLandingEditor({
 
     try {
       const updatedCourse: SavedCourse = { ...course, branding: updatedBranding };
-      academyStorage.saveCourse(course.userId, updatedCourse);
+      setBusy(true);
+      const savedCourse = await academyServerStorage.saveCourse(course.userId, updatedCourse);
       setBranding(updatedBranding);
       setVideoInput(updatedBranding.videoUrl ?? "");
       setMessage("המיתוג נשמר בהצלחה.");
-      onSave?.(updatedCourse);
+      onSave?.(savedCourse);
     } catch (error) {
       console.error("Failed to save academy course branding", error);
       setMessage(hebrewError(error, "שמירת המיתוג נכשלה. נסי שוב."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -357,7 +329,8 @@ export function CourseLandingEditor({
           <div>
             <h3 className="text-sm font-bold">גלריית עבודות ותוצאות</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              התמונות מכווצות ונשמרות מקומית יחד עם הקורס. הקישור לקורס זמין רק במכשיר הזה.
+              התמונות מכווצות ונשמרות עם הקורס בחשבון שלך. אם הקורס מפורסם, הן זמינות לציבור דרך דף
+              הקורס.
             </p>
           </div>
           <label className="flex cursor-pointer items-center gap-2">

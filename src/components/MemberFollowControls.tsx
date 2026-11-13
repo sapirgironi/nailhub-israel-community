@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useFollowing, useToggleFollow } from "@/lib/use-follows";
+import { useIsFollowing, useToggleFollow } from "@/lib/use-follows";
 import { Button } from "./ui/button";
 
 export function MemberFollowButton({
@@ -13,11 +13,11 @@ export function MemberFollowButton({
   memberId: string;
   className?: string;
 }) {
-  const following = useFollowing(userId);
+  const following = useIsFollowing(userId, memberId);
   const toggleFollow = useToggleFollow(userId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const isFollowing = following.data?.includes(memberId) ?? false;
+  const isFollowing = following.data ?? false;
   if (userId === memberId) return null;
 
   async function toggle() {

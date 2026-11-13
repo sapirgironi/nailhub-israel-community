@@ -33,7 +33,8 @@ import {
 } from "lucide-react";
 import {toast} from "sonner";
 import type {PointerEvent as ReactPointerEvent} from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { PAGE_SIZE, pageRange } from "./Pagination";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadPhoto } from "@/lib/media";
 import { ImageUploadStatus } from "./ImageUploadStatus";
@@ -628,27 +629,46 @@ export function StoryEditor({
     },
     [],
   );
-  const stickers = useQuery({
+  const stickerUrls = useRef(new Map<string, string>());
+  const [stickerItems, setStickerItems] = useState<{ id: string; label: string; url: string }[]>([]);
+  useEffect(() => () => { stickerUrls.current.forEach(URL.revokeObjectURL); }, []);
+  const stickers = useInfiniteQuery({
     queryKey: ["story-stickers"],
+    enabled: panel === "stickers",
+    initialPageParam: 0,
     staleTime: 60_000,
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
+      const { from, to } = pageRange(pageParam);
       const { data, error } = await supabase
         .from("story_stickers")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
       if (error) throw error;
-      return (
-        await Promise.all(
-          data.map(async (s) => {
-            const { data: b } = await supabase.storage
-              .from("story-stickers")
-              .download(s.image_path);
-            return b ? { ...s, url: URL.createObjectURL(b) } : null;
-          }),
-        )
-      ).filter((s): s is NonNullable<typeof s> => !!s);
+      const rows = data.slice(0, PAGE_SIZE);
+      if (!rows.length) return { rows: [], next: undefined };
+      const { data: signed, error: signingError } = await supabase.storage.from("story-stickers").createSignedUrls(rows.map(s => s.image_path), 300);
+      if (signingError || !signed || signed.length !== rows.length || signed.some(s => s.error || !s.signedUrl)) throw new Error("טעינת הסטיקרים נכשלה");
+      const images = await Promise.all(rows.map(async (s, i) => {
+        const url = signed[i]?.signedUrl;
+        if (!url) throw new Error("טעינת הסטיקרים נכשלה");
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("טעינת הסטיקרים נכשלה");
+        return { id: s.id, label: s.label, blob: await response.blob() };
+      }));
+      return { rows: images, next: data.length > PAGE_SIZE ? pageParam + 1 : undefined };
     },
+    getNextPageParam: last => last.next,
   });
+  useEffect(() => {
+    const items = (stickers.data?.pages ?? []).flatMap(page => page.rows);
+    setStickerItems(items.map(item => {
+      let url = stickerUrls.current.get(item.id);
+      if (!url) { url = URL.createObjectURL(item.blob); stickerUrls.current.set(item.id, url); }
+      return { id: item.id, label: item.label, url };
+    }));
+  }, [stickers.data]);
   const [exporting, setExporting] = useState(false);
   const [mention, setMention] = useState<{
     id: number;
@@ -1278,9 +1298,9 @@ export function StoryEditor({
               </Button>
             ))}
           </div>
-          {(stickers.data?.length ?? 0) > 0 && (
+          {stickerItems.length > 0 && (
             <div className="grid grid-cols-4 gap-2">
-              {stickers.data?.map((s) => (
+              {stickerItems.map((s) => (
                 <Button
                   key={s.id}
                   type="button"
@@ -1300,6 +1320,7 @@ export function StoryEditor({
               ))}
             </div>
           )}
+          {stickers.hasNextPage && <Button type="button" variant="outline" disabled={stickers.isFetchingNextPage} onClick={() => void stickers.fetchNextPage()}>{stickers.isFetchingNextPage ? "טוענת סטיקרים..." : "טעינת סטיקרים נוספים"}</Button>}
           {stickers.isError && (
             <p className="text-xs text-muted-foreground">טעינת הסטיקרים נכשלה</p>
           )}

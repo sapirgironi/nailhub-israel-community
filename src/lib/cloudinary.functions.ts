@@ -44,3 +44,40 @@ export const readCloudinaryImage = createServerFn({ method: 'POST' })
     // Never expose permanent Cloudinary signatures: bytes pass through an authenticated, RLS-checked request.
     return { image: await fetchOptimizedImage(cloud, secret, reference.path) };
   });
+
+export const readCloudinaryImages = createServerFn({ method: 'POST' })
+  .middleware([requireActiveAccount])
+  .inputValidator((input: { urls: string[] }) => {
+    if (!Array.isArray(input.urls) || input.urls.length < 1 || input.urls.length > 4 ||
+      input.urls.some(url => typeof url !== 'string' || url.length > 600)) throw new Error('כתובות התמונות אינן תקינות');
+    return { urls: [...new Set(input.urls)] };
+  })
+  .handler(async ({ data, context }) => {
+    setResponseHeader('Cache-Control', 'private, no-store');
+    const { getCloudinaryDeliveryConfig, fetchOptimizedImage } = await import('./cloudinary.server');
+    const { cloud, secret } = getCloudinaryDeliveryConfig();
+    const references = data.urls.map(url => {
+      try { return { url, reference: cloudinaryReference(url, cloud) }; }
+      catch { return { url, reference: null }; }
+    });
+    const otherUrls = references.filter(item => item.reference && item.reference.owner !== context.userId).map(item => item.url);
+    const visible = new Set<string>();
+    if (otherUrls.length) {
+      const { data: accessible, error } = await context.supabase.rpc('visible_media_urls', { candidate_urls: otherUrls });
+      if (error) throw new Error('בדיקת הגישה לתמונות נכשלה');
+      accessible.forEach(item => visible.add(item.url));
+    }
+    const results = await Promise.all(references.map(async ({ url, reference }) => {
+      if (!reference) return { url, image: null, error: 'כתובת התמונה אינה תקינה' };
+      if (reference.owner !== context.userId && !visible.has(url)) return { url, image: null, error: 'אין גישה לתמונה' };
+      try {
+        return { url, image: await fetchOptimizedImage(cloud, secret, reference.path), error: null };
+      } catch {
+        return { url, image: null, error: 'טעינת התמונה נכשלה' };
+      }
+    }));
+    if (results.reduce((total, result) => total + (result.image?.length ?? 0), 0) > 3_000_000) {
+      return results.map(result => ({ url: result.url, image: null, error: result.error, retryIndividually: !result.error }));
+    }
+    return results.map(result => ({ ...result, retryIndividually: false }));
+  });

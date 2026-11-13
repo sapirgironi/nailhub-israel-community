@@ -1,46 +1,59 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ ai: vi.fn(), rewrite: vi.fn(), insert: vi.fn(), words: [] as {word:string}[] }));
+const mocks = vi.hoisted(() => ({ insert: vi.fn(), words: [] as { word: string }[], wordsError: false, sanctioned: false, postStatus: 'approved' }));
 vi.mock('@tanstack/react-start', () => ({ createServerFn: () => {
   const builder = { middleware: () => builder, inputValidator: () => builder, handler: (handler: unknown) => handler };
   return builder;
 } }));
-vi.mock('@/integrations/supabase/auth-middleware', () => ({ requireSupabaseAuth: {} }));
 vi.mock('../lib/account-access', () => ({ requireActiveAccount: {} }));
-vi.mock('../lib/moderation.server', () => ({ moderateCommentText: mocks.ai, rephraseCommentText: mocks.rewrite, ModerationServiceError: class extends Error {} }));
-vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: {from: () => ({insert:mocks.insert})} }));
+vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: { from: () => ({ insert: mocks.insert }) } }));
 import { moderateComment, publishComment } from '../lib/moderation.functions';
 
 function context() {
-  return {userId:'owner',supabase:{from:(table:string)=>{
-    const q = {select:()=>q,eq:()=>q,or:()=>q,limit:async()=>({data:[],error:null}),single:async()=>({data:{id:'post',author_id:'owner',status:'approved'},error:null}),then:(resolve:(x:unknown)=>void)=>resolve({data:table==='blocked_words'?mocks.words:[],error:null})};
+  return { userId: 'owner', supabase: {
+    rpc: async (_name: string, input: { comment_body: string }) => ({
+      data: mocks.words.filter(({ word }) => input.comment_body.toLowerCase().includes(word.toLowerCase())).map(({ word }) => word),
+      error: mocks.wordsError ? new Error('unavailable') : null,
+    }),
+    from: (table: string) => {
+    const q = {
+      select: () => q, eq: () => q, or: () => q,
+      limit: async () => ({ data: mocks.sanctioned ? [{ id: 'sanction' }] : [], error: null }),
+      single: async () => ({ data: { id: 'post', author_id: 'owner', status: mocks.postStatus }, error: null }),
+      then: (resolve: (x: unknown) => void) => resolve({ data: table === 'blocked_words' ? mocks.words : [], error: mocks.wordsError ? new Error('unavailable') : null }),
+    };
     return q;
-  }}};
+  } } };
 }
-const review=moderateComment as unknown as (input:unknown)=>Promise<{ok:boolean;flagged:string[];suggestion:string;error:string|null}>;
-const publish=publishComment as unknown as typeof review;
-beforeEach(()=>{vi.clearAllMocks();mocks.words=[];mocks.insert.mockResolvedValue({error:null});});
-describe('AI comment publication rules',()=>{
-  it('blocks offensive wording and returns the exact flagged words and alternative',async()=>{
-    mocks.ai.mockResolvedValue({toxic:true,flagged:['מטומטמת'],suggestion:'אני לא מסכימה עם שיטת העבודה'});
-    const result=await publish({data:{body:'את מטומטמת',postId:'post'},context:context()});
-    expect(result.ok).toBe(false);expect(result.flagged).toEqual(['מטומטמת']);expect(result.suggestion).toBe('אני לא מסכימה עם שיטת העבודה');
-    expect(mocks.insert).not.toHaveBeenCalledWith(expect.objectContaining({post_id:'post'}));
+const review = moderateComment as unknown as (input: unknown) => Promise<{ ok: boolean; flagged: string[]; suggestion: string; error: string | null }>;
+const publish = publishComment as unknown as typeof review;
+beforeEach(() => {
+  vi.clearAllMocks(); mocks.words = []; mocks.wordsError = false; mocks.sanctioned = false; mocks.postStatus = 'approved';
+  mocks.insert.mockResolvedValue({ error: null });
+});
+describe('local comment publication rules', () => {
+  it('blocks configured words case-insensitively without publishing', async () => {
+    mocks.words = [{ word: 'Blocked' }];
+    const result = await publish({ data: { body: 'contains BLOCKED', postId: 'post' }, context: context() });
+    expect(result).toMatchObject({ ok: false, flagged: ['Blocked'], suggestion: '' });
+    expect(mocks.insert).not.toHaveBeenCalledWith(expect.objectContaining({ post_id: 'post' }));
   });
-  it('never publishes if the AI check is unavailable',async()=>{
-    mocks.ai.mockRejectedValue(new Error('unavailable'));
-    const result=await publish({data:{body:'תגובה לבדיקה',postId:'post'},context:context()});
-    expect(result.ok).toBe(false);expect(result.error).not.toBeNull();expect(mocks.insert).not.toHaveBeenCalledWith(expect.objectContaining({post_id:'post'}));
+  it('fails closed when the blocked-word list is unavailable', async () => {
+    mocks.wordsError = true;
+    const result = await publish({ data: { body: 'תגובה לבדיקה', postId: 'post' }, context: context() });
+    expect(result.ok).toBe(false); expect(result.error).not.toBeNull();
+    expect(mocks.insert).not.toHaveBeenCalledWith(expect.objectContaining({ post_id: 'post' }));
   });
-  it('rechecks and publishes respectful alternative only under the authenticated author',async()=>{
-    mocks.ai.mockResolvedValue({toxic:false,flagged:[],suggestion:''});
-    const result=await publish({data:{body:'אני לא מסכימה עם שיטת העבודה',postId:'post'},context:context()});
-    expect(mocks.ai).toHaveBeenCalledWith('אני לא מסכימה עם שיטת העבודה');expect(result.ok).toBe(true);
-    expect(mocks.insert).toHaveBeenCalledWith({user_id:'owner',post_id:'post',body:'אני לא מסכימה עם שיטת העבודה'});
+  it('blocks suspended accounts and unapproved posts', async () => {
+    mocks.sanctioned = true;
+    expect((await review({ data: { body: 'תגובה', postId: 'post' }, context: context() })).ok).toBe(false);
+    mocks.sanctioned = false; mocks.postStatus = 'pending';
+    expect((await publish({ data: { body: 'תגובה', postId: 'post' }, context: context() })).ok).toBe(false);
+    expect(mocks.insert).not.toHaveBeenCalledWith(expect.objectContaining({ post_id: 'post' }));
   });
-  it('uses a dedicated rewrite for manually blocked words',async()=>{
-    mocks.words=[{word:'מטומטמת'}];mocks.rewrite.mockResolvedValue('אני לא מסכימה');
-    const result=await review({data:{body:'את מטומטמת'},context:context()});
-    expect(result.ok).toBe(false);expect(result.suggestion).toBe('אני לא מסכימה');expect(mocks.rewrite).toHaveBeenCalledWith('את מטומטמת',['מטומטמת']);
+  it('publishes an allowed comment only under the authenticated author', async () => {
+    const result = await publish({ data: { body: 'תודה על השיתוף', postId: 'post' }, context: context() });
+    expect(result.ok).toBe(true);
+    expect(mocks.insert).toHaveBeenCalledWith({ user_id: 'owner', post_id: 'post', body: 'תודה על השיתוף' });
   });
 });

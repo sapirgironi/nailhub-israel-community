@@ -2,18 +2,15 @@ import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { BookOpen, GraduationCap, MessageCircle, Phone } from "lucide-react";
 import { z } from "zod";
-import { academyStorage } from "@/lib/academy-storage";
+import { academyServerStorage } from "@/lib/academy-server-storage";
+import { normalizeAcademyVideoUrl } from "@/lib/academy-media";
 import { whatsappLink } from "@/lib/input-security";
-import type { SavedCourse } from "@/types/academy";
 
 const publicCourseSchema = z.object({
   id: z.string().uuid(),
   isPublished: z.literal(true),
   title: z.string(),
   category: z.enum(["beginner", "advanced"]),
-  pricingOutput: z.object({
-    pricingTiers: z.object({ recommendedPrice: z.number().finite().nonnegative() }),
-  }),
   content: z.object({
     syllabusOverview: z.string(),
     targetAudience: z.string(),
@@ -37,7 +34,10 @@ const publicCourseSchema = z.object({
     badgeText: z.string(),
     coverImageUrl: z.string().optional(),
     galleryImages: z.array(z.string()),
-    videoUrl: z.string().optional(),
+    videoUrl: z
+      .string()
+      .refine((value) => normalizeAcademyVideoUrl(value) !== null)
+      .optional(),
     faqs: z.array(
       z.object({
         id: z.string(),
@@ -57,12 +57,6 @@ const publicCourseSchema = z.object({
 
 type PublicCourse = z.infer<typeof publicCourseSchema>;
 
-const currency = new Intl.NumberFormat("he-IL", {
-  style: "currency",
-  currency: "ILS",
-  maximumFractionDigits: 0,
-});
-
 export const Route = createFileRoute("/c/$courseId")({
   head: () => ({
     meta: [
@@ -81,15 +75,31 @@ function PublicCourseLanding() {
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedCourse = academyStorage.getPublishedCourseById(courseId);
-      setCourse(savedCourse ? publicCourseSchema.parse(savedCourse) : null);
-    } catch (error) {
-      console.error("Failed to load local academy course", error);
-      setLoadError(true);
-    } finally {
+    let active = true;
+    setLoading(true);
+    setLoadError(false);
+    setCourse(null);
+    if (!z.string().uuid().safeParse(courseId).success) {
       setLoading(false);
+      return () => {
+        active = false;
+      };
     }
+    academyServerStorage
+      .getPublishedCourseById(courseId)
+      .then((savedCourse) => {
+        if (active) setCourse(savedCourse ? publicCourseSchema.parse(savedCourse) : null);
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load published academy course", error);
+        if (active) setLoadError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [courseId]);
 
   if (loading) {
@@ -102,14 +112,14 @@ function PublicCourseLanding() {
   if (loadError) {
     return (
       <main dir="rtl" className="mx-auto max-w-2xl p-8 text-center">
-        לא ניתן לקרוא את פרטי הקורס מהאחסון המקומי.
+        לא ניתן לטעון את פרטי הקורס כרגע. נסי שוב מאוחר יותר.
       </main>
     );
   }
   if (!course) {
     return (
       <main dir="rtl" className="mx-auto max-w-2xl p-8 text-center">
-        הקורס אינו שמור במכשיר הזה. דפי קורס שנשמרו מקומית זמינים רק בדפדפן שבו פורסמו.
+        הקורס לא נמצא או שאינו מפורסם.
       </main>
     );
   }
@@ -187,19 +197,6 @@ function CoursePage({ course }: { course: PublicCourse }) {
               </p>
             </div>
           </header>
-
-          <section
-            className="space-y-2 rounded-2xl border border-border p-5"
-            style={{ backgroundColor: branding.secondaryColor }}
-          >
-            <h2 className="text-sm font-bold">מחיר מומלץ לתלמידה</h2>
-            <p className="text-3xl font-black" style={{ color: branding.primaryColor }}>
-              {currency.format(course.pricingOutput.pricingTiers.recommendedPrice)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              המחיר הסופי ותנאי התשלום יאושרו מול המדריכה.
-            </p>
-          </section>
 
           <section className="space-y-2">
             <h2 className="text-xl font-bold">על הקורס</h2>

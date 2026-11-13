@@ -10,7 +10,7 @@ const academyTools = [
   },
   {
     to: "/academy/syllabus",
-    title: "מחולל סילבוס ומערכי שיעור ב-AI",
+    title: "מחולל סילבוס ומערכי שיעור",
     description: "בניית תוכנית לימודים לתלמידות ומערכי שיעור למדריכה.",
     icon: FileText,
   },

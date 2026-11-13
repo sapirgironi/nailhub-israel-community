@@ -29,15 +29,27 @@ export async function uploadAuthenticatedImage(file: File, userId: string) {
     response = await fetch(uploadUrl, {
       method: 'POST', headers: { Authorization: `Basic ${btoa(`${key}:${secret}`)}` }, body,
     });
-  } catch (error) {
-    console.error('Cloudinary upload request failed', { error });
+  } catch {
+    console.error('Cloudinary upload request failed');
     throw new Error('לא ניתן להתחבר לשירות התמונות. נסי שוב.');
   }
   if (!response.ok) {
-    console.error('Cloudinary upload failed', { status: response.status, statusText: response.statusText });
+    console.error('Cloudinary upload failed', { status: response.status });
+    if (response.status === 401) {
+      throw new Error('שירות התמונות דחה את פרטי הגישה. יש לבדוק את הגדרות Cloudinary.');
+    }
+    if (response.status === 403) {
+      throw new Error('לשירות התמונות אין הרשאה להעלות תמונות. יש לבדוק את הרשאות Cloudinary.');
+    }
     throw new Error(`העלאת התמונה נכשלה (HTTP ${response.status}). נסי שוב.`);
   }
-  const result = await response.json() as { public_id: string; version: number; format: string };
+  let result: { public_id: string; version: number; format: string };
+  try {
+    result = await response.json() as { public_id: string; version: number; format: string };
+  } catch {
+    console.error('Cloudinary upload response could not be read');
+    throw new Error('עיבוד התמונה נכשל');
+  }
   if (result.public_id !== publicId || !['jpg','png','webp'].includes(result.format) || !Number.isInteger(result.version))
     throw new Error('עיבוד התמונה נכשל');
   return { url: `https://res.cloudinary.com/${cloud}/image/authenticated/${IMAGE_OPTIMIZATION}/v${result.version}/${publicId}.${result.format}` };
@@ -52,20 +64,26 @@ export async function createOptimizedImageUrl(cloud: string, secret: string, pat
 
 export async function fetchOptimizedImage(cloud: string, secret: string, path: string) {
   const url = await createOptimizedImageUrl(cloud, secret, path);
-  const response = await fetch(url, {
-    headers: { Accept: 'image/webp,image/*' }, cache: 'no-store',
-  });
-  if (!response.ok) {
-    const details = await response.text();
-    console.error('Cloudinary delivery failed', {
-      url: response.url || url,
-      status: response.status,
-      statusText: response.statusText,
-      response: details,
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Accept: 'image/webp,image/*' }, cache: 'no-store',
     });
-    throw new Error(`טעינת התמונה נכשלה בכתובת ${response.url || url} (HTTP ${response.status}): ${details}`);
+  } catch {
+    console.error('Cloudinary delivery request failed');
+    throw new Error('לא ניתן להתחבר לשירות התמונות. נסי שוב.');
   }
-  const body = new Uint8Array(await response.arrayBuffer());
+  if (!response.ok) {
+    console.error('Cloudinary delivery failed', { status: response.status });
+    throw new Error(`טעינת התמונה נכשלה (HTTP ${response.status}). נסי שוב.`);
+  }
+  let body: Uint8Array;
+  try {
+    body = new Uint8Array(await response.arrayBuffer());
+  } catch {
+    console.error('Cloudinary delivery body read failed');
+    throw new Error('קריאת התמונה נכשלה. נסי שוב.');
+  }
   let binary = '';
   for (let i = 0; i < body.length; i += 8192) binary += String.fromCharCode(...body.subarray(i, i + 8192));
   return `data:${response.headers.get('content-type') ?? 'image/webp'};base64,${btoa(binary)}`;

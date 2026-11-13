@@ -8,6 +8,30 @@ export type Database = {
   };
   public: {
     Tables: {
+      academy_courses: {
+        Row: {
+          id: string;
+          owner_id: string;
+          course_data: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          owner_id: string;
+          course_data: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          course_data?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       ai_questionnaires: {
         Row: {
           created_at: string;
@@ -1242,6 +1266,28 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      submit_client_request_guarded: {
+        Args: {
+          p_request_id: string;
+          p_tech_id: string;
+          p_full_name: string;
+          p_phone: string;
+          p_request_type: string;
+          p_description: string;
+          p_claim_token: string;
+          p_source_hash: string;
+          p_fingerprint: string;
+        };
+        Returns: string;
+      };
+      import_academy_courses: {
+        Args: { courses: Json };
+        Returns: number;
+      };
+      public_academy_course: {
+        Args: { course_id: string };
+        Returns: Json;
+      };
       adjust_community_credit: {
         Args: {
           delta: number;
@@ -1282,6 +1328,30 @@ export type Database = {
           business_name: string;
           display_name: string;
           id: string;
+        }[];
+      };
+      following_feed_page: {
+        Args: { before_created_at?: string; before_id?: string; page_size?: number };
+        Returns: Database["public"]["Tables"]["posts"]["Row"][];
+      };
+      blocked_comment_words: {
+        Args: { comment_body: string };
+        Returns: string[];
+      };
+      visible_media_urls: {
+        Args: { candidate_urls: string[] };
+        Returns: { url: string }[];
+      };
+      admin_supplier_page: {
+        Args: { search_text?: string; page_offset?: number; page_size?: number };
+        Returns: {
+          id: string;
+          display_name: string;
+          business_name: string | null;
+          account_role: string;
+          account_status: string | null;
+          email: string;
+          balance: number;
         }[];
       };
       has_role: {

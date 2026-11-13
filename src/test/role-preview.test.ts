@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canAccessSection, getRoleForAccountRole, type PreviewRole } from "@/lib/role-preview";
+import { canAccessSection, canCreateFeedContent, getRoleForAccountRole, type PreviewRole } from "@/lib/role-preview";
 
 describe("role-based navigation", () => {
   const expectedSections: Record<PreviewRole, string[]> = {
@@ -101,5 +101,20 @@ describe("role-based navigation", () => {
     expect(getRoleForAccountRole("client")).toBe("CLIENT_MODEL");
     expect(getRoleForAccountRole("model")).toBe("CLIENT_MODEL");
     expect(getRoleForAccountRole("nail_tech", true)).toBe("SUPER_ADMIN");
+  });
+  it.each([
+    ["nail_tech", true],
+    ["instructor", true],
+    ["supplier", false],
+    ["model", false],
+    ["client", false],
+    [undefined, false],
+  ])("restricts feed creation for account role %s", (role, allowed) => {
+    expect(canCreateFeedContent(role)).toBe(allowed);
+    expect(canCreateFeedContent(role, true, "SUPER_ADMIN")).toBe(allowed);
+  });
+  it("does not grant publishing from an administrator's preview role", () => {
+    expect(canCreateFeedContent("client", true, "INSTRUCTOR")).toBe(false);
+    expect(canCreateFeedContent("nail_tech", true, "NAIL_TECH")).toBe(false);
   });
 });

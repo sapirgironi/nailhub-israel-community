@@ -7,12 +7,12 @@ export const Route = createFileRoute("/clinic")({
       { title: "הקליניקה שלי — NailHub" },
       {
         name: "description",
-        content: "כלי ניהול הקליניקה: מחשבון תמחור, הצהרת בריאות, מחירון ועוזרת בינה מלאכותית.",
+        content: "כלי ניהול הקליניקה: מחשבון תמחור, הצהרת בריאות, מחירון ותבניות לפוסטים.",
       },
       { property: "og:title", content: "הקליניקה שלי — NailHub" },
       {
         property: "og:description",
-        content: "כלי ניהול הקליניקה: מחשבון תמחור, הצהרת בריאות, מחירון ועוזרת בינה מלאכותית.",
+        content: "כלי ניהול הקליניקה: מחשבון תמחור, הצהרת בריאות, מחירון ותבניות לפוסטים.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

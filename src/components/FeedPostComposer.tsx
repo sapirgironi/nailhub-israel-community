@@ -1,19 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   AtSign,
   Check,
-  Crown,
   Hash,
   ImagePlus,
-  LoaderCircle,
   Plus,
   Send,
   Sparkles,
   X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadPhoto } from "@/lib/media";
 import { validateImage } from "@/lib/cloudinary";
@@ -34,7 +30,7 @@ import {
   type PostMention,
   type FeedPostType,
 } from "@/lib/feed-post";
-import { getFeedPremiumAccess, upgradeFeedCaption } from "@/lib/feed-post.functions";
+import { createPostDraft, POST_CATEGORIES, type PostCategory } from "@/lib/post-templates";
 import { hebrewError } from "@/lib/hebrew-errors";
 import { StoryMentionPicker } from "./StoryMentionPicker";
 import { StoryTextEditor } from "./StoryTextEditor";
@@ -67,17 +63,14 @@ export function FeedPostComposer({
   const [mentions, setMentions] = useState<PostMention[]>([]);
   const [caret, setCaret] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [premiumDialog, setPremiumDialog] = useState(false);
+  const [category, setCategory] = useState<PostCategory>("work");
   const [suggestions, setSuggestions] = useState<{ title: string; text: string }[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const text = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
-  const access = useServerFn(getFeedPremiumAccess);
-  const upgrade = useServerFn(upgradeFeedCaption);
   const mention = activeMention(caption, caret);
-  const locked = busy || aiBusy;
+  const locked = busy;
   useEffect(() => {
     if (!file) {
       setPreview("");
@@ -143,31 +136,16 @@ export function FeedPostComposer({
       el?.setSelectionRange(next.length, next.length);
     });
   }
-  async function ai() {
+  function showTemplates() {
     setMsg("");
-    if (postMode !== "image") return;
-    setAiBusy(true);
-    try {
-      const status = await access();
-      if (!status.active) {
-        setPremiumDialog(true);
-        return;
-      }
-      if (!file) {
-        setMsg("בחרי תמונת עבודה לפני שדרוג הניסוח");
-        return;
-      }
-      const data = new FormData();
-      data.set("file", file);
-      data.set("caption", caption);
-      const result = await upgrade({ data });
-      if (result.error) setMsg(result.error);
-      else setSuggestions(result.suggestions);
-    } catch (e) {
-      setMsg(hebrewError(e, "שדרוג הניסוח לא הושלם"));
-    } finally {
-      setAiBusy(false);
+    const text = createPostDraft(category, "חם ואישי", caption);
+    const limit = postMode === "text" ? TEXT_POST_CAPTION_LIMIT : 2000;
+    if (text.length > limit) {
+      setMsg(`כדי להוסיף תבנית, קצרי את הטקסט כך שלא יעלה על ${limit} תווים יחד עם התבנית.`);
+      setSuggestions([]);
+      return;
     }
+    setSuggestions([{ title: "תבנית לנושא שבחרת", text }]);
   }
   async function publish(e: React.FormEvent) {
     e.preventDefault();
@@ -485,21 +463,21 @@ export function FeedPostComposer({
                 </Button>
               </div>
             </fieldset>
-            {postMode === "image" && (
+            <label className="block text-sm font-bold">
+              נושא לתבנית הפוסט
+              <select value={category} onChange={(e) => setCategory(e.target.value as PostCategory)} className={`${field} mt-2`}>
+                {POST_CATEGORIES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </label>
               <Button
                 type="button"
                 variant="outline"
                 disabled={locked}
                 className="w-full h-auto min-h-12 whitespace-normal bg-accent/50 text-primary border-primary/25"
-                onClick={ai}
+                onClick={showTemplates}
               >
-                {aiBusy ? <LoaderCircle className="animate-spin" /> : <Sparkles />}שדרגי ניסוח עם AI{" "}
-                <span className="inline-flex items-center text-xs gap-1">
-                  <Crown className="size-3" />
-                  פרימיום
-                </span>
+                <Sparkles />הצעת תבנית לניסוח
               </Button>
-            )}
             {suggestions.length > 0 && (
               <div className="space-y-3" aria-label="הצעות ניסוח">
                 {suggestions.map((s, i) => (
@@ -549,46 +527,6 @@ export function FeedPostComposer({
           </p>
         )}
       </form>
-      {premiumDialog && (
-        <div
-          className="fixed inset-0 z-50 bg-overlay grid place-items-center p-4"
-          onClick={() => setPremiumDialog(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="feed-premium-title"
-            className="bg-card border border-border rounded-3xl p-6 max-w-sm w-full space-y-4 text-right"
-            dir="rtl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <Crown className="text-primary size-8" />
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label="סגירת חלון פרימיום"
-                onClick={() => setPremiumDialog(false)}
-              >
-                <X />
-              </Button>
-            </div>
-            <h2 id="feed-premium-title" className="text-xl font-black">
-              ניסוח חכם לחברות פרימיום
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              הצעות ניסוח המבוססות על תמונת העבודה והטקסט שלך זמינות עם מנוי פרימיום פעיל. לבירור
-              אפשרויות השדרוג, פני להנהלת הקהילה.
-            </p>
-            <Button asChild className="w-full">
-              <Link to="/support">בירור שדרוג לפרימיום</Link>
-            </Button>
-            <Button variant="ghost" className="w-full" onClick={() => setPremiumDialog(false)}>
-              המשך עריכה
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

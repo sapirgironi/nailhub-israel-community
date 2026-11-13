@@ -8,6 +8,7 @@ import {HubShell} from '@/components/HubShell';
 import {Trade} from '@/components/HubWorkspace';
 import {Button} from '@/components/ui/button';
 import { contactText, phoneText, plainText, whatsappLink } from '@/lib/input-security';
+import { Pagination, PAGE_SIZE, pageRange } from '@/components/Pagination';
 
 export const Route = createFileRoute("/boards")({
   head: () => ({
@@ -98,15 +99,21 @@ function ModelsBoard() {
   const [open, setOpen] = useState(false);
   const [region, setRegion] = useState("all");
   const [treatment, setTreatment] = useState("all");
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["model_calls"],
+  const [page, setPage] = useState(0);
+  const { data = [], isLoading, isError, isFetching } = useQuery({
+    queryKey: ["model_calls", region, treatment, page],
+    staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("model_calls").select("*").order("created_at", { ascending: false });
+      const { from, to } = pageRange(page);
+      let query = supabase.from("model_calls").select("*").order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to);
+      if (region !== "all") query = query.eq("region", region);
+      if (treatment !== "all") query = query.eq("treatment_type", treatment);
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
-  const list = data.filter((p) => (region === "all" || p.region === region) && (treatment === "all" || p.treatment_type === treatment));
+  const list = data.slice(0, PAGE_SIZE);
 
   const [f, setF] = useState({ treatment_type: TREATMENTS[0] ?? 'מבנה אנטומי', region: REGIONS[0] ?? 'צפון', city: "", desired_at: "", cost_type: "free", requirements: "", contact: "", studio_name: "", cost_amount: "" });
   const add = useMutation({
@@ -132,16 +139,16 @@ function ModelsBoard() {
 
       <div className="bg-card border border-border rounded-2xl p-3 shadow-soft space-y-2">
         <div className="flex gap-1.5 overflow-x-auto"><span className="text-xs font-bold text-muted-foreground self-center ml-1">אזור:</span>
-          <Button onClick={() => setRegion("all")} className={chip(region === "all")}>הכול</Button>
-          {REGIONS.map((r) => <Button key={r} onClick={() => setRegion(r)} className={chip(region === r)}>{r}</Button>)}
+          <Button onClick={() => { setRegion("all"); setPage(0); }} className={chip(region === "all")}>הכול</Button>
+          {REGIONS.map((r) => <Button key={r} onClick={() => { setRegion(r); setPage(0); }} className={chip(region === r)}>{r}</Button>)}
         </div>
         <div className="flex gap-1.5 overflow-x-auto"><span className="text-xs font-bold text-muted-foreground self-center ml-1">טיפול:</span>
-          <Button onClick={() => setTreatment("all")} className={chip(treatment === "all")}>הכול</Button>
-          {TREATMENTS.map((t) => <Button key={t} onClick={() => setTreatment(t)} className={chip(treatment === t)}>{t}</Button>)}
+          <Button onClick={() => { setTreatment("all"); setPage(0); }} className={chip(treatment === "all")}>הכול</Button>
+          {TREATMENTS.map((t) => <Button key={t} onClick={() => { setTreatment(t); setPage(0); }} className={chip(treatment === t)}>{t}</Button>)}
         </div>
       </div>
 
-      {isLoading ? <Empty text="טוען..." /> : list.length === 0 ? <Empty text="אין עדיין בקשות שמתאימות לסינון" /> : (
+      {isError ? <Empty text="טעינת הבקשות נכשלה. נסי שוב." /> : isLoading ? <Empty text="טוען..." /> : list.length === 0 ? <Empty text="אין עדיין בקשות שמתאימות לסינון" /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {list.map((p) => (
             <div key={p.id} className="bg-card rounded-3xl border border-border p-6 shadow-soft flex flex-col gap-3">
@@ -158,6 +165,7 @@ function ModelsBoard() {
           ))}
         </div>
       )}
+      <Pagination page={page} onPageChange={setPage} hasNext={data.length > PAGE_SIZE} loading={isFetching} />
 
       {open && (
         <Modal title="פרסום בקשת מודליסטית" onClose={() => setOpen(false)}>
@@ -188,15 +196,20 @@ function JobsBoard() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState("all");
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["job_posts"],
+  const [page, setPage] = useState(0);
+  const { data = [], isLoading, isError, isFetching } = useQuery({
+    queryKey: ["job_posts", type, page],
+    staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("job_posts").select("*").order("created_at", { ascending: false });
+      const { from, to } = pageRange(page);
+      let query = supabase.from("job_posts").select("*").order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to);
+      if (type !== "all") query = query.eq("post_type", type);
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
-  const list = data.filter((p) => type === "all" || p.post_type === type);
+  const list = data.slice(0, PAGE_SIZE);
   const [f, setF] = useState({ post_type: "hiring", studio_name: "", city: "", description: "", phone: "" });
   const add = useMutation({
     mutationFn: async () => {
@@ -219,10 +232,10 @@ function JobsBoard() {
         <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 bg-rose-glam hover:opacity-90 text-primary-foreground font-bold px-5 py-3 rounded-2xl text-sm shadow-soft"><Plus className="w-4 h-4" /> פרסום מודעה</Button>
       </div>
       <div className="flex gap-1.5">
-        <Button onClick={() => setType("all")} className={chip(type === "all")}>הכול</Button>
-        {Object.entries(JOB_TYPES).map(([k, v]) => <Button key={k} onClick={() => setType(k)} className={chip(type === k)}>{v}</Button>)}
+        <Button onClick={() => { setType("all"); setPage(0); }} className={chip(type === "all")}>הכול</Button>
+        {Object.entries(JOB_TYPES).map(([k, v]) => <Button key={k} onClick={() => { setType(k); setPage(0); }} className={chip(type === k)}>{v}</Button>)}
       </div>
-      {isLoading ? <Empty text="טוען..." /> : list.length === 0 ? <Empty text="אין עדיין מודעות" /> : (
+      {isError ? <Empty text="טעינת המודעות נכשלה. נסי שוב." /> : isLoading ? <Empty text="טוען..." /> : list.length === 0 ? <Empty text="אין עדיין מודעות" /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {list.map((p) => (
             <div key={p.id} className="bg-card rounded-3xl border border-border p-6 shadow-soft flex flex-col gap-3">
@@ -243,6 +256,7 @@ function JobsBoard() {
           ))}
         </div>
       )}
+      <Pagination page={page} onPageChange={setPage} hasNext={data.length > PAGE_SIZE} loading={isFetching} />
       {open && (
         <Modal title="פרסום מודעה" onClose={() => setOpen(false)}>
           <form onSubmit={(e) => { e.preventDefault(); add.mutate(); }} className="space-y-3">

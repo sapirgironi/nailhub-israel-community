@@ -45,8 +45,8 @@ const clinicTools = [
   },
   {
     to: "/draft",
-    title: "כתיבת פוסט חכמה ב-AI",
-    description: "יצירת טיוטת תוכן לפיד המקצועי בעזרת כלי הכתיבה.",
+    title: "תבניות לכתיבת פוסט",
+    description: "יצירת טיוטת תוכן לפיד המקצועי בעזרת תבניות.",
     icon: PenLine,
   },
 ] as const;

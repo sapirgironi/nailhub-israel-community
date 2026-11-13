@@ -17,4 +17,8 @@ describe('Auth error classification',()=>{
     expect(classifyError(new Error('Missing Supabase environment variable(s)'))).toBe('configuration');
     expect(classifyError(new Error('Invalid Supabase configuration: URL must be an absolute HTTPS origin.'))).toBe('configuration');
   });
+  it('distinguishes image service credentials from image upload permissions', () => {
+    expect(classifyError(new Error('שירות התמונות דחה את פרטי הגישה. יש לבדוק את הגדרות Cloudinary.'))).toBe('image_configuration');
+    expect(classifyError(new Error('לשירות התמונות אין הרשאה להעלות תמונות. יש לבדוק את הרשאות Cloudinary.'))).toBe('image_permission');
+  });
 });

@@ -189,8 +189,8 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
         .single();
       if (error || !data) throw new Error("save");
       await loadData(currentUser.id);
-    } catch {
-      setAuthError("שמירת תמונת הפרופיל נכשלה. נסי שוב.");
+    } catch (error) {
+      setAuthError(hebrewError(error, "שמירת תמונת הפרופיל נכשלה. נסי שוב."));
     } finally {
       setPhotoBusy(false);
     }
@@ -377,13 +377,15 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
   useEffect(() => {
     if (!currentUser) return;
     const refreshAccess = () => {
-      void checkAccess(currentUser.id);
+      if (document.visibilityState === "visible") void checkAccess(currentUser.id);
     };
-    const timer = window.setInterval(refreshAccess, 15000);
+    const timer = window.setInterval(refreshAccess, 60_000);
     window.addEventListener("focus", refreshAccess);
+    document.addEventListener("visibilitychange", refreshAccess);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("focus", refreshAccess);
+      document.removeEventListener("visibilitychange", refreshAccess);
     };
   }, [currentUser?.id]);
 
@@ -1294,6 +1296,7 @@ export function NailHubApp({ section = "feed" }: { section?: HubSection }) {
           section={section}
           user={currentUser}
           isAdmin={isAdmin}
+          previewRole={previewRole}
           composePostOpen={composePostOpen}
           onComposePostClose={() => setComposePostOpen(false)}
         />

@@ -55,7 +55,6 @@ import {
   type FeedTab,
   parseCaptionStyle,
 } from "@/lib/feed-post";
-import { useFollowing } from "@/lib/use-follows";
 import { MemberFollowButton } from "./MemberFollowControls";
 import { captionHighlightStyle, captionPreviewStyle } from "@/lib/caption-style";
 import { groupStories } from "@/lib/story-groups";
@@ -71,11 +70,14 @@ import { CoursePricingCalculator } from "./CoursePricingCalculator";
 import { CourseSyllabusGenerator } from "./CourseSyllabusGenerator";
 import { AcademyCourseLibrary } from "./AcademyCourseLibrary";
 import { hasAcademyAccess } from "@/lib/academy-access";
+import { canCreateFeedContent, type PreviewRole } from "@/lib/role-preview";
 import { plainText, whatsappLink } from "@/lib/input-security";
 import { publishComment } from "@/lib/moderation.functions";
+import { deleteContent } from "@/lib/content-deletion.functions";
 import { healthSchema, insuranceSchema, priceItemSchema } from "@/lib/hub-tools";
 import {
   calculateTreatment,
+  calculateMaterialCost,
   TREATMENTS,
   LENGTHS,
   EFFECTS,
@@ -84,8 +86,8 @@ import {
   type PricingInput,
   type LengthId,
 } from "@/lib/pricing";
-import { estimateMaterialCost } from "@/lib/pricing.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { Pagination, PAGE_SIZE, pageRange } from "./Pagination";
 import type { Database } from "@/integrations/supabase/types";
 
 const field =
@@ -179,12 +181,14 @@ export function HubWorkspace({
   section,
   user,
   isAdmin = false,
+  previewRole,
   composePostOpen = false,
   onComposePostClose,
 }: {
   section: HubSection;
   user: Person;
   isAdmin?: boolean;
+  previewRole?: PreviewRole;
   composePostOpen?: boolean;
   onComposePostClose?: (() => void) | undefined;
 }) {
@@ -260,14 +264,16 @@ export function HubWorkspace({
         user={user}
         savedOnly={section === "saved"}
         isAdmin={isAdmin}
+        canCreate={canCreateFeedContent(user.role, isAdmin, previewRole)}
         composePostOpen={composePostOpen}
         onComposePostClose={onComposePostClose}
       />
     </FeedErrorBoundary>
   );
 }
-function StoriesBar({ user }: { user: Person }) {
+function StoriesBar({ user, canCreate }: { user: Person; canCreate: boolean }) {
   const qc = useQueryClient();
+  const deleteOnServer = useServerFn(deleteContent);
   const [open, setOpen] = useState<{ g: number; i: number } | null>(null);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -385,6 +391,7 @@ function StoriesBar({ user }: { user: Person }) {
     background_media_url: string,
     mentions: StoryMention[],
   ) {
+    if (!canCreate) throw new Error("אין לך הרשאה לפרסם סטורי");
     setMsg("");
     const media_url = await uploadPhoto(f, user.id);
     if (!media_url) throw new Error("שירות התמונות לא החזיר כתובת תקינה");
@@ -416,8 +423,9 @@ function StoriesBar({ user }: { user: Person }) {
     await qc.invalidateQueries({ queryKey: ["hub-stories"] });
   }
   async function removeStory(id: string) {
-    const { error } = await supabase.from("stories").delete().eq("id", id);
-    if (error) {
+    try {
+      await deleteOnServer({ data: { kind: "story", id } });
+    } catch {
       setMsg("מחיקת הסטורי נכשלה");
       return;
     }
@@ -445,11 +453,11 @@ function StoriesBar({ user }: { user: Person }) {
   useEffect(() => {
     const consume = () => {
       const f = takeStory();
-      if (f) setDraft(f);
+      if (f && canCreate) setDraft(f);
     };
     consume();
     return onStoryQueued(consume);
-  }, []);
+  }, [canCreate]);
   const nameOf = (uid: string) =>
     uid === user.id ? user.businessName || "הסטורי שלך" : "חברת קהילה";
   function tap(e: React.PointerEvent<HTMLDivElement>) {
@@ -461,34 +469,40 @@ function StoriesBar({ user }: { user: Person }) {
   }
   return (
     <>
-      {draft && <StoryEditor file={draft} onCancel={() => setDraft(null)} onPublish={addStory} />}
+      {canCreate && draft && (
+        <StoryEditor file={draft} onCancel={() => setDraft(null)} onPublish={addStory} />
+      )}
       <section
         aria-label="סטוריז מהקהילה"
         className="flex items-start gap-4 overflow-x-auto pb-3 mb-6 bg-card rounded-3xl border border-border shadow-soft p-4"
       >
-        <input
-          ref={storyInput}
-          aria-label="העלאת סטורי"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="sr-only"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (f) setDraft(f);
-          }}
-        />
-        <button
-          type="button"
-          aria-label="הוספת סטורי חדש"
-          onClick={() => storyInput.current?.click()}
-          className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center"
-        >
-          <span className="relative w-[4.5rem] h-[4.5rem] rounded-full border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center">
-            <Plus className="w-7 h-7 text-primary" />
-          </span>
-          <span className="text-[11px] font-bold leading-tight text-foreground">הסטורי שלי</span>
-        </button>
+        {canCreate && (
+          <>
+            <input
+              ref={storyInput}
+              aria-label="העלאת סטורי"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) setDraft(f);
+              }}
+            />
+            <button
+              type="button"
+              aria-label="הוספת סטורי חדש"
+              onClick={() => storyInput.current?.click()}
+              className="shrink-0 w-[4.5rem] flex flex-col items-center gap-1.5 text-center"
+            >
+              <span className="relative w-[4.5rem] h-[4.5rem] rounded-full border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center">
+                <Plus className="w-7 h-7 text-primary" />
+              </span>
+              <span className="text-[11px] font-bold leading-tight text-foreground">הסטורי שלי</span>
+            </button>
+          </>
+        )}
         {groups.map((gr, gi) => (
           <FeedItemBoundary key={gr.userId}>
             <button
@@ -661,14 +675,19 @@ function StoriesBar({ user }: { user: Person }) {
   );
 }
 function StoryViewersModal({ storyId, onClose }: { storyId: string; onClose: () => void }) {
+  const [page, setPage] = useState(0);
   const views = useQuery({
-    queryKey: ["hub-story-views", storyId],
+    queryKey: ["hub-story-views", storyId, page],
+    staleTime: 30_000,
     queryFn: async () => {
+      const { from, to } = pageRange(page);
       const { data, error } = await supabase
         .from("story_views")
         .select("*")
         .eq("story_id", storyId)
-        .order("viewed_at", { ascending: false });
+        .order("viewed_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
       if (error) throw error;
       return data;
     },
@@ -694,7 +713,7 @@ function StoryViewersModal({ storyId, onClose }: { storyId: string; onClose: () 
             <Notice text="עדיין אף אחת לא צפתה בסטורי" />
           ) : (
             <ul className="space-y-3">
-              {views.data.map((v) => (
+              {views.data.slice(0, PAGE_SIZE).map((v) => (
                 <li
                   key={v.id}
                   className="flex items-center justify-between gap-2 text-sm border-b border-border pb-2"
@@ -705,6 +724,7 @@ function StoryViewersModal({ storyId, onClose }: { storyId: string; onClose: () 
                   </time>
                 </li>
               ))}
+        <Pagination page={page} onPageChange={setPage} hasNext={(views.data?.length ?? 0) > PAGE_SIZE} loading={views.isFetching} />
             </ul>
           ))}
       </div>
@@ -721,6 +741,7 @@ function CommentsModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const deleteOnServer = useServerFn(deleteContent);
   const [text, setText] = useState("");
   const [msg, setMsg] = useState("");
   const [checking, setChecking] = useState(false);
@@ -792,8 +813,9 @@ function CommentsModal({
     await insertComment(parsed.data);
   }
   async function remove(id: string) {
-    const { error } = await supabase.from("post_comments").delete().eq("id", id);
-    if (error) {
+    try {
+      await deleteOnServer({ data: { kind: "comment", id } });
+    } catch {
       setMsg("מחיקת התגובה נכשלה");
       return;
     }
@@ -1042,14 +1064,19 @@ function CollabModal({
   );
 }
 function OffersModal({ post, onClose }: { post: Row<"posts">; onClose: () => void }) {
+  const [page, setPage] = useState(0);
   const offers = useQuery({
-    queryKey: ["hub-offers", post.id],
+    queryKey: ["hub-offers", post.id, page],
+    staleTime: 30_000,
     queryFn: async () => {
+      const { from, to } = pageRange(page);
       const { data, error } = await supabase
         .from("collab_offers")
         .select("*")
         .eq("post_id", post.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
       if (error) throw error;
       return data;
     },
@@ -1072,7 +1099,7 @@ function OffersModal({ post, onClose }: { post: Row<"posts">; onClose: () => voi
         {(offers.data ?? []).length === 0 ? (
           <Notice text="עדיין לא התקבלו הצעות" />
         ) : (
-          offers.data?.map((o) => (
+          offers.data?.slice(0, PAGE_SIZE).map((o) => (
             <div key={o.id} className="border-b border-border pb-3">
               <p className="text-sm whitespace-pre-wrap break-words">{o.note}</p>
               <time className="text-xs text-muted-foreground">
@@ -1081,6 +1108,7 @@ function OffersModal({ post, onClose }: { post: Row<"posts">; onClose: () => voi
             </div>
           ))
         )}
+        <Pagination page={page} onPageChange={setPage} hasNext={(offers.data?.length ?? 0) > PAGE_SIZE} loading={offers.isFetching} />
       </div>
     </div>
   );
@@ -1089,17 +1117,20 @@ function Feed({
   user,
   savedOnly,
   isAdmin,
+  canCreate,
   composePostOpen,
   onComposePostClose,
 }: {
   user: Person;
   savedOnly: boolean;
   isAdmin: boolean;
+  canCreate: boolean;
   composePostOpen: boolean;
   onComposePostClose?: (() => void) | undefined;
 }) {
   const routeSearch = useSearch({ strict: false });
   const qc = useQueryClient();
+  const deleteOnServer = useServerFn(deleteContent);
   const [search, setSearch] = useState("");
   const [feedTab, setFeedTab] = useState<FeedTab>("all");
   const [msg, setMsg] = useState("");
@@ -1109,19 +1140,17 @@ function Feed({
   const [commentPost, setCommentPost] = useState<Row<"posts"> | null>(null);
   const [collabPost, setCollabPost] = useState<Row<"posts"> | null>(null);
   const [offersPost, setOffersPost] = useState<Row<"posts"> | null>(null);
-  const following = useFollowing(user.id);
-  const followingIds = following.data ?? [];
   const feedQueryKey = ["hub-posts", user.id, savedOnly, feedTab] as const;
   const composeFromUrl = "compose" in routeSearch && routeSearch.compose === true;
   useEffect(() => {
-    if (composeFromUrl) setOpen(true);
-  }, [composeFromUrl]);
+    if (composeFromUrl && canCreate) setOpen(true);
+  }, [composeFromUrl, canCreate]);
   useEffect(() => {
-    if (composePostOpen) setOpen(true);
-  }, [composePostOpen]);
+    if (composePostOpen && canCreate) setOpen(true);
+  }, [composePostOpen, canCreate]);
   const posts = useInfiniteQuery({
     queryKey: feedQueryKey,
-    enabled: savedOnly || feedTab !== "following" || following.isSuccess,
+    staleTime: 30_000,
     initialPageParam: null as PageCursor | null,
     queryFn: async ({ pageParam }) => {
       let rawPosts: Row<"posts">[] = [];
@@ -1154,15 +1183,24 @@ function Feed({
         if (savedRows.length === FEED_PAGE_SIZE && last)
           nextCursor = { createdAt: last.created_at, id: last.id };
       } else {
-        if (feedTab === "following" && followingIds.length === 0)
-          return { rows: [], nextCursor: null };
+        if (feedTab === "following") {
+          const { data, error } = await supabase.rpc("following_feed_page", {
+            page_size: FEED_PAGE_SIZE,
+            ...(pageParam ? { before_created_at: pageParam.createdAt, before_id: pageParam.id } : {}),
+          });
+          if (error) throw error;
+          const last = data.at(-1);
+          return {
+            rows: data.map((post) => ({ ...post, displayUrl: post.image_url })),
+            nextCursor: data.length === FEED_PAGE_SIZE && last ? { createdAt: last.created_at, id: last.id } : null,
+          };
+        }
         let query = supabase
           .from("posts")
           .select("*")
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
           .limit(FEED_PAGE_SIZE);
-        if (feedTab === "following") query = query.in("author_id", followingIds);
         if (feedTab === "gallery")
           query = query.not("image_url", "is", null).not("post_type", "in", '("course","deal")');
         if (feedTab === "discussions") query = query.is("image_url", null);
@@ -1314,8 +1352,9 @@ function Feed({
           }
         : old,
     );
-    const { error } = await supabase.from("posts").delete().eq("id", p.id);
-    if (error) {
+    try {
+      await deleteOnServer({ data: { kind: "post", id: p.id } });
+    } catch {
       for (const [queryKey, data] of previousPosts) qc.setQueryData(queryKey, data);
       setMsg("המחיקה נכשלה");
       setDeletePending(false);
@@ -1376,7 +1415,7 @@ function Feed({
     <>
       {!savedOnly && (
         <FeedErrorBoundary fallback={<Notice text="אירעה תקלה בתצוגת הסטוריז; הפיד עדיין זמין." />}>
-          <StoriesBar user={user} />
+          <StoriesBar user={user} canCreate={canCreate} />
         </FeedErrorBoundary>
       )}
       <h1 className="font-black text-2xl mb-4">{savedOnly ? "השמורים שלי" : "הפיד המקצועי"}</h1>
@@ -1403,7 +1442,6 @@ function Feed({
               role="tab"
               aria-selected={feedTab === tab}
               aria-pressed={feedTab === tab}
-              disabled={tab === "following" && (following.isPending || following.isError)}
               variant={feedTab === tab ? "default" : "secondary"}
               className={`shrink-0 rounded-full px-4 transition-all ${feedTab === tab ? "text-primary-foreground shadow-glow ring-2 ring-primary/30" : "hover:bg-accent"}`}
               style={
@@ -1425,7 +1463,7 @@ function Feed({
         onChange={(e) => setSearch(e.target.value)}
         className={`${field} mb-6`}
       />
-      {open && (
+      {canCreate && open && (
         <FeedPostComposer
           userId={user.id}
           onClose={() => {
@@ -1477,9 +1515,7 @@ function Feed({
         savedPages.some((page) => page.isError) ||
         likedPages.some((page) => page.isError) ||
         commentPages.some((page) => page.isError)) && <Notice text="טעינת העבודות נכשלה" />}
-      {feedTab === "following" && following.isError ? (
-        <Notice text="טעינת רשימת המעקב נכשלה" />
-      ) : posts.isPending ? (
+      {posts.isError ? null : posts.isPending ? (
         <Notice text="טוענת עבודות..." />
       ) : list.length === 0 && !posts.hasNextPage ? (
         <div className="py-16 text-center border-y border-border">
@@ -1488,9 +1524,7 @@ function Feed({
             {savedOnly
               ? "אין עדיין עבודות שמורות"
               : feedTab === "following"
-                ? followingIds.length
-                  ? "אין עדיין פוסטים ממי שאת עוקבת אחריה"
-                  : "עדיין לא עקבת אחרי חברות קהילה"
+                ? "אין עדיין פוסטים ממי שאת עוקבת אחריה"
                 : feedTab === "gallery"
                   ? "אין עדיין עבודות עם תמונות"
                   : feedTab === "discussions"
@@ -1735,7 +1769,7 @@ function PricingCalculator({ user }: { user: Person }) {
     length: "natural",
     effects: [],
     extraMinutes: 0,
-    materials: 20,
+    materials: 0,
     overhead: DEFAULT_OVERHEAD,
     vat: false,
     discountType: "percent",
@@ -1743,11 +1777,10 @@ function PricingCalculator({ user }: { user: Person }) {
   });
   const [treatment, setTreatment] = useState<string>(TREATMENTS[0][0]);
   const [exp, setExp] = useState<string>("experienced");
-  const [brands, setBrands] = useState("");
+  const [packagePrice, setPackagePrice] = useState("");
+  const [packageQuantity, setPackageQuantity] = useState("");
+  const [usedQuantity, setUsedQuantity] = useState("");
   const [msg, setMsg] = useState("");
-  const [aiNote, setAiNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const estimate = useServerFn(estimateMaterialCost);
   const qc = useQueryClient();
   let r: ReturnType<typeof calculateTreatment> | null;
   try {
@@ -1763,28 +1796,17 @@ function PricingCalculator({ user }: { user: Person }) {
     const t = TREATMENTS.find((x) => x[0] === id);
     if (t) setC({ ...c, minutes: t[2] });
   }
-  async function ai() {
-    setBusy(true);
-    setMsg("");
+  function addMaterialCost() {
     try {
-      const res = await estimate({
-        data: {
-          treatment: tName,
-          length: LENGTHS.find((l) => l[0] === c.length)![1],
-          effects: c.effects.map((e) => EFFECTS.find((x) => x[0] === e)![1]).join(", "),
-          materials: brands,
-        },
-      });
-      if (res.error) {
-        setMsg(res.error);
-        return;
-      }
-      setC((v) => ({ ...v, materials: res.cost }));
-      setAiNote(res.note);
+      if (!packagePrice.trim() || !packageQuantity.trim() || !usedQuantity.trim()) throw new Error("invalid");
+      const cost = calculateMaterialCost(Number(packagePrice), Number(packageQuantity), Number(usedQuantity));
+      setC((v) => ({ ...v, materials: Math.round((v.materials + cost) * 100) / 100 }));
+      setPackagePrice("");
+      setPackageQuantity("");
+      setUsedQuantity("");
+      setMsg(`עלות של ${cost.toLocaleString("he-IL")} ₪ נוספה לעלות החומרים.`);
     } catch {
-      setMsg("פרטי את החומרים בטקסט רגיל (לפחות 3 תווים)");
-    } finally {
-      setBusy(false);
+      setMsg("יש להזין מחיר וכמות שימוש תקינים וכמות אריזה גדולה מאפס.");
     }
   }
   async function save() {
@@ -1890,7 +1912,7 @@ function PricingCalculator({ user }: { user: Person }) {
                   {LENGTHS.map((l) => (
                     <option key={l[0]} value={l[0]}>
                       {l[1]}
-                      {l[2] ? ` (+${l[2]} דק׳, +${l[3]} ₪)` : ""}
+                      {l[2] ? ` (+${l[2]} דק׳ משוערות)` : ""}
                     </option>
                   ))}
                 </select>
@@ -1907,6 +1929,7 @@ function PricingCalculator({ user }: { user: Person }) {
             </div>
             <fieldset>
               <legend className="text-xs font-bold mb-2">אפקטים וקישוטים</legend>
+              <p className="text-xs text-muted-foreground mb-2">תוספות הזמן לאורך ולאפקטים הן הערכות; בדקי שהמשך הכולל מתאים לזמן העבודה בפועל.</p>
               <div className="grid sm:grid-cols-2 gap-2">
                 {EFFECTS.map((e) => (
                   <label key={e[0]} className="flex items-center gap-2 text-sm">
@@ -1930,25 +1953,19 @@ function PricingCalculator({ user }: { user: Person }) {
           </section>
           <section className={card}>
             <h2 className="font-black">עלות חומרים</h2>
-            <Entry label="מותגים וסוגי חומרים">
-              <textarea
-                maxLength={1000}
-                value={brands}
-                onChange={(e) => setBrands(e.target.value)}
-                placeholder="לדוגמה: אקריל של CND, בייס קודי, טופ ללא ניגוב"
-                className={field}
-              />
-            </Entry>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy || brands.trim().length < 3}
-              onClick={ai}
-            >
-              <Sparkles />
-              {busy ? "מעריכה..." : "הערכת עלות חומרים עם AI"}
-            </Button>
-            {aiNote && <p className="text-xs text-muted-foreground">{aiNote}</p>}
+            <p className="text-xs text-muted-foreground">הזיני את העלות הכוללת לטיפול, או חשבי והוסיפי כל חומר לפי מחיר האריזה והכמות שבה השתמשת. השתמשי באותה יחידת מידה לשתי הכמויות.</p>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <Entry label="מחיר אריזה (₪)">
+                <input type="number" min={0} step="any" value={packagePrice} onChange={(e) => setPackagePrice(e.target.value)} className={field} />
+              </Entry>
+              <Entry label="כמות באריזה">
+                <input type="number" min={0} step="any" value={packageQuantity} onChange={(e) => setPackageQuantity(e.target.value)} className={field} />
+              </Entry>
+              <Entry label="כמות לטיפול">
+                <input type="number" min={0} step="any" value={usedQuantity} onChange={(e) => setUsedQuantity(e.target.value)} className={field} />
+              </Entry>
+            </div>
+            <Button type="button" variant="outline" onClick={addMaterialCost}>הוספת עלות החומר</Button>
             <Entry label="עלות חומרים לטיפול (₪)">
               <input
                 type="number"
@@ -2041,13 +2058,18 @@ function HealthForm({ user }: { user: Person }) {
     additional_notes: "",
   });
   const qc = useQueryClient();
+  const [page, setPage] = useState(0);
   const records = useQuery({
-    queryKey: ["hub-health", user.id],
+    queryKey: ["hub-health", user.id, page],
+    staleTime: 30_000,
     queryFn: async () => {
+      const { from, to } = pageRange(page);
       const { data, error } = await supabase
         .from("health_declarations")
         .select("id,full_name,created_at")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
       if (error) throw error;
       return data;
     },
@@ -2185,13 +2207,14 @@ function HealthForm({ user }: { user: Person }) {
         {records.isError ? (
           <Notice text="טעינת ההצהרות נכשלה" />
         ) : (
-          (records.data ?? []).map((r) => (
+          (records.data ?? []).slice(0, PAGE_SIZE).map((r) => (
             <div key={r.id} className="py-2 flex justify-between text-sm">
               <span>{r.full_name}</span>
               <span>{new Date(r.created_at).toLocaleDateString("he-IL")}</span>
             </div>
           ))
         )}
+        <Pagination page={page} onPageChange={setPage} hasNext={(records.data?.length ?? 0) > PAGE_SIZE} loading={records.isFetching} />
       </div>
     </>
   );
@@ -2215,13 +2238,15 @@ function InsuranceForm({ user }: { user: Person }) {
   const [busy, setBusy] = useState(false);
   const leads = useQuery({
     queryKey: ["hub-insurance", user.id],
+    staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from("insurance_leads")
-        .select("id,created_at")
+        .select("id", { count: "exact", head: true })
         .eq("user_id", user.id);
       if (error) throw error;
-      return data;
+      if (count === null) throw new Error("ספירת השאלונים נכשלה");
+      return count;
     },
   });
   async function submit(e: React.FormEvent) {
@@ -2295,7 +2320,7 @@ function InsuranceForm({ user }: { user: Person }) {
         {msg && <Notice text={msg} />}
       </form>
       <p className="text-sm text-muted-foreground mt-6">
-        שאלונים שנשמרו: {leads.data?.length ?? 0}
+        {leads.isError ? "טעינת מספר השאלונים נכשלה" : leads.isPending ? "טוענת מספר שאלונים..." : `שאלונים שנשמרו: ${leads.data}`}
       </p>
     </>
   );
@@ -2329,7 +2354,6 @@ function PriceList({ user }: { user: Person }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<Row<"price_list_items">[]>([]);
-  const loaded = useRef(false);
   const [title, setTitle] = useState(user.businessName || user.fullName);
   const [target, setTarget] = useState<"background" | "text" | "title" | "border">("background");
   const [colors, setColors] = useState<PriceListColors>({ ...DEFAULT_PRICE_LIST_COLORS });
@@ -2424,23 +2448,35 @@ function PriceList({ user }: { user: Person }) {
     "פדיקור רפואי",
     "פדיקור אקספרס",
   ];
-  const list = useQuery({
+  const list = useInfiniteQuery({
     queryKey: ["hub-prices", user.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
+    initialPageParam: null as PageCursor | null,
+    staleTime: 30_000,
+    queryFn: async ({ pageParam }) => {
+      let query = supabase
         .from("price_list_items")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at");
+        .order("created_at")
+        .order("id")
+        .limit(PAGE_SIZE + 1);
+      if (pageParam) query = query.or(`created_at.gt.${pageParam.createdAt},and(created_at.eq.${pageParam.createdAt},id.gt.${pageParam.id})`);
+      const { data, error } = await query;
       if (error) throw error;
-      return data;
+      const items = data.slice(0, PAGE_SIZE);
+      const last = items.at(-1);
+      return { items, next: data.length > PAGE_SIZE && last ? { createdAt: last.created_at, id: last.id } : null };
     },
+    getNextPageParam: (last) => last.next ?? undefined,
   });
+  useEffect(() => { setRows([]); }, [user.id]);
   useEffect(() => {
-    if (list.data && !loaded.current) {
-      setRows(list.data);
-      loaded.current = true;
-    }
+    if (!list.data) return;
+    const fetched = list.data.pages.flatMap((page) => page.items);
+    setRows((current) => {
+      const known = new Set(current.map((item) => item.id));
+      return [...current, ...fetched.filter((item) => !known.has(item.id))];
+    });
   }, [list.data]);
   function move(id: string, to: number) {
     setRows((current) => {
@@ -2619,6 +2655,14 @@ function PriceList({ user }: { user: Person }) {
           <Save />
         </Button>
       </header>
+      {list.hasNextPage && (
+        <div className="mb-4 space-y-2" role="status">
+          <p className="text-sm text-muted-foreground">התצוגה כוללת רק את הטיפולים שנטענו. טעני טיפולים נוספים כדי לכלול אותם במחירון.</p>
+          <Button type="button" variant="outline" disabled={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
+            {list.isFetchingNextPage ? "טוענת טיפולים..." : "טעינת טיפולים נוספים"}
+          </Button>
+        </div>
+      )}
       <div
         role="tablist"
         aria-label="תצוגת המחולל"

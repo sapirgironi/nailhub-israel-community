@@ -1,9 +1,11 @@
 import {PASSWORD_LENGTH_MESSAGE} from './password-policy';
-export type ErrorKind = 'weak_password' | 'email_exists' | 'credentials' | 'unconfirmed' | 'rate_limit' | 'network' | 'forbidden' | 'expired' | 'configuration' | 'unknown';
+export type ErrorKind = 'weak_password' | 'email_exists' | 'credentials' | 'unconfirmed' | 'rate_limit' | 'network' | 'forbidden' | 'expired' | 'configuration' | 'image_configuration' | 'image_permission' | 'unknown';
 export function classifyError(error: unknown): ErrorKind {
   const value = typeof error === 'object' && error !== null ? error as {code?: unknown; message?: unknown; status?: unknown} : {};
   const code = String(value.code ?? '');
   const message = String(value.message ?? '').toLowerCase();
+  if (message.includes('שירות התמונות דחה את פרטי הגישה')) return 'image_configuration';
+  if (message.includes('לשירות התמונות אין הרשאה להעלות תמונות')) return 'image_permission';
   if (code === 'invalid_api_key' || /invalid api key|no api key found|missing supabase environment variable|invalid supabase configuration/.test(message)) return 'configuration';
   if (code === 'weak_password' || /weak password|password.*(least|short|weak|strength|pwned)|password is known/.test(message)) return 'weak_password';
   if (['user_already_exists','email_exists'].includes(code) || /already.*(registered|exists)/.test(message)) return 'email_exists';
@@ -25,6 +27,8 @@ const messages: Record<ErrorKind,string> = {
   forbidden:'אין לך הרשאה לבצע פעולה זו.',
   expired:'החיבור לחשבון הסתיים. התחברי שוב כדי להמשיך.',
   configuration:'שירות ההתחברות אינו מוגדר כראוי. פני לתמיכה.',
+  image_configuration:'שירות התמונות אינו מוגדר כראוי. פני לתמיכה.',
+  image_permission:'שירות התמונות אינו מורשה להעלות תמונות. פני לתמיכה.',
   unknown:'הפעולה לא הושלמה. נסי שוב בעוד כמה רגעים.',
 };
 export function hebrewError(error: unknown, fallback = messages.unknown): string {

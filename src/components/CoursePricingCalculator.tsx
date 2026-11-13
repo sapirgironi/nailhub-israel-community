@@ -18,7 +18,7 @@ import {
   DEFAULT_CALCULATOR_STATE,
   calculateCoursePricing,
 } from "@/lib/course-pricing";
-import { academyStorage } from "@/lib/academy-storage";
+import { academyServerStorage } from "@/lib/academy-server-storage";
 import { generateSyllabusFromCourse } from "@/lib/academy-syllabus";
 import { hebrewError } from "@/lib/hebrew-errors";
 import { plainText } from "@/lib/input-security";
@@ -185,6 +185,7 @@ export function CoursePricingCalculator({
   }));
   const [courseTitle, setCourseTitle] = useState("קורס בסיס ומבנה אנטומי");
   const [saveMessage, setSaveMessage] = useState("");
+  const [savingCourse, setSavingCourse] = useState(false);
 
   function update<K extends keyof CalculatorState>(key: K, value: CalculatorState[K]) {
     setState((current) => ({ ...current, [key]: value }));
@@ -210,8 +211,8 @@ export function CoursePricingCalculator({
     });
   }
 
-  function saveCourse() {
-    if (!userId || !result) return;
+  async function saveCourse() {
+    if (!userId || !result || savingCourse) return;
 
     const validatedTitle = plainText(100).safeParse(courseTitle.trim());
     if (!validatedTitle.success || validatedTitle.data.length === 0) {
@@ -220,6 +221,7 @@ export function CoursePricingCalculator({
     }
 
     try {
+      setSavingCourse(true);
       const now = new Date().toISOString();
       const course: SavedCourse = {
         id: crypto.randomUUID(),
@@ -232,12 +234,14 @@ export function CoursePricingCalculator({
         pricingOutput: result,
       };
       course.content = generateSyllabusFromCourse(course);
-      academyStorage.saveCourse(userId, course);
-      setSaveMessage("הקורס והסילבוס נשמרו במכשיר הזה.");
+      await academyServerStorage.createCourse(userId, course);
+      setSaveMessage("הקורס והסילבוס נשמרו בחשבון שלך.");
       window.setTimeout(() => setSaveMessage(""), 3000);
     } catch (error) {
       console.error("Failed to save academy course", error);
       setSaveMessage(hebrewError(error, "לא ניתן לשמור את הקורס. נסי שוב."));
+    } finally {
+      setSavingCourse(false);
     }
   }
 
@@ -599,7 +603,12 @@ export function CoursePricingCalculator({
                           className="text-right"
                         />
                       </div>
-                      <Button type="button" className="w-full" onClick={saveCourse}>
+                      <Button
+                        type="button"
+                        className="w-full"
+                        onClick={saveCourse}
+                        disabled={savingCourse}
+                      >
                         <Save aria-hidden="true" />
                         שמירת הקורס במאגר האישי
                       </Button>

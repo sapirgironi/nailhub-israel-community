@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BookOpen, GraduationCap, Trash2 } from "lucide-react";
-import { academyStorage } from "@/lib/academy-storage";
+import { academyServerStorage } from "@/lib/academy-server-storage";
 import { hebrewError } from "@/lib/hebrew-errors";
 import type { SavedCourse } from "@/types/academy";
 import { CourseLandingEditor } from "./CourseLandingEditor";
@@ -19,25 +19,36 @@ export function AcademyCourseLibrary({ userId }: { userId: string }) {
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      setCourses(academyStorage.getCourses(userId));
-      setMessage("");
-    } catch (error) {
-      console.error("Failed to load academy course library", error);
-      setCourses([]);
-      setMessage(hebrewError(error, "לא ניתן לטעון את מאגר הקורסים."));
-    }
+    let active = true;
+    academyServerStorage
+      .getCourses(userId)
+      .then((saved) => {
+        if (active) {
+          setCourses(saved);
+          setMessage("");
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load academy course library", error);
+        if (active) {
+          setCourses([]);
+          setMessage(hebrewError(error, "לא ניתן לטעון את מאגר הקורסים."));
+        }
+      });
+    return () => {
+      active = false;
+    };
   }, [userId]);
 
-  function deleteCourse(courseId: string) {
+  async function deleteCourse(courseId: string) {
     const course = courses.find((item) => item.id === courseId);
     if (!course || !window.confirm(`למחוק את הקורס "${course.title}" מהמאגר האישי?`)) return;
 
     try {
-      academyStorage.deleteCourse(userId, courseId);
+      await academyServerStorage.deleteCourse(userId, courseId);
       setCourses((current) => current.filter((item) => item.id !== courseId));
       setEditingCourseId((current) => (current === courseId ? null : current));
-      setMessage("הקורס ועמוד הקורס המקומי נמחקו.");
+      setMessage("הקורס ועמוד הקורס נמחקו מהשרת.");
     } catch (error) {
       console.error("Failed to delete academy course", error);
       setMessage(hebrewError(error, "לא ניתן למחוק את הקורס. נסי שוב."));
@@ -53,8 +64,8 @@ export function AcademyCourseLibrary({ userId }: { userId: string }) {
         <div>
           <h1 className="text-2xl font-black">מאגר הקורסים שלי</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            נתוני הקורס ועמודי הקורס נשמרים במכשיר הזה בלבד. קישור ששיתפת ייפתח רק בדפדפן שבו הקורס
-            נשמר.
+            הקורסים נשמרים בחשבון שלך. קורסים מהמכשיר מועברים כטיוטות פרטיות; פרסום מחדש הופך את דף
+            הקורס לנגיש לכל מי שיש לו קישור.
           </p>
         </div>
       </header>

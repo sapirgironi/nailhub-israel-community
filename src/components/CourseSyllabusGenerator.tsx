@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BookOpen, ExternalLink, EyeOff, MessageCircle, Printer, Upload } from "lucide-react";
-import { academyStorage } from "@/lib/academy-storage";
+import { academyServerStorage } from "@/lib/academy-server-storage";
 import { generateSyllabusFromCourse } from "@/lib/academy-syllabus";
 import { hebrewError } from "@/lib/hebrew-errors";
 import type {
@@ -31,6 +31,7 @@ export function CourseSyllabusGenerator({
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [content, setContent] = useState<GeneratedCourseContent | null>(null);
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"student" | "instructor">("student");
   const [siteOrigin, setSiteOrigin] = useState("");
 
@@ -40,11 +41,16 @@ export function CourseSyllabusGenerator({
     setSiteOrigin(window.location.origin);
   }, []);
 
-  function publishSelectedCourse() {
-    if (!selectedCourse || !content) return;
+  async function publishSelectedCourse() {
+    if (!selectedCourse || !content || saving) return;
+    if (
+      !window.confirm("לפרסם את דף הקורס? כל מי שיש לו קישור יוכל לצפות בו. מספר הטלפון לא יוצג.")
+    )
+      return;
     setMessage("");
 
     try {
+      setSaving(true);
       const branding: CourseBranding = {
         primaryColor: "#e11d48",
         secondaryColor: "#fff1f2",
@@ -71,55 +77,68 @@ export function CourseSyllabusGenerator({
         branding,
         content,
       };
-      academyStorage.saveCourse(userId, updatedCourse);
+      const savedCourse = await academyServerStorage.saveCourse(userId, updatedCourse);
       setCourses((current) =>
-        current.map((course) => (course.id === updatedCourse.id ? updatedCourse : course)),
+        current.map((course) => (course.id === savedCourse.id ? savedCourse : course)),
       );
-      setMessage("דף הקורס נשמר במכשיר ועודכן. אפשר לפתוח אותו או לשתף בוואטסאפ באותו מכשיר.");
+      setMessage("דף הקורס פורסם. אפשר לשתף את הקישור.");
     } catch (error) {
       console.error("Failed to save local academy publication", error);
-      setMessage(hebrewError(error, "שמירת דף הקורס במכשיר נכשלה. בדקי את המקום הפנוי ונסי שוב."));
+      setMessage(hebrewError(error, "פרסום דף הקורס נכשל. נסי שוב."));
+    } finally {
+      setSaving(false);
     }
   }
 
-  function unpublishSelectedCourse() {
-    if (!selectedCourse?.isPublished) return;
-    if (!window.confirm("להסיר את דף הקורס מהמכשיר? הקישור לא יהיה זמין יותר בדפדפן הזה.")) return;
+  async function unpublishSelectedCourse() {
+    if (!selectedCourse?.isPublished || saving) return;
+    if (!window.confirm("להסיר את דף הקורס מהפרסום? הקישור לא יהיה זמין יותר לציבור.")) return;
 
     setMessage("");
     try {
+      setSaving(true);
       const updatedCourse = { ...selectedCourse };
       delete updatedCourse.isPublished;
       delete updatedCourse.landingProfile;
       delete updatedCourse.publicId;
-      academyStorage.saveCourse(userId, updatedCourse);
+      const savedCourse = await academyServerStorage.saveCourse(userId, updatedCourse);
       setCourses((current) =>
-        current.map((course) => (course.id === updatedCourse.id ? updatedCourse : course)),
+        current.map((course) => (course.id === savedCourse.id ? savedCourse : course)),
       );
-      setMessage("דף הקורס הוסר מאחסון המכשיר.");
+      setMessage("דף הקורס הוסר מהפרסום.");
     } catch (error) {
       console.error("Failed to remove local academy publication", error);
-      setMessage(hebrewError(error, "הסרת דף הקורס מאחסון המכשיר נכשלה. נסי שוב."));
+      setMessage(hebrewError(error, "הסרת דף הקורס מהפרסום נכשלה. נסי שוב."));
+    } finally {
+      setSaving(false);
     }
   }
 
   useEffect(() => {
-    try {
-      const savedCourses = academyStorage.getCourses(userId);
-      setCourses(savedCourses);
-      const firstCourse = savedCourses[0];
-      setSelectedCourseId(firstCourse?.id ?? "");
-      setContent(
-        firstCourse ? (firstCourse.content ?? generateSyllabusFromCourse(firstCourse)) : null,
-      );
-      setMessage("");
-    } catch (error) {
-      console.error("Failed to load academy courses", error);
-      setCourses([]);
-      setSelectedCourseId("");
-      setContent(null);
-      setMessage(hebrewError(error, "לא ניתן לטעון את הקורסים השמורים."));
-    }
+    let active = true;
+    academyServerStorage
+      .getCourses(userId)
+      .then((savedCourses) => {
+        if (!active) return;
+        setCourses(savedCourses);
+        const firstCourse = savedCourses[0];
+        setSelectedCourseId(firstCourse?.id ?? "");
+        setContent(
+          firstCourse ? (firstCourse.content ?? generateSyllabusFromCourse(firstCourse)) : null,
+        );
+        setMessage("");
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load academy courses", error);
+        if (!active) return;
+        setCourses([]);
+        setSelectedCourseId("");
+        setContent(null);
+        setMessage(hebrewError(error, "לא ניתן לטעון את הקורסים השמורים."));
+      });
+    return () => {
+      active = false;
+    };
   }, [userId]);
 
   function handleSelectCourse(courseId: string) {
@@ -187,8 +206,6 @@ export function CourseSyllabusGenerator({
     "👇 תוכנית המפגשים, הערכה וכל פרטי הקורס:",
     landingUrl,
     "",
-    "שימי לב: הדף זמין רק בדפדפן שבו הקורס נשמר.",
-    "",
     "_הופק באמצעות פלטפורמת NailHub_",
   ].join("\n");
   const whatsappShareUrl = landingUrl
@@ -247,9 +264,13 @@ export function CourseSyllabusGenerator({
               </option>
             ))}
           </select>
-          <Button type="button" onClick={publishSelectedCourse} disabled={!selectedCourse}>
+          <Button
+            type="button"
+            onClick={publishSelectedCourse}
+            disabled={!selectedCourse || saving}
+          >
             <Upload aria-hidden="true" />
-            {selectedCourse?.isPublished ? "עדכון דף מקומי" : "שמירת דף מקומי"}
+            {selectedCourse?.isPublished ? "עדכון דף הקורס" : "פרסום דף הקורס"}
           </Button>
           {selectedCourse?.isPublished && siteOrigin && (
             <>
@@ -265,7 +286,12 @@ export function CourseSyllabusGenerator({
                   שתפי בוואטסאפ
                 </a>
               </Button>
-              <Button type="button" variant="outline" onClick={unpublishSelectedCourse}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={unpublishSelectedCourse}
+                disabled={saving}
+              >
                 <EyeOff aria-hidden="true" />
                 הסרת פרסום
               </Button>
@@ -284,8 +310,8 @@ export function CourseSyllabusGenerator({
         </p>
       )}
       <p className="no-print text-xs text-muted-foreground">
-        דף הקורס נשמר במכשיר הזה בלבד. קישור ששיתפת ייפתח רק בדפדפן שבו הקורס נשמר. יוצגו בו פרטי
-        הסילבוס לתלמידה והמיתוג; מחיר, טלפון ומערך ההדרכה נשארים פרטיים.
+        לאחר הפרסום הדף זמין לכל מי שיש לו קישור. יוצגו בו פרטי הסילבוס לתלמידה והמיתוג; חישובי
+        המחיר, מספר הטלפון ומערך ההדרכה נשארים פרטיים.
       </p>
 
       <div

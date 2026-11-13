@@ -56,6 +56,18 @@ export function getRoleForAccountRole(
   return "CLIENT_MODEL";
 }
 
+export function canCreateFeedContent(
+  accountRole: string | undefined,
+  isAdmin = false,
+  previewRole?: PreviewRole,
+): boolean {
+  const effectiveRole = isAdmin ? (previewRole ?? "SUPER_ADMIN") : getRoleForAccountRole(accountRole);
+  return (
+    (accountRole === "nail_tech" || accountRole === "instructor") &&
+    (!isAdmin || effectiveRole === "SUPER_ADMIN")
+  );
+}
+
 export function canAccessSection(role: PreviewRole, section: HubSection): boolean {
   if (role === "SUPER_ADMIN") return true;
   if (

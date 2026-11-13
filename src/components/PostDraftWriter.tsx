@@ -1,54 +1,50 @@
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Copy, Check } from "lucide-react";
-import { draftPost } from "@/lib/post-draft.functions";
+import { createPostDraft, POST_CATEGORIES, POST_TONES, type PostCategory, type PostTone } from "@/lib/post-templates";
 import {hebrewError} from '@/lib/hebrew-errors';
 import {Button} from './ui/button';
 import { plainText } from '@/lib/input-security';
 
-const TONES = ["מקצועי", "חם ואישי", "מעורר השראה"];
-
 export function PostDraftWriter() {
-  const run = useServerFn(draftPost);
   const [description, setDescription] = useState("");
-  const [tone, setTone] = useState(TONES[0] ?? 'מקצועי');
+  const [category, setCategory] = useState<PostCategory>("work");
+  const [tone, setTone] = useState<PostTone>("מקצועי");
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const validated = plainText(2000).safeParse(description);
     if (!validated.success || validated.data.length < 10) { setError('יש להזין טקסט רגיל בלבד, בין 10 ל-2000 תווים'); return; }
-    setLoading(true); setError("");
-    try {
-      const res = await run({ data: { description: validated.data, tone } });
-      if (res.error) setError(hebrewError(res.error, "יצירת הטיוטה נכשלה. נסי שוב בעוד רגע.")); else setDraft(res.draft);
-    } catch (err) {
-      setError(hebrewError(err, "יצירת הטיוטה נכשלה. נסי שוב בעוד רגע."));
-    } finally { setLoading(false); }
+    setError("");
+    setDraft(createPostDraft(category, tone, validated.data));
   };
 
   return (
     <div className="max-w-2xl mx-auto bg-card rounded-[2rem] border border-border p-6 md:p-8 shadow-soft space-y-5 text-right" dir="rtl">
       <div>
         <h2 className="text-2xl font-black text-primary inline-flex items-center gap-2"><Sparkles className="w-6 h-6 text-primary" />כתיבת פוסט חכמה</h2>
-        <p className="text-xs text-muted-foreground mt-1">תארי את הטיפול או הטכניקה, ונכין לך טיוטת פוסט מקצועית לפרסום בקהילה.</p>
+        <p className="text-xs text-muted-foreground mt-1">בחרי נושא וסגנון, והוסיפי פרטים לתבנית פוסט שאפשר לערוך.</p>
       </div>
       <form onSubmit={submit} className="space-y-4">
+        <label className="block text-sm font-bold">נושא הפוסט
+          <select value={category} onChange={(e) => setCategory(e.target.value as PostCategory)} className="w-full mt-2 px-4 py-3 rounded-2xl border border-input bg-card">
+            {POST_CATEGORIES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+        </label>
         <textarea required minLength={10} maxLength={2000} rows={5} value={description} onChange={(e) => setDescription(e.target.value)}
           placeholder="לדוגמה: מבנה אנטומי בג'ל על ציפורניים קצרות וחלשות, עם פרנץ' לבן עדין. השתמשתי בבייס מחזק..."
           className="w-full px-4 py-3 rounded-2xl border border-input bg-card focus:ring-2 focus:ring-ring outline-none text-sm leading-relaxed" />
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs font-bold text-muted-foreground">סגנון:</span>
-          {TONES.map((t) => (
+          {POST_TONES.map((t) => (
             <Button type="button" key={t} onClick={() => setTone(t)}
               className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${tone === t ? "bg-accent text-accent-foreground border-border" : "bg-card text-muted-foreground border-border hover:bg-accent"}`}>{t}</Button>
           ))}
         </div>
-        <Button disabled={loading} className="w-full bg-rose-glam text-primary-foreground font-extrabold py-3.5 rounded-2xl text-sm shadow-glow disabled:opacity-60 inline-flex items-center justify-center gap-2">
-          <Sparkles className="w-4 h-4" />{loading ? "כותבת לך טיוטה..." : "יצירת טיוטת פוסט"}
+        <Button className="w-full bg-rose-glam text-primary-foreground font-extrabold py-3.5 rounded-2xl text-sm shadow-glow disabled:opacity-60 inline-flex items-center justify-center gap-2">
+          <Sparkles className="w-4 h-4" />יצירת טיוטת פוסט
         </Button>
       </form>
       {error && <p className="text-xs text-destructive bg-accent rounded-xl p-3 text-right">{error}</p>}

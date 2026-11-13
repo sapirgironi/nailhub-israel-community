@@ -9,6 +9,8 @@ import {
   newClientRequestClaimToken,
 } from "@/lib/client-request";
 import { hebrewError } from "@/lib/hebrew-errors";
+import { submitClientRequest } from "@/lib/client-request.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "./ui/button";
 import { ClientConfirmationScreen } from "./ClientConfirmationScreen";
 
@@ -19,6 +21,7 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
 
 export function ClientRequestPage({ techId }: { techId: string }) {
   const navigate = useNavigate();
+  const submitRequest = useServerFn(submitClientRequest);
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
@@ -114,16 +117,15 @@ export function ClientRequestPage({ techId }: { techId: string }) {
     try {
       const claimToken = newClientRequestClaimToken();
       const requestId = crypto.randomUUID();
-      const { error } = await supabase.from("client_requests").insert({
-        id: requestId,
-        tech_id: techId,
-        full_name: parsed.data.fullName,
-        phone: parsed.data.phone,
-        request_type: parsed.data.requestType,
-        description: parsed.data.description,
-        claim_token: claimToken,
-      });
-      if (error) throw error;
+      const result = await submitRequest({ data: { ...parsed.data, techId, requestId, claimToken } });
+      if (result !== "submitted") {
+        setErrorMessage(
+          result === "rate_limited" ? "נשלחו יותר מדי פניות ממקור זה. נסי שוב בעוד שעה."
+            : result === "duplicate" ? "פנייה זהה כבר נשלחה לאחרונה."
+            : "לא ניתן לשלוח פנייה לטכנאית הזו כרגע.",
+        );
+        return;
+      }
 
       const pending: PendingRequest = { requestId, claimToken, techId };
       setSubmitted(true);

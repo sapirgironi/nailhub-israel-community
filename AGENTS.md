@@ -11,8 +11,8 @@
 
 - Profiles are created by the `handle_new_user` signup trigger from auth metadata; client never inserts profiles directly (keeps role/status trusted).
 - Admin rights live only in `user_roles` + `has_role()`; never add admin flags to `profiles` (prevents self-escalation).
-- AI calls run server-side in `*.server.ts`, exposed via authenticated `*.functions.ts` server functions (keeps the AI key off the browser).
-- Comment moderation uses the shared request-scoped direct OpenAI provider; other AI features retain their existing provider to keep migrations scoped.
+- AI-assisted generation and its provider integrations have been removed; feed writing uses local, editable templates instead.
+- Comment moderation uses the database-backed blocked-words check and account sanctions, not AI; keep these checks on the server.
 - Comments publish exclusively through the authenticated moderation server function; direct client inserts are revoked to prevent bypassing safety checks.
 - Personal-record tables are owner/admin scoped; legacy rows without an owner remain admin-only because ownership must never be guessed.
 - Free text uses shared plain-text schemas and database validation triggers; React renders it as text, never HTML, to prevent executable markup.
@@ -27,7 +27,7 @@
 
 - RegistrationForm owns signup presentation while NailHubApp retains real auth/profile handlers; no benefit claims or mocked supplier approval are imported from demo uploads.
 - Owner-authored policy pages are standalone public routes without auth-dependent loaders or HubShell, so legal information remains accessible before signup.
-- Permanent bans use the central is_account_banned predicate with restrictive application/storage policies and active-account AI middleware; the UI checks on load, focus and periodically to deny existing sessions too.
+- Permanent bans use the central is_account_banned predicate with restrictive application/storage policies and active-account server middleware; the UI checks on load, focus and periodically to deny existing sessions too.
 - Admin-only email lookup verifies has_role before importing the privileged client; supplier credit set/add uses a serialized database function so concurrent updates cannot overwrite balances.
 - Story text uses pixel-width wrappers and natural word wrapping; resizing never changes font size, and text size is slider-controlled without transform scaling. Background pan/scale and text bounds are canvas-relative; export rasterizes the same transformed DOM to JPEG. Admin stickers are private blobs to avoid cross-origin canvas taint.
 - Story controls share one translucent bottom drawer that collapses independently of layer selection; the mobile canvas fills editor width at 9:16 and background cover geometry is shared with pan bounds/export.
@@ -37,6 +37,5 @@
 - Story mentions persist stable member IDs with normalized image hit areas; community discovery uses the authenticated narrow community_members projection, never full private profiles, so contact information stays protected.
 - Prebundle the router, query and story export dependencies with React in Vite to avoid mixed dependency generations; keep react-start out of prebundling because its server boundaries require the framework transform.
 - Feed composition is isolated in FeedPostComposer; tags use posts.service_tags and mentions store validated member IDs plus labels so rendering never trusts caller URLs.
-- Feed photo-assisted writing uses request-scoped direct OpenAI GPT-4o; premium_subscriptions is owner-readable and admin-managed, and active unexpired access is rechecked server-side before every AI call, without admin bypass or automatic subscription grants.
-- Plans and functional prototype routes use an isolated demo shell and demo-only session storage; never pass the demo selection to authentication, real AI, roles, verification, subscriptions or payments. Existing private health and pricelist tools remain separate because fictional previews must never mutate real records.
+- Plans and functional prototype routes use an isolated demo shell and demo-only session storage; never pass the demo selection to authentication, roles, verification, subscriptions or payments. Existing private health and pricelist tools remain separate because fictional previews must never mutate real records.
 - Plan upgrade buttons check the signed-in account's persisted professional category independently of demo selection; nonprofessionals submit existing role-change requests, and credits remain display-only until billing exists, to prevent fictitious upgrades or grants.

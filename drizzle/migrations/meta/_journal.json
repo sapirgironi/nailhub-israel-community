@@ -190,6 +190,83 @@
       "when": 1793340625702,
       "tag": "0026_scope_engagement_reads_to_visible_posts",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793340625703,
+      "tag": "0029_public_client_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793340625704,
+      "tag": "0033_reconcile_feed_and_follow_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793340625705,
+      "tag": "0034_protect_post_moderation_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793340625706,
+      "tag": "0035_academy_courses",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793340625707,
+      "tag": "0036_reconcile_signup_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793340625708,
+      "tag": "0037_revoke_dangerous_table_privileges",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793340625709,
+      "tag": "0038_restrict_feed_story_publication",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793340625710,
+      "tag": "0039_server_mutations_and_request_rate",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793340625711,
+      "tag": "0040_paged_performance_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793340625712,
+      "tag": "0041_restrict_sticker_storage_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793340625713,
+      "tag": "0042_restrict_direct_client_mutations",
+      "breakpoints": true
     }
   ]
 }

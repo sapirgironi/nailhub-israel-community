@@ -55,30 +55,11 @@ async function reviewComment(body: string, context: { supabase: import("@supabas
       return { ok: false, flagged: [], suggestion: "", error: "החשבון מושהה כרגע ולא ניתן להגיב" };
     }
 
-    const { data: words, error: wordsError } = await supabase.from("blocked_words").select("word");
+    const { data: words, error: wordsError } = await supabase.rpc("blocked_comment_words", { comment_body: body });
     if (wordsError) return { ok: false, flagged: [], suggestion: '', error: 'בדיקת כללי הקהילה נכשלה' };
-    const lower = body.toLowerCase();
-    const localHits = (words ?? []).map((w) => w.word).filter((w) => w && lower.includes(w.toLowerCase()));
+    const localHits = words ?? [];
     if (localHits.length > 0) {
-      const { rephraseCommentText } = await import("./moderation.server");
-      let suggestion = "";
-      try {
-        suggestion = await rephraseCommentText(body, localHits);
-      } catch (e) {
-        console.error("rephrase failed", (e as { statusCode?: number })?.statusCode);
-      }
-      return { ok: false, flagged: localHits, suggestion, error: null };
+      return { ok: false, flagged: localHits, suggestion: "", error: null };
     }
-
-    try {
-      const { moderateCommentText } = await import("./moderation.server");
-      const ai = await moderateCommentText(body);
-      if (ai.toxic) return { ok: false, flagged: ai.flagged, suggestion: ai.suggestion, error: null };
-      return { ok: true, flagged: [], suggestion: "", error: null };
-    } catch (e) {
-      const status = (e as { statusCode?: number })?.statusCode;
-      console.error("moderateComment failed", status);
-      const { ModerationServiceError } = await import('./moderation.server');
-      return { ok: false, flagged: [], suggestion: "", error: e instanceof ModerationServiceError ? e.userMessage : 'שירות סינון התגובות אינו זמין כרגע. התגובה לא פורסמה; נסי שוב מאוחר יותר' };
-    }
+    return { ok: true, flagged: [], suggestion: "", error: null };
 }
